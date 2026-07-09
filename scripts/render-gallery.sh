@@ -89,7 +89,8 @@ lines = [
     "# sundog 画廊",
     "",
     f"由 `scripts/render-gallery.sh` 生成于 {datetime.date.today().isoformat()}。",
-    "图像位于 `out/gallery/`（不入库，按需重渲）。",
+    "正式图入库于 `docs/gallery/`（无损重压缩的 1080p PNG）；渲染原件在 "
+    "`out/gallery/`（不入库）。",
     "",
 ]
 
@@ -99,7 +100,7 @@ for stem in stems:
     lines += [
         f"## {stem}",
         "",
-        f"![{stem}](../out/gallery/{stem}.png)",
+        f"![{stem}](gallery/{stem}.png)",
         "",
         DESC.get(stem, ""),
         "",
@@ -128,4 +129,22 @@ with open(out_md, "w") as f:
 print("wrote", out_md)
 PY
 
-echo "render-gallery OK (${#RENDERED[@]} images in $GALLERY)"
+# Sync the finals into the repo (docs/gallery) so they render on GitHub.
+# Losslessly recompress via PIL when available (stb PNGs are ~40% larger);
+# fall back to a plain copy.
+mkdir -p "$ROOT/docs/gallery"
+if python3 -c 'import PIL' 2>/dev/null; then
+  python3 - "$GALLERY" "$ROOT/docs/gallery" << 'PY'
+import glob, os, sys
+from PIL import Image
+src, dst = sys.argv[1], sys.argv[2]
+for p in sorted(glob.glob(os.path.join(src, "*.png"))):
+    out = os.path.join(dst, os.path.basename(p))
+    Image.open(p).convert("RGB").save(out, "PNG", optimize=True)
+    print(f"optimized {os.path.basename(p)}: {os.path.getsize(p)//1024} KB -> {os.path.getsize(out)//1024} KB")
+PY
+else
+  cp -v "$GALLERY"/*.png "$ROOT/docs/gallery/"
+fi
+
+echo "render-gallery OK (${#RENDERED[@]} images in $GALLERY, synced to docs/gallery)"
