@@ -1,0 +1,11 @@
+# render outputs
+out/
+
+# large mesh assets (provenance in assets/LICENSES.md; re-download as needed)
+assets/*.obj
+
+# build trees (dev box; on the test box builds go to /tmp/sundog-build)
+build*/
+
+# per-render statistics
+*.stats.json

@@ -1,0 +1,33 @@
+{
+  "render": { "width": 1280, "height": 720, "spp": 128, "max_depth": 12, "seed": 3, "clamp": 8 },
+  "camera": { "lookfrom": [0.0, 2.1, 6.8], "lookat": [0.0, 0.9, 0.0], "vfov": 37, "aperture": 0.02 },
+  "background": { "type": "gradient", "horizon": [0.92, 0.94, 1.0], "zenith": [0.3, 0.5, 0.9] },
+  "textures": {
+    "floorGrid": { "type": "grid", "a": [0.82, 0.82, 0.85], "b": [0.22, 0.26, 0.32], "scale": [50, 50], "width": 0.045 }
+  },
+  "materials": {
+    "ground": { "type": "lambert", "texture": "floorGrid" },
+    "terracotta": { "type": "lambert", "color": [0.78, 0.3, 0.18] },
+    "gold": { "type": "metal", "color": [1.0, 0.78, 0.34], "roughness": 0.15 },
+    "glass": { "type": "dielectric", "ior": 1.5 }
+  },
+  "meshes": {
+    "bunny": { "obj": "../assets/bunny.obj", "normals": "smooth" }
+  },
+  "objects": [
+    { "shape": "rect", "material": "ground", "transform": [ { "scale": 30 } ] },
+
+    { "shape": "mesh:bunny", "material": "terracotta",
+      "transform": [ { "scale": 1.0 }, { "rotate_y": 35 }, { "translate": [-2.1, -0.021, 0.5] } ] },
+
+    { "shape": "mesh:bunny", "material": "gold",
+      "transform": [ { "scale": 1.15 }, { "rotate_y": 10 }, { "translate": [0.15, -0.024, -0.9] } ] },
+
+    { "shape": "mesh:bunny", "material": "glass",
+      "transform": [ { "scale": 1.0 }, { "rotate_y": -30 }, { "translate": [2.15, -0.021, 0.6] } ] }
+  ],
+  "lights": [
+    { "type": "distant", "direction": [-0.45, -1.0, -0.3], "radiance": [1.5, 1.4, 1.2] },
+    { "type": "point", "position": [4.5, 5.0, 3.5], "radius": 0.4, "intensity": [55, 50, 42] }
+  ]
+}
