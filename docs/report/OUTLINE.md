@@ -96,7 +96,7 @@
 2. 微表面理论——宏观粗糙=微镜面统计；D（GGX：α²/(π((n·h)²(α²-1)+1)²)）、G/G1（Smith，含 Λ 式）、完整 f_r = DGF/(4cosθ_i cosθ_o)（对账 `ggxD/ggxLambda/ggxG`）
 3. VNDF 采样——为什么按可见法线采样、pdf = G1·D/(4cosθ_o)、权重化简为 F·G/G1（对账 `ggxSampleVndf/ggxPdf`，含 roughness<1e-3 退化 delta 镜面）
 4. 菲涅尔——电介质精确式与 Schlick 近似 F0+(1-F0)(1-cosθ)⁵；金属的"F0 即颜色"；曲线图对照
-5. 折射——Snell 定律、η 按面选取、TIR 条件、出射侧余弦（对账 `refract()`（device/math.cuh）与 MT_DIELECTRIC 分支，特别是 `cosine = frontface ? -dot(rayDir,n) : -dot(refr,n)` 的原因——正是附录里原版的 bug）
+5. 折射——Snell 定律、η 按面选取、TIR 条件、出射侧余弦（对账 `refract()`（device/math.cuh）与 MT_DIELECTRIC 分支，特别是 `cosine = frontface ? -dot(rayDir,n) : -dot(refr,n)` 的原因——错用密介质侧余弦正是附录陷阱清单的第一条）
 6. 双面材质与穿透面语义（front/back、MAT_NONE）
 
 图：
@@ -104,7 +104,6 @@
 - `figures/ch05-snell.svg`：折射几何+临界角+TIR
 - `figures/ch05-fresnel-curves.png`：数据图——η=1.5 精确 Fresnel vs Schlick，0-90°
 - `figures/ch05-roughness-ladder.png`：5 个金属球 roughness 0/0.1/0.25/0.45/0.7
-- `figures/ch05-glass-tir.png`：玻璃奶牛 --parity(无TIR) vs 物理 双联
 
 ---
 
@@ -151,13 +150,14 @@
 
 小节：
 1. 朴素求交 O(N)——一帧的乘法次数量级估算（具体数字算给读者看）
-2. BVH——包围盒剪枝、树高 O(logN)；AABB 与光线的 slab 相交测试（数学）
+2. BVH——包围盒剪枝、树高 O(logN)；AABB 与光线的 slab 相交测试（数学，配 ch08-slab 图）
 3. RT Core——硬件化的是什么（BVH 遍历 + 三角形/AABB 测试）、自定义图元走 IS 程序的分工
 4. 两级结构 GAS/IAS——实例化如何天然融入；压缩（compaction）（对账 `buildAndCompact()`（src/accel.cpp））
 5. 实测规模感受：05 场景 stats（GAS 构建耗时/显存/Mrays/s，引 BENCHMARKS.md）
 
 图：
 - `figures/ch08-bvh.svg`：场景包围盒层级 + 对应二叉树 + 一根光线的剪枝路径
+- `figures/ch08-slab.svg`：AABB slab 法的三对平板区间求交
 - `figures/ch08-two-level.svg`：IAS→GAS 两级引用关系（含 SBT offset 线索，呼应第 9 章）
 
 ---
@@ -201,34 +201,32 @@
 
 ## 11-validation.md 验证方法学与性能
 
-**回答**：怎么证明渲染器"算得对"？GPU 到底快多少、为什么？
+**回答**：怎么证明渲染器"算得对"？性能怎么度量、怎么解读？
 
 小节：
 1. 正确性验证金字塔——150 万断言的 host 单测（与 GPU 共享同一份头文件的设计）、白炉测试、golden 图 PSNR≥45、sha256 决定性、compute-sanitizer
-2. 与 CPU 原版的公平对比——parity 模式复刻原采样的动机与内容；三层基准设计（compat/特性/降噪）
-3. 结果解读——80-122× 从哪来（并行度、RT core、内存层次），引用 BENCHMARKS.md 实测表格；Mrays/s 的含义
-4. 降噪的等效加速——16spp+降噪 ≈ 数千 spp 视觉质量（PSNR 26→42dB 表）
+2. 两层基准设计——特性层（五个画廊场景的渲染时间/吞吐/显存）与降噪层（低 spp + 降噪 vs 高 spp 参考的 PSNR）；计时口径（只计渲染循环，场景解析与加速结构构建不计入）
+3. 结果解读——吞吐从哪来（并行度、RT core、内存层次），引用 BENCHMARKS.md 实测表格；Mrays/s 的含义与用它还原平均路径结构
+4. 降噪的等效加速——16spp+降噪 ≈ 数千 spp 视觉质量（PSNR 表引 BENCHMARKS.md 降噪层）
 
 图：
-- `figures/ch11-speedup.png`：数据图——compat 场景 CPU vs GPU 渲染时间（对数轴柱状）+ 加速比标注
-- 表格引用 docs/BENCHMARKS.md 数字（不虚构）
+- 无专属图；表格引用 docs/BENCHMARKS.md 数字（不虚构）
 
 ---
 
-## appendix-cxxrt.md 附录：原 cxxrt 的计算问题与修正
+## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
-**回答**：重写时在原实现里发现了什么？（案例式复盘，每条=现象/数学解释/修正）
+**回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
 
-条目（均已在项目中核实）：
-1. 玻璃永远不发生 TIR——恒用 η=1/ior，判别式恒正的证明；Schlick 用错侧余弦（低估 13×）；sundog 物理模式的修正与 `--parity` 的保留
-2. Lambertian 采样分布与权重不匹配——n+球内均匀点 ≠ cosine 分布，但按完美重要性采样加权→系统性偏差
-3. 阴影线把玻璃当不透明
-4. 随机选轴的中位数切分 BVH——遍历质量与不可复现
-5. Transformer 每次求交现算 sin/cos（性能）；rotate() 的 z 分支复制粘贴（ZXZ 欧拉角的意外完备性）
-6. 无 RR 的 50 层递归、全屏共享分层抖动、random_device 不可复现
+条目：
+1. 折射率之比用错方向——恒用 η=1/ior 时判别式恒正、玻璃永远不发生 TIR 的证明；Schlick 用密介质侧余弦会严重低估反射（临界角处 F 应连续趋于 1）；sundog 按面选 η、用低折射率侧余弦（第 5 章）
+2. 采样分布与权重不匹配——"n + 球内均匀点"≠ cosine 分布，却按完美重要性采样加权→系统性偏差；sundog 用 Malley 方法精确余弦采样
+3. 阴影线把透射材质当不透明——玻璃背后影子全黑；常见工程折衷的取舍讨论：sundog 同样如此，靠面光 + BSDF 折射路径 + MIS 兜底玻璃后方与焦散
+4. 低质量 BVH 切分——随机选轴的中位数切分：兄弟盒重叠大、遍历质量差且不可复现
+5. 求交时现算变换三角函数——逐轴旋转每条光线现算 sin/cos，本可在加载时预乘成 3×4 仿射一次到位；sundog 的 Affine 复合 + OptiX 实例变换
+6. 终止与随机数的三个坑——无 RR 的深递归纯浪费且硬截断有偏；全屏共享分层抖动使像素间噪声相关；random_device 播种毁掉"同输入同输出"的回归能力
 
 图：
-- `figures/ch05-glass-tir.png` 交叉引用（放大裁剪另存 `figures/appendix-glass-zoom.png` 由产图脚本生成）
 - `figures/appendix-lambert-bias.svg`：n+单位球内点 vs 余弦采样的方向分布对比
 
 ---
@@ -244,10 +242,8 @@
 | ch04-nee.png | NEE 开关双联 | 02-cornell-lume 64spp 原样 vs sed 生成 nee:false 变体场景 |
 | ch04-clamp.png | firefly 对比双联 | 04-parabolica --size 640x360 --spp 24，--clamp 0 vs 默认 |
 | ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
-| ch05-glass-tir.png | 玻璃 parity vs 物理 | 03-spot-atrium --spp 256 --parity 与默认，裁剪玻璃奶牛区拼双联 |
 | ch06-primitives.png | 5 原语同框 | features.json 256spp |
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
-| appendix-glass-zoom.png | ch05-glass-tir 的放大裁剪 | 同一次渲染裁剪 |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -257,7 +253,6 @@
 |---|---|---|
 | ch03-mc-convergence.png | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
 | ch05-fresnel-curves.png | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
-| ch11-speedup.png | compat CPU vs GPU 时间柱状（log-y）| docs/BENCHMARKS.md 表 A 数字 |
 
 风格：白底、单一强调色系（蓝 #2563EB 主色、灰网格线）、中文标签（若字体缺中文则英文标签）、300 dpi 导出后≤1600px 宽。
 
@@ -267,8 +262,9 @@ ch01-pinhole-camera, ch01-thin-lens, ch02-solid-angle, ch02-radiance,
 ch02-rendering-equation, ch03-importance-sampling, ch04-path-trace,
 ch04-mis-weights, ch05-microfacet, ch05-snell, ch06-ray-quadric,
 ch06-barycentric, ch06-parabola-focus, ch07-instancing,
-ch07-normal-transform, ch08-bvh, ch08-two-level, ch09-optix-pipeline,
-ch09-sbt, ch10-stratified, appendix-lambert-bias（共 21 张）
+ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
+ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
+appendix-lambert-bias（共 23 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；

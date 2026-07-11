@@ -15,7 +15,6 @@ void writeStats(const RenderStats& st, const std::string& path) {
   j["max_depth"] = st.maxDepth;
   j["seed"] = st.seed;
   j["denoised"] = st.denoised;
-  j["parity"] = st.parity;
   j["timings_ms"] = {{"scene_load", st.sceneLoadMs},
                      {"gas_build", st.gasBuildMs},
                      {"render", st.renderMs},

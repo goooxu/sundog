@@ -12,7 +12,6 @@
 
 | 组件 | 用途 | 许可 |
 |---|---|---|
-| [lodepng](https://github.com/lvandeve/lodepng) | cxxrt CPU 基线的 PNG 编码（`scripts/build-cpu-baseline.sh` 克隆到 `/tmp/cxxrt-baseline/3rd-party/lodepng`） | zlib |
 
 ## 资产
 

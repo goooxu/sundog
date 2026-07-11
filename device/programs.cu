@@ -1,6 +1,6 @@
 // sundog: the single OptiX module. Raygen owns the iterative path loop
 // (NEE + MIS); closest-hit only packs hit info into payload registers;
-// anyhit implements cxxrt's pass-through faces and alpha cutouts for both
+// anyhit implements two-sided pass-through faces and alpha cutouts for both
 // radiance and shadow rays.
 #include <optix.h>
 
@@ -294,7 +294,7 @@ extern "C" __global__ void __raygen__render() {
         if (visible) {
           float3 Le = albedo * mat.intensity;
           float w = 1.0f;
-          if (!params.parity && !specularBounce && hit.lightId >= 0 &&
+          if (!specularBounce && hit.lightId >= 0 &&
               params.numLights > 0) {
             float pdfL = lightPdfSolidAngle(params.lights[hit.lightId], prevX, x) /
                          params.numLights;
@@ -308,31 +308,21 @@ extern "C" __global__ void __raygen__render() {
       }
 
       // ---- NEE ----
-      bool doNee = params.numLights > 0 && !bsdfIsDelta(mat, params.parity);
-      if (params.parity && mat.kind != MT_LAMBERT) doNee = false;
-      if (doNee) {
+      if (params.numLights > 0 && !bsdfIsDelta(mat)) {
         int k = min((int)(rng.rnd() * params.numLights), params.numLights - 1);
-        LightSample ls = sampleLight(params.lights[k], x, params.parity, rng,
-                                     params.textures);
+        LightSample ls = sampleLight(params.lights[k], x, rng, params.textures);
         float cosS = ls.valid ? dot(ls.wi, ns) : 0.0f;
         if (ls.valid && cosS > 0.0f) {
           raysTraced++;
           if (traceShadow(offsetRay(x, ns), ls.wi, ls.dist * 0.999f)) {
-            float3 c;
-            if (params.parity) {
-              // cxxrt: albedo * (1/pi) * sum_lights Li * cos  (we sample one
-              // light uniformly -> multiply by numLights)
-              c = beta * albedo * SD_INV_PI * ls.Li * cosS * (float)params.numLights;
-            } else {
-              float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / params.numLights;
-              float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
-              float w = 1.0f;
-              if (!ls.isDelta) {
-                float pdfB = bsdfPdf(mat, -d, ls.wi, ns);
-                w = pdfLe / (pdfLe + pdfB);
-              }
-              c = beta * f * cosS * ls.Li * w / pdfLe;
+            float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / params.numLights;
+            float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
+            float w = 1.0f;
+            if (!ls.isDelta) {
+              float pdfB = bsdfPdf(mat, -d, ls.wi, ns);
+              w = pdfLe / (pdfLe + pdfB);
             }
+            float3 c = beta * f * cosS * ls.Li * w / pdfLe;
             if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
             L += sanitize(c);
           }
@@ -340,8 +330,7 @@ extern "C" __global__ void __raygen__render() {
       }
 
       // ---- BSDF sample ----
-      BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface,
-                                 params.parity, rng);
+      BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface, rng);
       if (!bs.valid) break;
       beta *= bs.weight;
       specularBounce = bs.isDelta;
@@ -352,7 +341,7 @@ extern "C" __global__ void __raygen__render() {
       d = bs.wi;
 
       // ---- Russian roulette ----
-      if (!params.parity && depth >= 4) {
+      if (depth >= 4) {
         float q = clampf(maxComp(beta), 0.05f, 0.95f);
         if (rng.rnd() >= q) break;
         beta *= 1.0f / q;

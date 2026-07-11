@@ -73,26 +73,11 @@ static void testCosineHemisphere() {
   CHECK_NEAR(mz / N, 2.0 / 3.0, 0.01);
 }
 
-static void testUniformInBall() {
-  Pcg32 rng = Pcg32::init(11, 2);
-  const int N = 50000;
-  double mr = 0;
-  for (int i = 0; i < N; i++) {
-    float3 p = uniformInBall(f3(rng.rnd(), rng.rnd(), rng.rnd()));
-    float r = length(p);
-    CHECK_MSG(r <= 1.0f + 1e-5f, "uniformInBall outside unit ball: r=%.9g", r);
-    mr += r;
-  }
-  // uniform in ball: E[r] = 3/4
-  CHECK_NEAR(mr / N, 0.75, 0.01);
-}
-
 int main() {
   testPcg32Reference();
   testDeterminism();
   testRndRange();
   testUniformOnSphere();
   testCosineHemisphere();
-  testUniformInBall();
   TEST_DONE("test_rng");
 }

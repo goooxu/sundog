@@ -25,7 +25,7 @@ Pcg32 rng = Pcg32::init(((unsigned long long)pixel << 32) ^ (unsigned long long)
 - 序列内的"维度分配"由程序顺序固定：先抖动、再光圈、再 NEE、再 BSDF、再轮盘，代码路径相同则消耗相同；
 - 累积不经过原子浮点加法：每像素每 launch 恰好一个线程，用递推均值 `accum += (L - accum)/(s+1)` 顺序更新，浮点运算顺序完全固定，与线程调度无关。
 
-于是固定 `--seed`，在同一 GPU 与驱动上输出 PNG 比特级一致——这正是 [第 11 章·验证方法学与性能](11-validation.md) 中 golden 测试拿 sha256 校验决定性的基础。跨驱动版本则不保证（PTX 即时编译可能改变指令调度），所以 golden 参考图与 GPU/驱动组合绑定。作为对照，原 cxxrt 用 `random_device` 播种，同一场景两次渲染像素级不同，回归只能靠肉眼（见[附录·原 cxxrt 的计算问题与修正](appendix-cxxrt.md)）。
+于是固定 `--seed`，在同一 GPU 与驱动上输出 PNG 比特级一致——这正是 [第 11 章·验证方法学与性能](11-validation.md) 中 golden 测试拿 sha256 校验决定性的基础。跨驱动版本则不保证（PTX 即时编译可能改变指令调度），所以 golden 参考图与 GPU/驱动组合绑定。作为对照，朴素实现的常见做法是用 `random_device` 播种：同一场景渲染两次，结果像素级不同，回归测试只能靠肉眼（见[附录](appendix-pitfalls.md)）。
 
 ## 分层采样：把运气变成保证
 
@@ -47,7 +47,7 @@ if (s < nStrata * nStrata) {
 }
 ```
 
-格数 $`n=\lfloor\sqrt{N}\rfloor`$：代码先取 $`n=\mathrm{round}(\sqrt{N})`$（即 `floorf(sqrtf(N)+0.5)`），若 $`n^2>N`$ 再减一——净效果恰为 $`\lfloor\sqrt{N}\rfloor`$，绕开了浮点开方的舍入误差。第 $`s`$ 个样本落在第 $`(s \bmod n,\ \lfloor s/n\rfloor)`$ 格：前 $`\lfloor\sqrt{N}\rfloor^2`$ 个样本铺满整个格网，超出的余数退化为纯随机。golden 测试的 64 spp 恰好是完整的 $`8\times 8`$ 分层。注意分层格坐标只依赖 $`s`$，抖动仍来自各自的 PCG 流，决定性不受影响；而 cxxrt 的实现是全屏所有像素**共享**同一组分层抖动偏移，等于把像素间本应独立的维度锁到了一起（见附录）。至于光圈、选灯、BSDF 这些更高维度，继续用独立均匀随机——高维分层收益递减，工程上不值得复杂化。
+格数 $`n=\lfloor\sqrt{N}\rfloor`$：代码先取 $`n=\mathrm{round}(\sqrt{N})`$（即 `floorf(sqrtf(N)+0.5)`），若 $`n^2>N`$ 再减一——净效果恰为 $`\lfloor\sqrt{N}\rfloor`$，绕开了浮点开方的舍入误差。第 $`s`$ 个样本落在第 $`(s \bmod n,\ \lfloor s/n\rfloor)`$ 格：前 $`\lfloor\sqrt{N}\rfloor^2`$ 个样本铺满整个格网，超出的余数退化为纯随机。golden 测试的 64 spp 恰好是完整的 $`8\times 8`$ 分层。注意分层格坐标只依赖 $`s`$，抖动仍来自各自的 PCG 流，决定性不受影响；一个容易踩的坑是让全屏所有像素**共享**同一组分层抖动偏移，等于把像素间本应独立的维度锁到了一起（见附录）。至于光圈、选灯、BSDF 这些更高维度，继续用独立均匀随机——高维分层收益递减，工程上不值得复杂化。
 
 ## 纹理：从 UV 到线性颜色
 
@@ -64,7 +64,7 @@ $`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。hos
 - **过滤**：默认 `cudaFilterModeLinear` 即双线性过滤（bilinear filtering），取周围 4 个纹素（texel）按距离加权混合，避免放大时的马赛克；场景可指定 `nearest` 换成点采样；
 - **sRGB 硬件解码**：8 位美术资源几乎都存成 sRGB 编码（近似 $`\gamma=2.2`$ 的感知均匀编码），而[第 1 章·成像与光线](01-images-and-rays.md)说过一切光照运算必须在线性空间进行。置位 `td.sRGB` 后，纹理单元在取样时逐纹素硬件解码成线性浮点、**然后**才做双线性混合——顺序正确且零开销。若在渲染方程里直接拿 sRGB 值当反照率，所有中间调都会系统性偏暗。
 
-第四个通道 alpha 用于镂空：任意命中程序 `maskAnyhit()`（device/programs.cu）采样 cutout 纹理，$`\alpha<0.5`$ 就 `optixIgnoreIntersection()` 当作没打中（机制见第 9 章）。辐射光线与阴影光线走同一逻辑，所以镂空的影子也是镂空的——04 号场景牌面上的 logo 投影正是靠它。
+第四个通道 alpha 用于镂空：任意命中程序 `maskAnyhit()`（device/programs.cu）采样 cutout 纹理，$`\alpha<0.5`$ 就 `optixIgnoreIntersection()` 当作没打中（机制见第 9 章）。辐射光线与阴影光线走同一逻辑，所以镂空的影子也是镂空的。
 
 ## AI 降噪：用先验换采样
 

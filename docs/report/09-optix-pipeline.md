@@ -128,7 +128,7 @@ if (rec->cutoutTexId >= 0) {
 }
 ```
 
-**其一，穿透面**：双面材质语义（见[第 5 章·材质与 BSDF](05-materials.md)）允许某一侧无材质（`MAT_NONE`），光线从这一侧打来时命中被忽略、直接穿过——这也是第 6 章 quadric 求交"两个根都上报"的原因：第一个交点被忽略后，第二个交点还在候选队列里。**其二，alpha 镂空**：有镂空纹理的物体按 UV 采样 alpha，小于 0.5 的部位视为空洞。**其三，阴影线复用**：同一段逻辑同时挂在 radiance 与 shadow 两套变体上，所以阴影光线也正确地穿过穿透面与镂空孔——原 cxxrt 恰恰在这里把玻璃当成了不透明（见[附录·原 cxxrt 的计算问题与修正](appendix-cxxrt.md)）。GAS 构建时的 `OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL`（src/accel.cpp）保证 AH 对同一命中恰好调用一次，纹理采样不会被重复执行。
+**其一，穿透面**：双面材质语义（见[第 5 章·材质与 BSDF](05-materials.md)）允许某一侧无材质（`MAT_NONE`），光线从这一侧打来时命中被忽略、直接穿过——这也是第 6 章 quadric 求交"两个根都上报"的原因：第一个交点被忽略后，第二个交点还在候选队列里。**其二，alpha 镂空**：有镂空纹理的物体按 UV 采样 alpha，小于 0.5 的部位视为空洞。**其三，阴影线复用**：同一段逻辑同时挂在 radiance 与 shadow 两套变体上，所以阴影光线也正确地穿过穿透面与镂空孔。玻璃则不在此列——把透明材质一律当作阴影遮挡是路径追踪器的常见工程折衷，sundog 也如此（见[附录](appendix-pitfalls.md)）。GAS 构建时的 `OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL`（src/accel.cpp）保证 AH 对同一命中恰好调用一次，纹理采样不会被重复执行。
 
 AH 每次都要从硬件遍历回到 SM，是有代价的（第 8 章）。因此 `buildIas()` 做了静态分流：`matFront/matBack` 均非 `MAT_NONE` 且无镂空纹理的对象，实例标志设为 `OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT`，SBT 里也选 opaque 变体——这类对象（场景中的绝大多数）的命中处理零 AH 开销；其余对象才走 masked 变体。
 

@@ -78,8 +78,8 @@ DESC = {
     "03-spot-atrium-spp32-raw":
         "对照组：同样 32 spp、不降噪的原始蒙特卡洛噪点。",
     "04-parabolica":
-        "夜景抛物面聚光：金色抛物碟（背面材质成像）把发光灯珠的光束打向标牌，"
-        "展示 parabola 自定义求交与双面材质语义。",
+        "夜景抛物面聚光：金色抛物碟（背面材质成像）把发光灯珠聚成一道光束"
+        "扫过暗色地面，展示 parabola 自定义求交与双面材质语义。",
     "05-spot-swarm":
         "32768 个实例化 Spot 卡通奶牛的阵列（约 1.9 亿等效三角形）——同一份三角形 GAS 通过 IAS 实例复用，"
         "展示单层实例化的规模能力。",
@@ -130,21 +130,23 @@ print("wrote", out_md)
 PY
 
 # Sync the finals into the repo (docs/gallery) so they render on GitHub.
-# Losslessly recompress via PIL when available (stb PNGs are ~40% larger);
-# fall back to a plain copy.
+# Only the stems rendered THIS run are synced (out/gallery may hold stale
+# files from renamed scenes). Losslessly recompress via PIL when available
+# (stb PNGs are ~40% larger); fall back to a plain copy.
 mkdir -p "$ROOT/docs/gallery"
 if python3 -c 'import PIL' 2>/dev/null; then
-  python3 - "$GALLERY" "$ROOT/docs/gallery" << 'PY'
-import glob, os, sys
+  python3 - "$GALLERY" "$ROOT/docs/gallery" "${RENDERED[@]}" << 'PY'
+import os, sys
 from PIL import Image
-src, dst = sys.argv[1], sys.argv[2]
-for p in sorted(glob.glob(os.path.join(src, "*.png"))):
-    out = os.path.join(dst, os.path.basename(p))
+src, dst, *stems = sys.argv[1:]
+for stem in stems:
+    p = os.path.join(src, stem + ".png")
+    out = os.path.join(dst, stem + ".png")
     Image.open(p).convert("RGB").save(out, "PNG", optimize=True)
-    print(f"optimized {os.path.basename(p)}: {os.path.getsize(p)//1024} KB -> {os.path.getsize(out)//1024} KB")
+    print(f"optimized {stem}.png: {os.path.getsize(p)//1024} KB -> {os.path.getsize(out)//1024} KB")
 PY
 else
-  cp -v "$GALLERY"/*.png "$ROOT/docs/gallery/"
+  for stem in "${RENDERED[@]}"; do cp -v "$GALLERY/$stem.png" "$ROOT/docs/gallery/"; done
 fi
 
 echo "render-gallery OK (${#RENDERED[@]} images in $GALLERY, synced to docs/gallery)"

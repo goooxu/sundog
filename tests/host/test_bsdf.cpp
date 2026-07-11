@@ -1,5 +1,5 @@
 // sundog host tests: device/bsdf.cuh — lambert cosine sampling, GGX white
-// furnace + pdf consistency, dielectric energy/TIR/Snell, parity mode.
+// furnace + pdf consistency, dielectric energy/TIR/Snell.
 #include "bsdf.cuh"
 #include "check.h"
 
@@ -35,7 +35,7 @@ static void testLambert() {
 
   // sampled directions: weight == albedo exactly, pdf matches bsdfPdf
   for (int i = 0; i < 20000; i++) {
-    BsdfSample s = bsdfSample(m, albedo, rayDir, n, true, 0, rng);
+    BsdfSample s = bsdfSample(m, albedo, rayDir, n, true, rng);
     CHECK(s.valid);
     CHECK(!s.isDelta);
     CHECK(s.weight.x == albedo.x && s.weight.y == albedo.y && s.weight.z == albedo.z);
@@ -63,7 +63,7 @@ static void testLambert() {
   float3 fb = bsdfEval(m, albedo, wo, below, n);
   CHECK(fb.x == 0.0f && fb.y == 0.0f && fb.z == 0.0f);
   CHECK(bsdfPdf(m, wo, below, n) == 0.0f);
-  CHECK(bsdfIsDelta(m, 0) == false);
+  CHECK(bsdfIsDelta(m) == false);
 }
 
 static void testGgx() {
@@ -81,7 +81,7 @@ static void testGgx() {
       MaterialDesc m = makeMat(MT_METAL, f3(1, 1, 1), rough);
       int valid = 0;
       for (int i = 0; i < 20000; i++) {
-        BsdfSample s = bsdfSample(m, f3(1, 1, 1), rayDir, n, true, 0, rng);
+        BsdfSample s = bsdfSample(m, f3(1, 1, 1), rayDir, n, true, rng);
         if (!s.valid) continue;
         valid++;
         CHECK_MSG(s.weight.x <= 1.0f + 1e-3f && s.weight.y <= 1.0f + 1e-3f &&
@@ -129,10 +129,10 @@ static void testGgx() {
   // roughness below 1e-3: delta mirror path
   {
     MaterialDesc m = makeMat(MT_METAL, f3(0.9f, 0.8f, 0.7f), 5e-4f);
-    CHECK(bsdfIsDelta(m, 0) == true);
+    CHECK(bsdfIsDelta(m) == true);
     float3 wo = normalize(f3(0.4f, 0, 0.9f));
     float3 rayDir = -wo;
-    BsdfSample s = bsdfSample(m, m.color, rayDir, n, true, 0, rng);
+    BsdfSample s = bsdfSample(m, m.color, rayDir, n, true, rng);
     CHECK(s.valid && s.isDelta);
     CHECK(s.pdf == 0.0f);
     float3 refl = reflect(rayDir, n);
@@ -145,14 +145,13 @@ static void testGgx() {
     CHECK_NEAR(s.weight.z, F.z, 1e-5);
     // rough metal is not delta
     MaterialDesc mr = makeMat(MT_METAL, f3(1, 1, 1), 0.5f);
-    CHECK(bsdfIsDelta(mr, 0) == false);
-    CHECK(bsdfIsDelta(mr, 1) == true);  // parity metal is always delta
+    CHECK(bsdfIsDelta(mr) == false);
   }
 }
 
 static void testDielectric() {
   MaterialDesc m = makeMat(MT_DIELECTRIC, f3(1, 1, 1), 0.0f, 1.5f);
-  CHECK(bsdfIsDelta(m, 0) == true);
+  CHECK(bsdfIsDelta(m) == true);
   float3 n = f3(0, 1, 0);
   Pcg32 rng = Pcg32::init(3, 9);
 
@@ -161,7 +160,7 @@ static void testDielectric() {
     float3 wo = uniformHemi(n, rng);
     if (dot(wo, n) < 1e-3f) continue;
     bool front = (i & 1) == 0;
-    BsdfSample s = bsdfSample(m, m.color, -wo, n, front, 0, rng);
+    BsdfSample s = bsdfSample(m, m.color, -wo, n, front, rng);
     CHECK(s.valid && s.isDelta);
     CHECK(s.weight.x == 1.0f && s.weight.y == 1.0f && s.weight.z == 1.0f);
     CHECK_NEAR(length(s.wi), 1.0, 1e-4);
@@ -172,7 +171,7 @@ static void testDielectric() {
     float c = 1.0f / std::sqrt(2.0f);
     float3 rayDir = f3(c, -c, 0);  // n already flipped to oppose rayDir
     for (int i = 0; i < 200; i++) {
-      BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, 0, rng);
+      BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, rng);
       CHECK(s.valid);
       float3 refl = reflect(rayDir, n);
       CHECK_NEAR(s.wi.x, refl.x, 1e-5);
@@ -188,7 +187,7 @@ static void testDielectric() {
     float3 rayDir = f3(c, -c, 0);
     int refracted = 0, reflectedCnt = 0;
     for (int i = 0; i < 2000; i++) {
-      BsdfSample s = bsdfSample(m, m.color, rayDir, n, true, 0, rng);
+      BsdfSample s = bsdfSample(m, m.color, rayDir, n, true, rng);
       CHECK(s.valid);
       CHECK_NEAR(length(s.wi), 1.0, 1e-5);
       CHECK_NEAR(s.wi.z, 0.0, 1e-6);  // stays in the plane of incidence
@@ -217,7 +216,7 @@ static void testDielectric() {
     float3 rayDir = f3(si, -ci, 0);
     int refracted = 0;
     for (int i = 0; i < 2000; i++) {
-      BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, 0, rng);
+      BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, rng);
       CHECK(s.valid);
       if (dot(s.wi, n) < 0.0f) {
         refracted++;
@@ -227,81 +226,6 @@ static void testDielectric() {
       }
     }
     CHECK_MSG(refracted > 1500, "exit refraction too rare: %d/2000", refracted);
-  }
-}
-
-static void testParity() {
-  float3 n = normalize(f3(0.1f, 1.0f, 0.2f));
-  Pcg32 rng = Pcg32::init(21, 4);
-
-  // parity lambert: weight == albedo, pdf == 1 (opaque to MIS), wi unit
-  {
-    float3 albedo = f3(0.6f, 0.5f, 0.4f);
-    MaterialDesc m = makeMat(MT_LAMBERT, albedo);
-    for (int i = 0; i < 5000; i++) {
-      BsdfSample s = bsdfSample(m, albedo, -n, n, true, 1, rng);
-      CHECK(s.valid);
-      CHECK(s.weight.x == albedo.x && s.weight.y == albedo.y && s.weight.z == albedo.z);
-      CHECK(s.pdf == 1.0f);
-      CHECK(!s.isDelta);
-      CHECK_NEAR(length(s.wi), 1.0, 1e-4);
-    }
-  }
-
-  // parity metal, roughness 0: pure mirror, weight = raw albedo (no Schlick)
-  {
-    float3 albedo = f3(0.8f, 0.6f, 0.2f);
-    MaterialDesc m = makeMat(MT_METAL, albedo, 0.0f);
-    float3 wo = normalize(f3(0.5f, 1.0f, -0.2f));
-    float3 rayDir = -wo;
-    BsdfSample s = bsdfSample(m, albedo, rayDir, n, true, 1, rng);
-    CHECK(s.valid && s.isDelta);
-    CHECK(s.weight.x == albedo.x && s.weight.y == albedo.y && s.weight.z == albedo.z);
-    float3 refl = normalize(reflect(rayDir, n));
-    CHECK_NEAR(s.wi.x, refl.x, 1e-5);
-    CHECK_NEAR(s.wi.y, refl.y, 1e-5);
-    CHECK_NEAR(s.wi.z, refl.z, 1e-5);
-  }
-
-  // parity metal with fuzz at grazing: fuzzed direction may dip below the
-  // surface -> invalid (cxxrt kills the path); valid ones satisfy wi.n > 0
-  {
-    float3 albedo = f3(0.9f, 0.9f, 0.9f);
-    MaterialDesc m = makeMat(MT_METAL, albedo, 1.0f);
-    float3 wo = normalize(n * 0.05f + normalize(cross(n, f3(0, 0, 1))));
-    float3 rayDir = -wo;
-    CHECK(dot(wo, n) > 0.0f);
-    int invalid = 0, valid = 0;
-    for (int i = 0; i < 10000; i++) {
-      BsdfSample s = bsdfSample(m, albedo, rayDir, n, true, 1, rng);
-      if (!s.valid) { invalid++; continue; }
-      valid++;
-      CHECK_MSG(dot(s.wi, n) > 0.0f, "parity metal returned wi below surface");
-      CHECK(s.weight.x == albedo.x);  // parity fresnel = albedo
-      CHECK(s.isDelta);
-    }
-    CHECK_MSG(invalid > 100, "expected fuzzed-below-surface rejections, got %d", invalid);
-    CHECK_MSG(valid > 100, "expected some valid fuzzy samples, got %d", valid);
-  }
-
-  // parity dielectric: weight == 1 always
-  {
-    MaterialDesc m = makeMat(MT_DIELECTRIC, f3(1, 1, 1), 0.0f, 1.5f);
-    for (int i = 0; i < 2000; i++) {
-      float3 wo = uniformHemi(n, rng);
-      if (dot(wo, n) < 1e-3f) continue;
-      BsdfSample s = bsdfSample(m, m.color, -wo, n, true, 1, rng);
-      CHECK(s.valid && s.isDelta);
-      CHECK(s.weight.x == 1.0f && s.weight.y == 1.0f && s.weight.z == 1.0f);
-      CHECK_NEAR(length(s.wi), 1.0, 1e-4);
-    }
-  }
-
-  // emissive never scatters
-  {
-    MaterialDesc m = makeMat(MT_EMISSIVE, f3(1, 1, 1));
-    BsdfSample s = bsdfSample(m, m.color, -n, n, true, 0, rng);
-    CHECK(!s.valid);
   }
 }
 
@@ -317,7 +241,7 @@ static void testDielectricExitFresnel() {
   int reflected = 0;
   const int N = 200000;
   for (int i = 0; i < N; i++) {
-    BsdfSample s = bsdfSample(m, m.color, rayDir, n, /*frontface=*/false, 0, rng);
+    BsdfSample s = bsdfSample(m, m.color, rayDir, n, /*frontface=*/false, rng);
     CHECK(s.valid);
     if (s.wi.z > 0.0f) reflected++;  // bounced back into the glass
   }
@@ -328,7 +252,7 @@ static void testDielectricExitFresnel() {
   float s45 = sinf(45.0f * SD_PI / 180.0f);
   rayDir = normalize(f3(s45, 0.0f, -s45));
   for (int i = 0; i < 1000; i++) {
-    BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, 0, rng);
+    BsdfSample s = bsdfSample(m, m.color, rayDir, n, false, rng);
     CHECK(s.valid && s.wi.z > 0.0f);
   }
 }
@@ -338,6 +262,5 @@ int main() {
   testGgx();
   testDielectric();
   testDielectricExitFresnel();
-  testParity();
   TEST_DONE("test_bsdf");
 }

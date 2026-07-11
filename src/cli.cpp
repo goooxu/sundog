@@ -24,7 +24,6 @@ options:
   --clamp F           firefly clamp for indirect light (0 = off)
   --gamma F           output gamma (default 2.2)
   --exposure F        exposure in EV stops
-  --parity            cxxrt-compatible sampling (CPU benchmark mode)
   --stats FILE.json   write render statistics
   --aov-albedo F.png  write albedo guide AOV
   --aov-normal F.png  write normal guide AOV
@@ -61,7 +60,6 @@ CliOptions parseCli(int argc, char** argv) {
     else if (!strcmp(a, "--clamp")) o.clampVal = (float)atof(need(i));
     else if (!strcmp(a, "--gamma")) o.gamma = (float)atof(need(i));
     else if (!strcmp(a, "--exposure")) o.exposure = (float)atof(need(i));
-    else if (!strcmp(a, "--parity")) o.parity = true;
     else if (!strcmp(a, "--stats")) o.statsPath = need(i);
     else if (!strcmp(a, "--aov-albedo")) o.aovAlbedoPath = need(i);
     else if (!strcmp(a, "--aov-normal")) o.aovNormalPath = need(i);

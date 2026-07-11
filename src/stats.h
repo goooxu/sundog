@@ -11,7 +11,7 @@ struct RenderStats {
   std::string scene;
   int width = 0, height = 0, spp = 0, maxDepth = 0;
   unsigned seed = 0;
-  bool denoised = false, parity = false;
+  bool denoised = false;
   double sceneLoadMs = 0, gasBuildMs = 0, renderMs = 0, denoiseMs = 0, totalMs = 0;
   unsigned long long raysTraced = 0;
   double mraysPerSec = 0;

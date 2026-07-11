@@ -18,7 +18,6 @@ struct RenderSettings {
   float exposure = 0.0f;  // EV
   int chunk = 16;
   bool denoise = false;
-  bool parity = false;
 };
 
 struct CameraSettings {
@@ -65,7 +64,7 @@ struct Scene {
 // scene_json.cpp
 Scene loadScene(const std::string& path);
 
-// Build the device CameraData the same way cxxrt's Camera did.
+// Build the device CameraData (thin-lens look-at construction).
 CameraData makeCamera(const CameraSettings& cs, int width, int height);
 
 }  // namespace sd

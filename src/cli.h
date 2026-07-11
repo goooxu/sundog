@@ -21,7 +21,6 @@ struct CliOptions {
   float clampVal = -1.0f;
   float gamma = -1.0f;
   float exposure = -1e30f;
-  bool parity = false;
   bool probe = false;
   bool quiet = false;
 };

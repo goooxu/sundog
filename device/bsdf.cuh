@@ -1,6 +1,5 @@
 // sundog: BSDF sampling/evaluation. Lambert (cosine), metal (GGX + VNDF,
-// Schlick F0 = base color), smooth dielectric. Parity mode reproduces the
-// original cxxrt sampling for the CPU-vs-GPU benchmark.
+// Schlick F0 = base color), smooth dielectric.
 //
 // Conventions: wo points AWAY from the surface (toward the previous vertex),
 // n is the shading normal on the same side as wo (already flipped by the
@@ -22,9 +21,9 @@ struct BsdfSample {
   bool valid;
 };
 
-SD_HD bool bsdfIsDelta(const MaterialDesc& m, int parity) {
+SD_HD bool bsdfIsDelta(const MaterialDesc& m) {
   if (m.kind == MT_DIELECTRIC) return true;
-  if (m.kind == MT_METAL) return parity ? true : (m.roughness < 1e-3f);
+  if (m.kind == MT_METAL) return m.roughness < 1e-3f;
   return false;
 }
 
@@ -106,7 +105,7 @@ SD_HD float bsdfPdf(const MaterialDesc& m, float3 wo, float3 wi, float3 n) {
 // `frontface`: true when the ray hit the geometric front side (dielectric
 // entering). `rayDir` = incident direction (unit, toward surface) = -wo.
 SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
-                            float3 n, bool frontface, int parity, Pcg32& rng) {
+                            float3 n, bool frontface, Pcg32& rng) {
   BsdfSample s;
   s.valid = false;
   s.pdf = 0.0f;
@@ -115,39 +114,21 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
 
   switch (m.kind) {
     case MT_LAMBERT: {
-      if (parity) {
-        // cxxrt: scattered = normalize(normal + randomInUnitSphere())
-        float3 u3 = f3(rng.rnd(), rng.rnd(), rng.rnd());
-        float3 d = n + uniformInBall(u3);
-        if (length2(d) < 1e-12f) d = n;
-        s.wi = normalize(d);
-        s.weight = albedo;      // cxxrt's implicit importance-sampling weight
-        s.pdf = 1.0f;           // opaque to MIS (parity mode has none)
-        s.valid = true;
-      } else {
-        Onb onb(n);
-        float3 li = cosineHemisphere(rng.rnd2());
-        s.wi = onb.toWorld(li);
-        s.pdf = fmaxf(li.z, 1e-8f) * SD_INV_PI;
-        s.weight = albedo;      // f*cos/pdf = albedo for cosine sampling
-        s.valid = li.z > 0.0f;
-      }
+      Onb onb(n);
+      float3 li = cosineHemisphere(rng.rnd2());
+      s.wi = onb.toWorld(li);
+      s.pdf = fmaxf(li.z, 1e-8f) * SD_INV_PI;
+      s.weight = albedo;      // f*cos/pdf = albedo for cosine sampling
+      s.valid = li.z > 0.0f;
       return s;
     }
 
     case MT_METAL: {
-      if (parity || m.roughness < 1e-3f) {
-        // cxxrt: reflect + fuzz * randomInUnitSphere; absorb if below surface
-        float3 refl = reflect(rayDir, n);
-        if (parity && m.roughness > 0.0f) {
-          float3 u3 = f3(rng.rnd(), rng.rnd(), rng.rnd());
-          refl = refl + m.roughness * uniformInBall(u3);
-        }
-        if (length2(refl) < 1e-12f) return s;
-        s.wi = normalize(refl);
-        if (dot(s.wi, n) <= 0.0f) return s;  // cxxrt kills the path
-        float3 F = parity ? albedo : schlick3(dot(s.wi, n), albedo);
-        s.weight = F;
+      if (m.roughness < 1e-3f) {
+        // delta mirror
+        s.wi = normalize(reflect(rayDir, n));
+        if (dot(s.wi, n) <= 0.0f) return s;
+        s.weight = schlick3(dot(s.wi, n), albedo);
         s.isDelta = true;
         s.valid = true;
       } else {
@@ -171,27 +152,6 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
     case MT_DIELECTRIC: {
       s.isDelta = true;
       float3 refr;
-      if (parity) {
-        // cxxrt always uses eta = 1/ior with the flipped normal and computes
-        // the Schlick term with the raw ior.
-        float eta = 1.0f / m.ior;
-        if (refract(rayDir, n, eta, refr)) {
-          float cosine = -dot(rayDir, n);
-          float f0 = (1.0f - m.ior) / (1.0f + m.ior);
-          f0 = f0 * f0;
-          float reflectProb = schlick(cosine, f0);
-          if (rng.rnd() >= reflectProb) {
-            s.wi = normalize(refr);
-            s.weight = f3(1.0f);
-            s.valid = true;
-            return s;
-          }
-        }
-        s.wi = normalize(reflect(rayDir, n));
-        s.weight = f3(1.0f);
-        s.valid = true;
-        return s;
-      }
       float eta = frontface ? 1.0f / m.ior : m.ior;
       float f0 = (1.0f - eta) / (1.0f + eta);
       f0 = f0 * f0;

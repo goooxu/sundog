@@ -6,12 +6,12 @@
   </defs>
   <rect x="0" y="0" width="900" height="520" fill="#FFFFFF"/>
 
-  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">半球采样的方向密度：原版 cxxrt vs 余弦加权</text>
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">半球采样的方向密度：朴素做法 vs 余弦加权</text>
 
   <line x1="450" y1="56" x2="450" y2="448" stroke="#CBD5E1" stroke-width="1.5"/>
 
   <!-- ============ 左：normalize(n + 球内均匀点) ============ -->
-  <text x="60" y="80" font-size="17" font-weight="bold" fill="#334155">原版：d = normalize(n + s)</text>
+  <text x="60" y="80" font-size="17" font-weight="bold" fill="#334155">朴素做法：d = normalize(n + s)</text>
   <text x="60" y="106" font-size="16" fill="#64748B">s 均匀取自单位球内</text>
   <text x="296" y="252" font-size="16" fill="#334155">实测密度（橙）</text>
   <text x="296" y="276" font-size="16" fill="#334155">≠ cosθ/π（虚线）</text>
@@ -64,6 +64,6 @@
   <text x="724" y="330" font-size="16" fill="#F59E0B">p(ω) = cosθ/π</text>
   <text x="500" y="428" font-size="16" fill="#16A34A">采样分布与加权 pdf 精确匹配 → 无偏</text>
 
-  <text x="450" y="478" font-size="16" fill="#334155" text-anchor="middle">分布与权重不匹配 ⇒ 每次反弹引入固定偏差，spp 再高也不会消失（附录条目 2）</text>
+  <text x="450" y="478" font-size="16" fill="#334155" text-anchor="middle">分布与权重不匹配 ⇒ 每次反弹引入固定偏差，spp 再高也不会消失（附录陷阱 2）</text>
   <text x="450" y="504" font-size="16" fill="#64748B" text-anchor="middle">左图密度为 2×10⁶ 样本蒙特卡洛实测，两图同一比例尺</text>
 </svg>

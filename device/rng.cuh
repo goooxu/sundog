@@ -43,12 +43,6 @@ SD_HD float3 uniformOnSphere(float2 u) {
   return f3(r * cosf(phi), r * sinf(phi), z);
 }
 
-// Uniform point in the unit ball (matches cxxrt randomInUnitSphere distribution).
-SD_HD float3 uniformInBall(float3 u) {
-  float3 d = uniformOnSphere(make_float2(u.x, u.y));
-  return d * cbrtf(fmaxf(u.z, 1e-12f));
-}
-
 // Concentric disk sample in [-1,1]^2 -> unit disk.
 SD_HD float2 concentricDisk(float2 u) {
   float ox = 2.0f * u.x - 1.0f, oy = 2.0f * u.y - 1.0f;

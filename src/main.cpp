@@ -50,7 +50,6 @@ int main(int argc, char** argv) {
     if (cli.clampVal >= 0.0f) scene.render.clampVal = cli.clampVal;
     if (cli.gamma > 0.0f) scene.render.gamma = cli.gamma;
     if (cli.exposure > -1e29f) scene.render.exposure = cli.exposure;
-    if (cli.parity) scene.render.parity = true;
     const RenderSettings& rs = scene.render;
 
     TextureSet textureSet;
@@ -95,9 +94,8 @@ int main(int argc, char** argv) {
     params.height = rs.height;
     params.sppTotal = rs.spp;
     params.maxDepth = rs.maxDepth;
-    params.clampVal = rs.parity ? 0.0f : rs.clampVal;
+    params.clampVal = rs.clampVal;
     params.seed = rs.seed;
-    params.parity = rs.parity ? 1 : 0;
     params.countRays = cli.statsPath.empty() ? 0 : 1;
     params.accum = (float4*)film.accum();
     params.aovAlbedo = (float4*)film.aovAlbedo();
@@ -113,9 +111,9 @@ int main(int argc, char** argv) {
 
     // ---- render loop ----
     if (!cli.quiet) {
-      printf("sundog: %s %dx%d, %d spp, depth %d%s%s on %s\n", cli.scene.c_str(),
+      printf("sundog: %s %dx%d, %d spp, depth %d%s on %s\n", cli.scene.c_str(),
              rs.width, rs.height, rs.spp, rs.maxDepth,
-             rs.parity ? " [parity]" : "", rs.denoise ? " [denoise]" : "",
+             rs.denoise ? " [denoise]" : "",
              device.name.c_str());
     }
     auto tRender = Clock::now();
@@ -173,7 +171,6 @@ int main(int argc, char** argv) {
       st.maxDepth = rs.maxDepth;
       st.seed = rs.seed;
       st.denoised = rs.denoise;
-      st.parity = rs.parity;
       st.sceneLoadMs = sceneLoadMs;
       st.gasBuildMs = gasBuildMs;
       st.renderMs = renderMs;

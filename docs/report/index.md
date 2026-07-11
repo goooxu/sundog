@@ -14,7 +14,7 @@
 - **完整阅读**（推荐，约 3-4 万字）：按 01 → 11 → 附录顺序。
 - **只关心原理**：01 → 02 → 03 → 04 → 05（成像、渲染方程、蒙特卡洛、路径追踪、材质）。
 - **只关心 GPU 工程**：01（速览）→ 09 章 9.1（OptiX 应用七步流程总览）→ 08 → 09 → 10 → 11（加速结构、OptiX、决定性、验证）。
-- **想看"踩坑复盘"**：直接读[附录](appendix-cxxrt.md)——原 CPU 版渲染器的六类计算问题。
+- **想看"常见陷阱"**：直接读[附录](appendix-pitfalls.md)——朴素实现最容易犯的六类计算错误。
 
 ## 章节导航
 
@@ -31,11 +31,11 @@
 | [09](09-optix-pipeline.md) | OptiX 工程实现 | OptiX 应用的七步完整流程；一次 optixTrace 背后发生什么？SBT/payload 怎么组织？ |
 | [10](10-sampling-denoising.md) | 随机数、纹理与 AI 降噪 | 并行随机数如何可复现？低 spp 怎么变干净？ |
 | [11](11-validation.md) | 验证方法学与性能 | 怎么证明"算得对"？80–122× 加速从哪来？ |
-| [附录](appendix-cxxrt.md) | 原 cxxrt 的计算问题与修正 | 重写过程中发现的六类问题案例复盘 |
+| [附录](appendix-pitfalls.md) | 路径追踪常见实现陷阱 | 朴素实现容易犯的六类计算错误剖析 |
 
 ## 延伸阅读
 
 - Pharr, Jakob, Humphreys, *Physically Based Rendering: From Theory to Implementation*（PBRT，本领域标准教材）
-- Shirley 等，*Ray Tracing in One Weekend* 系列（原 cxxrt 的思想源头）
+- Shirley 等，*Ray Tracing in One Weekend* 系列（入门路径追踪的经典教程；附录剖析的若干朴素写法即源自其早期版本）
 - NVIDIA, *OptiX Programming Guide*（本项目工程层的官方参考）
 - Veach 的博士论文（MIS 的出处）

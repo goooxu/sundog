@@ -18,11 +18,6 @@ RAW="$ROOT/out/report"
 FIG="$ROOT/docs/report/figures"
 REUSE="${REUSE:-0}"
 
-# Crop windows (x0,y0,x1,y1) for the glass cow in the 1920x1080
-# 03-spot-atrium frame (cow sits right of center, see scene camera).
-GLASS_CROP="1310,330,1750,870"
-GLASS_ZOOM_CROP="1390,420,1690,820"
-
 fail() { echo "render-report-figures: FAIL: $*" >&2; exit 1; }
 [ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG (set SUNDOG_BUILD)"
 python3 -c 'import PIL' 2>/dev/null || \
@@ -227,23 +222,6 @@ python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.png" \
   "$RAW/ch05-roughness-ladder.png" "金属球 · 512 spp" \
   "roughness 0" "roughness 0.1" "roughness 0.25" \
   "roughness 0.45" "roughness 0.7"
-
-# --------------------------------- ch05-glass-tir.png + appendix-glass-zoom.png
-# 03-spot-atrium, physical (TIR) vs --parity (cxxrt replica, no TIR);
-# both cropped to the glass cow. The appendix variant is a tighter crop
-# of the same two renders, upscaled 2x.
-render "ch05-atrium-physical" "$ROOT/scenes/03-spot-atrium.json" \
-       --size 1920x1080 --spp 256
-render "ch05-atrium-parity"   "$ROOT/scenes/03-spot-atrium.json" \
-       --size 1920x1080 --spp 256 --parity
-python3 "$COMPOSE" strip "$FIG/ch05-glass-tir.png" \
-  --crop "$GLASS_CROP" --label-size 24 \
-  "$RAW/ch05-atrium-physical.png|物理正确（含全内反射）" \
-  "$RAW/ch05-atrium-parity.png|parity（复刻原版，无 TIR）"
-python3 "$COMPOSE" strip "$FIG/appendix-glass-zoom.png" \
-  --crop "$GLASS_ZOOM_CROP" --upscale 2 --label-size 28 \
-  "$RAW/ch05-atrium-physical.png|物理正确（含全内反射）" \
-  "$RAW/ch05-atrium-parity.png|parity（复刻原版，无 TIR）"
 
 # ------------------------------------------------------- ch06-primitives.png
 # features.json: sphere / cylinder / parabola / disk / rect in one frame.

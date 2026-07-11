@@ -76,7 +76,6 @@ struct LaunchParams {
   int maxDepth;
   float clampVal;     // 0 = off; applied to indirect (depth>=1) contributions
   unsigned int seed;
-  int parity;         // 1 = cxxrt-compatible sampling/shading (benchmark mode)
   int countRays;      // 1 = atomicAdd into rayCounter (stats runs only)
 
   float4* accum;      // running-mean linear HDR beauty

@@ -128,33 +128,30 @@ k=1-\eta^2(1-\cos^2\theta_i)=\cos^2\theta_t,
 
 $`k<0`$ 何时发生？$`k=1-\eta^2\sin^2\theta_i`$，仅当 $`\eta>1`$（从密介质射向疏介质）且 $`\sin\theta_i>1/\eta`$ 时为负——此时 Snell 定律要求 $`\sin\theta_t>1`$，无解，光被完全反射，即**全内反射（total internal reflection / TIR）**。临界角 $`\sin\theta_c = 1/\eta`$，玻璃约 $`41.8°`$。玻璃球内壁的亮环、光纤的导光都来自 TIR。
 
-由此 `bsdfSample()` 的 `MT_DIELECTRIC` 物理分支要做三个"按面选取"：
+由此 `bsdfSample()` 的 `MT_DIELECTRIC` 分支要做三个"按面选取"：
 
 1. **相对折射率按面选取**：`eta = frontface ? 1/ior : ior`——进入玻璃时 $`\eta=1/1.5<1`$（永不 TIR），离开玻璃时 $`\eta=1.5>1`$（可能 TIR）。`frontface` 由几何求交阶段根据几何法线与光线方向的点积判定（见 5.6 节与[第 6 章·几何求交](06-geometry.md)）。
 2. **$`F_0`$ 与面无关**：$`F_0=\big(\frac{1-\eta}{1+\eta}\big)^2`$ 对 $`\eta`$ 与 $`1/\eta`$ 给出同一个值（玻璃两侧都是 0.04），代码按当前 `eta` 计算，结果对称。
 3. **Schlick 的余弦必须取低折射率一侧**：代码写作
 
 ```c
-// device/bsdf.cuh, MT_DIELECTRIC 物理分支
+// device/bsdf.cuh, MT_DIELECTRIC 分支
 float cosine = frontface ? -dot(rayDir, n) : -dot(refr, n);
 float reflectProb = schlick(cosine, f0);
 ```
 
-进入玻璃时用入射角（空气侧）的余弦；**离开玻璃时用折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$（同样是空气侧）。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这正是原版 cxxrt 的 bug 之一，完整分析见[附录·原 cxxrt 的计算问题与修正](appendix-cxxrt.md)。
+进入玻璃时用入射角（空气侧）的余弦；**离开玻璃时用折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$（同样是空气侧）。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这是折射实现里的经典陷阱，完整分析见[附录](appendix-pitfalls.md)。
 
-采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，sundog 与原版一致地省略它。）
+采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，sundog 与多数渲染器一样省略它。）
 
-`--parity` 分支则原样保留 cxxrt 的算法——恒用 $`\eta=1/\text{ior}`$、Schlick 恒用入射侧余弦——用于与 CPU 原版的逐式公平基准（见[第 11 章·验证方法学与性能](11-validation.md)）。两种模式的可视对比：
-
-![玻璃 TIR 对比](figures/ch05-glass-tir.png)
-*图：玻璃奶牛。左：物理模式（含 TIR 与正确 Fresnel，内反射更强、更暗更"玻璃"）；右：--parity（复刻原版，无 TIR，偏亮偏透）。*
+出射侧余弦的选取有专门的回归测试兜底：`tests/host/test_bsdf.cpp` 让光线在玻璃内以 40° 入射（临界角 41.8° 以内），统计 20 万次采样中反射分支的频率，断言其等于 $`\mathrm{schlick}(\cos\theta_t)\approx 0.244`$——若错用入射侧余弦，这个值只有约 0.041，测试立刻失败；同一测试还断言 45° 入射时必然全反射。视觉上二者的差别同样醒目：正确的 Fresnel 让玻璃体在掠射与临界角附近内反射显著增强，整体更暗、更"玻璃"；反之则偏亮偏透、丢失内壁亮环。
 
 ## 5.6 双面材质与穿透面
 
-cxxrt 留下了一个有表现力的场景语义，sundog 完整继承：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $`n`$ 都以此为前提（$`n\cdot\omega_o>0`$ 恒成立）。
+sundog 的场景语义里有一条很有表现力的约定：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $`n`$ 都以此为前提（$`n\cdot\omega_o>0`$ 恒成立）。
 
 `MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。同一段 anyhit 逻辑同时服务辐射光线与阴影光线，所以光与影穿透行为一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
 
 ## 小结
 
-本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $`D`$、$`G`$、$`F`$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $`F\cdot G/G_1`$；玻璃是按菲涅尔概率二选一的双 delta 瓣，物理模式修正了原版"永不 TIR、余弦选错侧"的问题。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。
+本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $`D`$、$`G`$、$`F`$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $`F\cdot G/G_1`$；玻璃是按菲涅尔概率二选一的双 delta 瓣，TIR 与"Schlick 取疏介质侧余弦"是其正确性的两个关键。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。

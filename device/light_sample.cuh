@@ -21,7 +21,7 @@ struct LightSample {
 // x: shading point (world). Uniform pick over lights happens in the caller.
 // textures: for textured rect/disk emitters (Li must match the emitter-hit
 // evaluation exactly or MIS is biased).
-SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, int parity, Pcg32& rng,
+SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, Pcg32& rng,
                               const TextureDesc* textures) {
   LightSample s;
   s.valid = false;
@@ -93,21 +93,7 @@ SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, int parity, Pcg32& 
 
     case LT_POINT: {
       s.isDelta = true;
-      if (parity) {
-        // cxxrt PointLight::illuminate, formula for formula.
-        float3 u3 = f3(rng.rnd(), rng.rnd(), rng.rnd());
-        float3 to = lt.p + lt.radius * uniformInBall(u3) - x;
-        float d2 = length2(to);
-        if (d2 < 1e-10f) return s;
-        float dist = sqrtf(d2);
-        s.wi = to / dist;
-        s.dist = fmaxf(dist - lt.radius, 1e-4f);
-        s.Li = lt.L * (SD_INV_PI * 0.25f / d2);
-        s.pdf = 1.0f;
-        s.valid = true;
-        return s;
-      }
-      // Physical soft point light: sample a disk of radius r facing x.
+      // Soft point light: sample a disk of radius r facing x.
       float3 to = lt.p - x;
       float d2c = length2(to);
       if (d2c < 1e-10f) return s;

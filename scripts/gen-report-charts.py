@@ -5,7 +5,6 @@ Charts (written to docs/report/figures/):
   ch03-mc-convergence.png  PSNR vs spp for 02-cornell-lume (log2 x-axis)
                            + O(1/N) reference slope (+6.02 dB per 4x spp)
   ch05-fresnel-curves.png  exact dielectric Fresnel (eta=1.5) vs Schlick
-  ch11-speedup.png         CPU vs GPU render seconds (table A of
                            docs/BENCHMARKS.md), grouped bars, log y
 
 Data collection (chart 1) renders on the GPU test box and needs the sundog
@@ -22,7 +21,7 @@ Options:
   --skip-render      reuse mc-convergence.json instead of rendering
   --build-dir DIR    sundog build dir (default $SUNDOG_BUILD or /tmp/sundog-build)
   --work-dir DIR     scratch dir for intermediate renders (default /tmp/report-charts)
-  --only LIST        comma list of charts: convergence,fresnel,speedup
+  --only LIST        comma list of charts: convergence,fresnel
 """
 
 import argparse
@@ -257,62 +256,7 @@ def chart_fresnel():
 
 # ---------------------------------------------------------------- chart 3 ---
 
-def parse_benchmarks_table_a():
-    """Rows of table A in docs/BENCHMARKS.md: (scene, spp, cpu_s, gpu_s, speedup)."""
-    text = BENCHMARKS_MD.read_text(encoding="utf-8")
-    section = text.split("## A.")[1].split("\n## ")[0]
-    rows = []
-    for line in section.splitlines():
-        m = re.match(
-            r"\|\s*(compat-\d+)\s*\|\s*(\d+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)"
-            r"\s*\|\s*([\d.]+)\s*\|", line)
-        if m:
-            rows.append((m.group(1), int(m.group(2)), float(m.group(3)),
-                         float(m.group(4)), float(m.group(5))))
-    if len(rows) != 4:
-        sys.exit(f"expected 4 rows in BENCHMARKS.md table A, got {len(rows)}")
-    return rows
 
-
-def chart_speedup():
-    rows = parse_benchmarks_table_a()
-    labels = [f"{scene}\n{spp} spp" for scene, spp, *_ in rows]
-    cpu = np.array([r[2] for r in rows])
-    gpu = np.array([r[3] for r in rows])
-    speedup = [r[4] for r in rows]
-
-    x = np.arange(len(rows), dtype=float)
-    w = 0.36
-    fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.grid(True, axis="y", which="major")
-    ax.bar(x - 0.20, cpu, w, color=SECONDARY, zorder=3,
-           label="CPU: cxxrt, 16 threads")
-    ax.bar(x + 0.20, gpu, w, color=PRIMARY, zorder=3,
-           label="GPU: sundog, RTX 5090")
-
-    ax.set_yscale("log")
-    ax.set_ylim(1e-3, 300)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Render time (seconds, log scale)")
-    ax.set_title("CPU vs GPU render time - compat scenes, 1024x1024, parity mode")
-
-    # value labels on every bar, speedup above each group (dark ink, not series color)
-    for xi, v in zip(x - 0.20, cpu):
-        ax.annotate(f"{v:g} s", (xi, v), textcoords="offset points",
-                    xytext=(0, 4), ha="center", fontsize=12, color=INK)
-    for xi, v in zip(x + 0.20, gpu):
-        ax.annotate(f"{v:g} s", (xi, v), textcoords="offset points",
-                    xytext=(0, 4), ha="center", fontsize=12, color=INK)
-    for xi, c, s in zip(x, cpu, speedup):
-        ax.annotate(f"x{s:g}", (xi, c * 3.2), ha="center", fontsize=13,
-                    fontweight="bold", color=INK)
-
-    ax.legend(loc="upper right", ncol=1)
-    save(fig, "ch11-speedup.png")
-
-
-# -------------------------------------------------------------------- main ---
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
@@ -322,8 +266,8 @@ def main():
     ap.add_argument("--build-dir", type=Path,
                     default=Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")))
     ap.add_argument("--work-dir", type=Path, default=Path("/tmp/report-charts"))
-    ap.add_argument("--only", default="convergence,fresnel,speedup",
-                    help="comma list: convergence,fresnel,speedup")
+    ap.add_argument("--only", default="convergence,fresnel",
+                    help="comma list: convergence,fresnel")
     args = ap.parse_args()
     only = set(args.only.split(","))
 
@@ -341,8 +285,6 @@ def main():
         chart_convergence(data)
     if "fresnel" in only:
         chart_fresnel()
-    if "speedup" in only:
-        chart_speedup()
 
 
 if __name__ == "__main__":

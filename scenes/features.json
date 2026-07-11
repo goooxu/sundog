@@ -1,46 +1,254 @@
 {
-  "render": { "width": 640, "height": 400, "spp": 64, "max_depth": 16, "seed": 7 },
-  "camera": { "lookfrom": [0, 3.2, 9], "lookat": [0, 0.9, 0], "vfov": 38, "aperture": 0.02 },
-  "background": { "type": "gradient", "horizon": [0.9, 0.9, 0.95], "zenith": [0.35, 0.55, 0.95] },
+  "render": {
+    "width": 1920,
+    "height": 1080,
+    "spp": 64,
+    "max_depth": 16,
+    "seed": 7
+  },
+  "camera": {
+    "lookfrom": [
+      0,
+      3.2,
+      9
+    ],
+    "lookat": [
+      0,
+      0.9,
+      0
+    ],
+    "vfov": 38,
+    "aperture": 0.02
+  },
+  "background": {
+    "type": "gradient",
+    "horizon": [
+      0.9,
+      0.9,
+      0.95
+    ],
+    "zenith": [
+      0.35,
+      0.55,
+      0.95
+    ]
+  },
   "textures": {
-    "floor": { "type": "checker", "a": [0.8, 0.8, 0.8], "b": [0.25, 0.25, 0.3], "scale": [12, 12] },
-    "logo":  { "type": "image", "file": "textures/logo.png", "srgb": true }
+    "floor": {
+      "type": "checker",
+      "a": [
+        0.8,
+        0.8,
+        0.8
+      ],
+      "b": [
+        0.25,
+        0.25,
+        0.3
+      ],
+      "scale": [
+        12,
+        12
+      ]
+    }
   },
   "materials": {
-    "ground":  { "type": "lambert", "texture": "floor" },
-    "red":     { "type": "lambert", "color": [0.75, 0.25, 0.25] },
-    "gold":    { "type": "metal", "color": [1.0, 0.78, 0.34], "roughness": 0.15 },
-    "mirror":  { "type": "metal", "color": [0.9, 0.9, 0.9], "roughness": 0.0 },
-    "glass":   { "type": "dielectric", "ior": 1.5 },
-    "lamp":    { "type": "emissive", "color": [1.0, 0.95, 0.85], "intensity": 20.0 },
-    "cutmat":  { "type": "lambert", "color": [0.2, 0.45, 0.8] }
+    "ground": {
+      "type": "lambert",
+      "texture": "floor"
+    },
+    "red": {
+      "type": "lambert",
+      "color": [
+        0.75,
+        0.25,
+        0.25
+      ]
+    },
+    "gold": {
+      "type": "metal",
+      "color": [
+        1.0,
+        0.78,
+        0.34
+      ],
+      "roughness": 0.15
+    },
+    "mirror": {
+      "type": "metal",
+      "color": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "roughness": 0.0
+    },
+    "glass": {
+      "type": "dielectric",
+      "ior": 1.5
+    },
+    "lamp": {
+      "type": "emissive",
+      "color": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "intensity": 20.0
+    }
   },
   "objects": [
-    { "shape": "rect", "material": "ground", "transform": [ { "scale": 8 } ] },
-
-    { "shape": "sphere", "material": "glass",
-      "transform": [ { "scale": 0.8 }, { "translate": [-3.0, 0.8, 1.0] } ] },
-
-    { "shape": "sphere", "material": "red",
-      "transform": [ { "scale": 0.8 }, { "translate": [-1.0, 0.8, 1.0] } ] },
-
-    { "shape": "cylinder", "material": "gold",
-      "transform": [ { "scale": [0.6, 0.8, 0.6] }, { "translate": [1.0, 0.8, 1.0] } ] },
-
-    { "shape": "parabola", "material": "mirror", "material_back": null,
-      "transform": [ { "scale": [1.4, 1.4, 1.4] }, { "rotate_z": 90 }, { "translate": [3.4, 1.4, 0.0] } ] },
-
-    { "shape": "disk", "material": "mirror",
-      "transform": [ { "scale": 1.6 }, { "rotate_x": 90 }, { "translate": [0, 1.6, -3.2] } ] },
-
-    { "shape": "rect", "material": "cutmat", "material_back": "cutmat", "cutout": "logo",
-      "transform": [ { "scale": 1.2 }, { "rotate_x": 90 }, { "translate": [-2.6, 1.4, -1.2] } ] },
-
-    { "shape": "rect", "material": "lamp",
-      "transform": [ { "rotate_x": 180 }, { "scale": 1.2 }, { "translate": [0, 6, 2] } ] }
+    {
+      "shape": "rect",
+      "material": "ground",
+      "transform": [
+        {
+          "scale": 8
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "glass",
+      "transform": [
+        {
+          "scale": 0.8
+        },
+        {
+          "translate": [
+            -3.0,
+            0.8,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "red",
+      "transform": [
+        {
+          "scale": 0.8
+        },
+        {
+          "translate": [
+            -1.0,
+            0.8,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "cylinder",
+      "material": "gold",
+      "transform": [
+        {
+          "scale": [
+            0.6,
+            0.8,
+            0.6
+          ]
+        },
+        {
+          "translate": [
+            1.0,
+            0.8,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "parabola",
+      "material": "mirror",
+      "material_back": null,
+      "transform": [
+        {
+          "scale": [
+            1.4,
+            1.4,
+            1.4
+          ]
+        },
+        {
+          "rotate_z": 90
+        },
+        {
+          "translate": [
+            3.4,
+            1.4,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "disk",
+      "material": "mirror",
+      "transform": [
+        {
+          "scale": 1.6
+        },
+        {
+          "rotate_x": 90
+        },
+        {
+          "translate": [
+            0,
+            1.6,
+            -3.2
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "rect",
+      "material": "lamp",
+      "transform": [
+        {
+          "rotate_x": 180
+        },
+        {
+          "scale": 1.2
+        },
+        {
+          "translate": [
+            0,
+            6,
+            2
+          ]
+        }
+      ]
+    }
   ],
   "lights": [
-    { "type": "point", "position": [5, 5, 4], "radius": 0.3, "intensity": [30, 30, 30] },
-    { "type": "distant", "direction": [-0.5, -1, -0.3], "radiance": [0.6, 0.6, 0.55] }
+    {
+      "type": "point",
+      "position": [
+        5,
+        5,
+        4
+      ],
+      "radius": 0.3,
+      "intensity": [
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "type": "distant",
+      "direction": [
+        -0.5,
+        -1,
+        -0.3
+      ],
+      "radiance": [
+        0.6,
+        0.6,
+        0.55
+      ]
+    }
   ]
 }

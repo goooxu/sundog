@@ -18,7 +18,7 @@ CLI ──> LaunchParams ──> optixLaunch(分块 spp) ─┴─> accum/AOV fl
 整个积分器在 `__raygen__render` 里迭代完成（`device/programs.cu`）。
 `optixPipelineLinkOptions::maxTraceDepth = 1`：只有 raygen 调 `optixTrace`，
 closesthit / anyhit / miss 一律不递归。closesthit 只负责把命中信息打包进
-payload 寄存器；BSDF 求值、NEE、MIS、俄罗斯轮盘（非 parity 模式、深度 ≥4）
+payload 寄存器；BSDF 求值、NEE、MIS、俄罗斯轮盘（深度 ≥4 起）
 都在 raygen 的 for 循环里。好处：栈开销最小（`optixUtilComputeStackSizes`
 按 depth 1 计算），控制流集中，寄存器压力可控。
 
@@ -59,7 +59,7 @@ GAS 全部 `PREFER_FAST_TRACE + ALLOW_COMPACTION` 并做 compaction。
 
 ## 双面 / 穿透 / 镂空：anyhit 设计
 
-cxxrt 语义：每个面有独立的正/背材质，`null` 面是**穿透**（光线与阴影都直接穿过）。
+双面语义：每个面有独立的正/背材质，`null` 面是**穿透**（光线与阴影都直接穿过）。
 实现上 hitgroup 分 8 个变体：{quadric, tri} x {radiance, shadow} x {opaque, masked}。
 
 - 无穿透面且无 cutout 的对象走 **opaque** 变体，实例加
@@ -93,15 +93,8 @@ emissive rect/disk/sphere 区域光），采样后发阴影光线：
   NEE，后者只走 BSDF 路径（`specularBounce` 时发光体全额计入）。
 
 `--clamp` 只作用于间接（depth ≥ 1）贡献，控 firefly。
-`--parity` 模式复刻 cxxrt：只对 lambert 做 NEE、无 MIS、无俄罗斯轮盘、
-无 clamp，用于与 CPU 基线公平对比（`scripts/run-benchmark.sh` A 层）。
-
-两种模式的**点光源单位约定不同**（有意为之，非 bug）：物理模式
-`Li = intensity / d²`（intensity 是辐射强度）；parity 模式逐式复刻 cxxrt 的
-`Li = intensity · (1/4π) / d²`，相差 4π。同一场景两种模式下点光亮度不同，
-compat 场景的数值按 parity 模式标定。dielectric 亦然：parity 复刻 cxxrt
-的恒 `η=1/ior` + 原始 Schlick（出射面也如此），物理模式按面选 η 并用
-低折射率侧余弦做 Schlick（含 TIR）——玻璃在物理模式下内反射更强、整体更暗。
+点光源单位约定：`Li = intensity / d²`（intensity 是辐射强度）。
+dielectric 按命中面选 η，Schlick 近似用低折射率侧的余弦（含全内反射 TIR）。
 
 ## PCG32 决定性
 
@@ -118,7 +111,7 @@ raygen 顺带累积两张 guide AOV：first-hit albedo 与 camera 空间法线
 （`OPTIX_DENOISER_MODEL_KIND_HDR` + albedo/normal guide），先
 `optixDenoiserComputeIntensity` 再 invoke，输出替换 beauty 后再做
 exposure/gamma 写 PNG。AOV 可用 `--aov-albedo/--aov-normal` 单独导出。
-效果量化见 `docs/BENCHMARKS.md` C 层（16 spp + 降噪 vs 4096 spp 参考的 PSNR）。
+效果量化见 `docs/BENCHMARKS.md` 降噪层（16 spp + 降噪 vs 4096 spp 参考的 PSNR）。
 
 ## PTX vs OptiX-IR：已知问题
 

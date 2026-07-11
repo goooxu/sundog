@@ -99,10 +99,10 @@ static void testSmokeScene() {
 
 static void testFeaturesScene() {
   Scene s = loadScene("scenes/features.json");
-  CHECK_MSG(s.objects.size() == 8, "features objects: %zu", s.objects.size());
-  CHECK(s.textures.size() == 2);
-  CHECK_MSG(s.materials.size() == 7, "features materials: %zu", s.materials.size());
-  // material kind census: 3 lambert, 2 metal, 1 dielectric, 1 emissive
+  CHECK_MSG(s.objects.size() == 7, "features objects: %zu", s.objects.size());
+  CHECK(s.textures.size() == 1);
+  CHECK_MSG(s.materials.size() == 6, "features materials: %zu", s.materials.size());
+  // material kind census: 2 lambert, 2 metal, 1 dielectric, 1 emissive
   int nLam = 0, nMet = 0, nDie = 0, nEmi = 0;
   for (const auto& m : s.materials) {
     if (m.kind == MT_LAMBERT) nLam++;
@@ -110,7 +110,7 @@ static void testFeaturesScene() {
     else if (m.kind == MT_DIELECTRIC) nDie++;
     else if (m.kind == MT_EMISSIVE) nEmi++;
   }
-  CHECK_MSG(nLam == 3 && nMet == 2 && nDie == 1 && nEmi == 1,
+  CHECK_MSG(nLam == 2 && nMet == 2 && nDie == 1 && nEmi == 1,
             "material kinds: lambert=%d metal=%d dielectric=%d emissive=%d",
             nLam, nMet, nDie, nEmi);
 
@@ -122,20 +122,12 @@ static void testFeaturesScene() {
   CHECK(s.materials[par.matFront].kind == MT_METAL);
   CHECK_NEAR(s.materials[par.matFront].roughness, 0.0, 1e-6);  // mirror
 
-  // objects[6]: cutout rect bound to the image texture "logo"
-  const SceneObject& cut = s.objects[6];
-  CHECK(cut.geomKind == GK_RECT);
-  CHECK_MSG(cut.cutoutTexId >= 0, "cutout not parsed");
-  CHECK(s.textures[cut.cutoutTexId].desc.kind == TX_IMAGE);
-  CHECK(s.textures[cut.cutoutTexId].imageFile == "textures/logo.png");
-  CHECK(s.textures[cut.cutoutTexId].srgb == true);
-  CHECK(cut.matFront == cut.matBack && cut.matFront != MAT_NONE);
-  CHECK(s.materials[cut.matFront].kind == MT_LAMBERT);
-  // everything else has no cutout
-  CHECK(s.objects[0].cutoutTexId == -1);
+  // no shipped object carries a cutout texture (the loader's "cutout" key
+  // is covered by the temp-file test in testGoodPaths)
+  for (const auto& o : s.objects) CHECK(o.cutoutTexId == -1);
 
-  // objects[7]: emissive rect auto-registered as NEE area light (first light)
-  const SceneObject& lamp = s.objects[7];
+  // objects[6]: emissive rect auto-registered as NEE area light (first light)
+  const SceneObject& lamp = s.objects[6];
   CHECK(lamp.geomKind == GK_RECT);
   CHECK_MSG(lamp.lightId == 0, "lamp lightId=%d", lamp.lightId);
   CHECK(s.materials[lamp.matFront].kind == MT_EMISSIVE);
@@ -336,6 +328,17 @@ static void testErrorPaths() {
       "back-only surface");
   CHECK(back.objects[0].matFront == MAT_NONE);
   CHECK(back.objects[0].matBack != MAT_NONE);
+
+  // "cutout" binds an alpha texture id to the object (no shipped scene uses
+  // it anymore, so keep the loader path covered here)
+  Scene cut = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+      "textures": {"holes":{"type":"image","file":"textures/spot_texture.png"}},
+      "materials": {"m":{"type":"lambert"}},
+      "objects":[{"shape":"rect","material":"m","cutout":"holes"}] })",
+      "cutout binding");
+  CHECK_MSG(cut.objects[0].cutoutTexId >= 0, "cutout not parsed");
+  CHECK(cut.textures[cut.objects[0].cutoutTexId].desc.kind == TX_IMAGE);
 }
 
 static void testMakeCamera() {

@@ -22,13 +22,13 @@ bowl to aim its convex side away. Remember: `"material"` is the front face.
 
 ```json
 { "shape": "rect", "material": "gold", "material_back": null,
-  "cutout": "logoTex", "nee": true,
+  "cutout": "spotTex", "nee": true,
   "transform": [ { "scale": [2,1,2] }, { "rotate_x": 90 }, { "translate": [0,2,0] } ] }
 ```
 
 - `material` (front face). `material_back`: omitted = same as front;
-  `null` = **pass-through** (rays go straight through when hitting that side —
-  cxxrt semantics; shadows pass through too). `material` may itself be `null`
+  `null` = **pass-through** (both rays and shadows go straight through when
+  hitting that side). `material` may itself be `null`
   when `material_back` is set (back-only surface).
 - `cutout`: texture name; alpha < 0.5 makes holes (both faces).
 - `transform`: list applied top-down in object space — `[scale, rotate, translate]`
