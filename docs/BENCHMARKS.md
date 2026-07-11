@@ -1,6 +1,6 @@
 # sundog 基准
 
-由 `scripts/run-benchmark.sh` 生成于 2026-07-09T01:21:52+00:00。GPU：NVIDIA GeForce RTX 5090；
+由 `scripts/run-benchmark.sh` 生成于 2026-07-11T05:02:55+00:00。GPU：NVIDIA GeForce RTX 5090；
 CPU 基线：cxxrt（`/tmp/cxxrt-baseline`，OMP_NUM_THREADS=16，-O3 -march=native）。
 
 ## A. compat 层 — cxxrt CPU vs sundog GPU
@@ -11,20 +11,20 @@ CPU 基线：cxxrt（`/tmp/cxxrt-baseline`，OMP_NUM_THREADS=16，-O3 -march=nat
 
 | 场景 | spp | CPU (s) | GPU (s) | 加速比 | GPU Mrays/s |
 |---|---|---|---|---|---|
-| compat-01 | 16 | 0.75 | 0.007 | 101.0 | 4955 |
-| compat-01 | 256 | 11.91 | 0.082 | 144.4 | 7153 |
-| compat-03 | 16 | 0.46 | 0.004 | 101.2 | 8936 |
-| compat-03 | 256 | 7.28 | 0.071 | 101.9 | 8996 |
+| compat-01 | 16 | 0.73 | 0.006 | 122.5 | 6220 |
+| compat-01 | 256 | 11.68 | 0.096 | 121.1 | 6116 |
+| compat-03 | 16 | 0.43 | 0.005 | 80.3 | 7473 |
+| compat-03 | 256 | 6.92 | 0.086 | 80.8 | 7510 |
 
 ## B. 特性层 — 画廊场景（960x540 / 64 spp / 不降噪）
 
 | 场景 | 物体 | 三角形 | 灯 | 渲染 (s) | Mrays/s | 峰值显存 (MB) |
 |---|---|---|---|---|---|---|
-| 01-prism-court | 22 | 0 | 1 | 0.027 | 4230 | 594 |
-| 02-cornell-lume | 11 | 0 | 2 | 0.045 | 4667 | 594 |
-| 03-bunny-atrium | 4 | 144046 | 2 | 0.014 | 6636 | 600 |
-| 04-parabolica | 6 | 0 | 3 | 0.012 | 6660 | 598 |
-| 05-bunny-swarm | 4098 | 144046 | 2 | 0.021 | 3869 | 602 |
+| 01-prism-court | 22 | 0 | 1 | 0.024 | 4803 | 594 |
+| 02-cornell-lume | 11 | 0 | 2 | 0.04 | 5244 | 594 |
+| 03-spot-atrium | 4 | 5856 | 2 | 0.015 | 6024 | 598 |
+| 04-parabolica | 7 | 5856 | 3 | 0.014 | 5707 | 602 |
+| 05-spot-swarm | 32770 | 5856 | 2 | 0.025 | 3726 | 612 |
 
 ## C. 降噪层 — 02-cornell-lume（960x540，参考 4096 spp）
 

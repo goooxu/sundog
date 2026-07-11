@@ -46,8 +46,29 @@ $(BUILD) $(BUILD)/tests:
 	mkdir -p $@
 
 # device code -> OptiX-IR/PTX -> embedded C array
+#
+# CUDA 13 nvcc appends a bare `ptxas` verification pass after emitting PTX.
+# OptiX device code calls extern intrinsics (_optix_*) that ptxas cannot
+# resolve, so nvcc exits nonzero even though the emitted PTX is complete and
+# valid for the OptiX loader. For the PTX path we tolerate the exit code and
+# verify completeness ourselves (all 8 program entry points + closing brace);
+# a real compile error leaves no/partial PTX and still fails the build.
+ifeq ($(IR),1)
 $(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
 	$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $<
+else
+$(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
+	@rm -f $@
+	-@$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $< 2> $(BUILD)/nvcc-ptx.log || true
+	@entries=$$(grep -c '\.visible \.entry' $@ 2>/dev/null || echo 0); \
+	last=$$(tail -c 3 $@ 2>/dev/null | tr -d '[:space:]'); \
+	if [ "$$entries" -lt 8 ] || [ "$$last" != "}" ]; then \
+	  echo "== device PTX incomplete ($$entries entries) — real compile error =="; \
+	  cat $(BUILD)/nvcc-ptx.log; rm -f $@; exit 1; \
+	fi; \
+	grep -v 'ptxas.*_optix_\|ptxas fatal' $(BUILD)/nvcc-ptx.log | grep -v '^$$' | head -5 || true; \
+	echo "  [ptx] $@ OK ($$entries entries; nvcc ptxas-verify failure ignored)"
+endif
 
 $(BUILD)/embedded_module.c: $(BUILD)/programs.$(DEVEXT)
 	$(BIN2C) -c --padd 0 --type char --name g_sundog_module $< > $@

@@ -1,22 +1,14 @@
 # Asset licenses / provenance
 
-## bunny.obj — Stanford Bunny
+## spot.obj — Spot（卡通奶牛）
 
-- **Origin:** The Stanford Bunny, range-scanned and reconstructed by Greg Turk
-  and Marc Levoy (Stanford University Computer Graphics Laboratory, 1994).
-  Original distribution: the Stanford 3D Scanning Repository,
-  <http://graphics.stanford.edu/data/3Dscanrep/>.
-- **This copy:** OBJ conversion (144,046 triangles, 72,027 vertices,
-  rescaled/normalized) obtained from the McGuire Computer Graphics Archive,
-  <https://casual-effects.com/data/> —
-  direct file: <https://casual-effects.com/g3d/data10/research/model/bunny/bunny.zip>.
-- **Terms:** The Stanford Scanning Repository asks that the data be used for
-  research and non-commercial purposes, with credit to the Stanford Computer
-  Graphics Laboratory ("we ask that you acknowledge the source of the models
-  when using them"). No warranty is provided.
-- **Use in this project:** Rendering test/benchmark scenes for research and
-  development of the sundog path tracer. Not used for merchandising or
-  commercial redistribution.
-- **Attribution:** Stanford Bunny courtesy of the Stanford University Computer
-  Graphics Laboratory; OBJ packaging courtesy of Morgan McGuire's Computer
-  Graphics Archive.
+- **Origin:** "Spot", a cartoon cow model by Keenan Crane, from his 3D Model
+  Repository: <https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/>
+  (archive `spot.zip`; this copy is `spot_triangulated.obj`, 5,856 triangles,
+  with UV texture coordinates).
+- **Texture:** `scenes/textures/spot_texture.png`（同一压缩包内的纹理图集，入库）。
+- **Terms:** **CC0 1.0 Universal** — dedicated to the public domain; no
+  attribution required ("acknowledgement is appreciated").
+- **获取方式:** `scripts/fetch-assets.sh`（OBJ 不入库，按需重新下载；纹理入库）。
+- **Use in this project:** rendering demo/benchmark scenes for the sundog
+  path tracer.

@@ -154,7 +154,7 @@ void Pipeline::buildSbt(const Scene& scene, const std::vector<GpuMesh>& meshes) 
       data.positions = m.positions.as<float3>();
       data.indices = m.indices.as<uint3>();
       data.normals = m.normals.ptr ? m.normals.as<float3>() : nullptr;
-      data.uvs = nullptr;
+      data.uvs = m.uvs.ptr ? m.uvs.as<float2>() : nullptr;
     }
 
     int rad = tri ? (masked ? HG_T_RAD_MSK : HG_T_RAD_OPQ)

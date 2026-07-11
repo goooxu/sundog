@@ -12,7 +12,7 @@ Scenes are JSON with eight sections: `render`, `camera`, `background`,
 | `disk` | XZ disk r<=1 at y=0 | +Y side | u: azimuth, v: radius |
 | `cylinder` | x^2+z^2=1, y in [-1,1], **open ends** | outside | u: azimuth, v: height |
 | `parabola` | y = (x^2+z^2)/2, r<=1 (focus at (0,0.5,0)) | **convex underside** | u: azimuth, v: radius |
-| `mesh:NAME` | triangles from `meshes.NAME` | winding side | barycentric (OBJ `vt` is not imported) |
+| `mesh:NAME` | triangles from `meshes.NAME` | winding side | OBJ `vt` per-vertex; barycentric fallback without `vt` |
 
 To make a *concave* parabola reflector (dish), put the mirror on
 `material_back` (the bowl side) and set `material` to `null`… or rotate the

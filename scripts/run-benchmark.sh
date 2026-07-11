@@ -44,7 +44,7 @@ else
   OUT_MD="$ROOT/docs/BENCHMARKS.md"
   COMPAT_PAIRS=("compat-01:example1" "compat-03:example3")
   COMPAT_SPPS=(16 256)
-  FEATURE_SCENES=(01-prism-court 02-cornell-lume 03-bunny-atrium 04-parabolica 05-bunny-swarm)
+  FEATURE_SCENES=(01-prism-court 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm)
   DN_SCENE=02-cornell-lume DN_REF_SPP=4096 DN_TEST_SPP=16
 fi
 DN_SIZE=960x540

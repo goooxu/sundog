@@ -102,8 +102,8 @@ struct HitRecordData {
   float3* positions;
   uint3* indices;
   float3* normals;          // per-vertex, may be null (use geometric)
-  float2* uvs;              // reserved: OBJ vt import is not wired up yet;
-                            // always null -> device falls back to barycentrics
+  float2* uvs;              // per-vertex from OBJ vt (seam-duplicated verts);
+                            // null -> device falls back to barycentrics
   uint16_t matFront, matBack;  // MAT_NONE = pass-through
   int lightId;              // index into params.lights, -1 = not an NEE light
   int cutoutTexId;          // texture id with alpha mask, -1 = none

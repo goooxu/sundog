@@ -12,6 +12,7 @@ struct GpuMesh {
   CudaBuffer positions;  // float3[numVerts]
   CudaBuffer indices;    // uint3[numTris]
   CudaBuffer normals;    // float3[numVerts] or empty (faceted)
+  CudaBuffer uvs;        // float2[numVerts] or empty (no OBJ vt)
   size_t numVerts = 0;
   size_t numTris = 0;
 };
