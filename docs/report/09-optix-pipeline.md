@@ -1,8 +1,42 @@
 # 第 9 章 OptiX 工程实现
 
-[第 4 章·路径追踪算法](04-path-tracing.md)给出了算法，[第 8 章·加速结构与 RT Core](08-acceleration.md)解释了"找最近命中"为什么快。本章回答工程问题：一次 `optixTrace` 调用背后发生了什么？一个完整的渲染器如何组织成 GPU 上的几段程序、又如何把数据递给它们？
+[第 4 章·路径追踪算法](04-path-tracing.md)给出了算法，[第 8 章·加速结构与 RT Core](08-acceleration.md)解释了"找最近命中"为什么快。本章回答工程问题：一个 OptiX 应用从头到尾长什么样？一次 `optixTrace` 调用背后发生了什么？一个完整的渲染器如何组织成 GPU 上的几段程序、又如何把数据递给它们？9.1 节先把整个应用的生命周期串成一条主线，其余各节再对关键环节深潜。
 
-## 9.1 程序模型：五种程序与一次 trace 的时序
+## 9.1 一个 OptiX 应用的完整生命周期
+
+教科书式的 OptiX 应用流程是七步：**① 准备 CUDA 几何数据 → ② 构建 GAS/IAS 加速结构 → ③ 编译 raygen/miss/hit 等程序 → ④ 创建 Pipeline 与 SBT → ⑤ 调用 optixLaunch → ⑥ 光线遍历、求交与自定义着色 → ⑦ Denoiser 降噪**。sundog 七步全部走到，其中 ①–④ 是启动时的一次性准备，⑤⑥ 构成渲染循环，⑦ 在循环结束后收尾：
+
+![OptiX 应用的完整生命周期](figures/ch09-app-flow.svg)
+
+*图：sundog 的七步流程——主机侧一次性准备（①–④）、渲染循环（⑤ 发射 × ⑥ 设备执行）、收尾（⑦ 降噪与落盘）；框内标注对应源文件。*
+
+**① 准备 CUDA 数据**。一切喂给 GPU 的东西先要变成显存对象：OBJ 网格的顶点/索引/法线/UV 经 `cudaMalloc` 上传（`loadObjMesh()`（src/mesh_obj.cpp），含按（顶点, 纹理坐标）对重索引，见[第 6 章·几何求交](06-geometry.md)）；五种解析图元各上传一个单位包围盒；图片纹理走 `cudaMallocArray` + `cudaCreateTextureObject`，把 sRGB 解码与双线性过滤交给硬件（`TextureSet::upload()`（src/textures.cpp），见[第 10 章](10-sampling-denoising.md)）；材质/灯/纹理的描述符数组整块上传，设备侧经 launch params 中的指针访问。项目里所有显存都由 RAII 封装 `CudaBuffer`（src/cuda_check.h）统一管理。
+
+**② 构建加速结构**。`optixAccelBuild` 把上一步的三角形与 AABB 变成 GPU 上的 BVH：每种**用到的**解析图元建一个 GAS、每个网格建一个 GAS（均做 compaction 压缩），顶层 IAS 为每个场景对象生成一个带 3×4 变换的实例（`buildQuadricGas()/buildTriangleGas()/buildIas()`（src/accel.cpp）；原理与两级结构见[第 8 章](08-acceleration.md)）。
+
+**③ 编译程序**。八个设备程序全部写在唯一的模块 `device/programs.cu` 里，构建期由 nvcc 编成 PTX、`bin2c` 嵌入可执行文件，运行期 `optixModuleCreate` 交给驱动即时编译——教科书路线是 OptiX-IR，sundog 因工程坑退回 PTX（见 9.6 节末段）。
+
+**④ 创建 Pipeline 与 SBT**。`optixProgramGroupCreate` 把程序包成 1（raygen）+2（miss）+8（hitgroup 变体）个程序组，`optixPipelineCreate` 以 `maxTraceDepth = 1` 链接成管线，随后组装 SBT——把"每个对象 × 每种光线"接到正确的程序与数据上（`Pipeline`（src/pipeline.cpp）；索引规则见 9.4 节）。
+
+**⑤ 调用 optixLaunch**。主机把 spp 按 `--chunk` 切块，循环发射并同步，每次 launch 覆盖全部像素、每像素一个线程（src/main.cpp 渲染循环，代码见 9.6 节）。
+
+**⑥ 遍历、求交与着色**。设备侧每条光线由 RT Core 遍历 BVH：三角形硬件求交，解析图元回调 IS 程序，AH 对穿透面与 alpha 镂空行使否决权，CH/miss 收尾——但 sundog 的着色（BSDF、NEE、MIS、俄罗斯轮盘）**不在 CH 里**，而是全部收在 raygen 的路径循环中，CH 退化为把命中信息打包进 8 个 payload 寄存器。这是 sundog 与"在 CH 里递归着色"的教科书结构最大的差异，动机见 9.3 节。
+
+**⑦ 降噪与落盘**。渲染循环结束后，OptiX Denoiser 在线性 HDR 域、以 albedo/normal 为引导层做 AI 降噪（`Denoiser`（src/denoise.cpp），原理见[第 10 章](10-sampling-denoising.md)），最后 tonemap 写出 PNG（[第 1 章](01-images-and-rays.md)）。
+
+七步与代码、章节的完整映射：
+
+| 步骤 | 关键 API | sundog 实现 | 深入阅读 |
+|---|---|---|---|
+| ① CUDA 数据准备 | `cudaMalloc` / `cudaCreateTextureObject` | `CudaBuffer`、`loadObjMesh()`、`TextureSet::upload()` | 第 6、10 章 |
+| ② GAS / IAS | `optixAccelBuild` / `optixAccelCompact` | src/accel.cpp | 第 8 章 |
+| ③ 程序编译 | nvcc `-ptx` → `optixModuleCreate` | device/programs.cu、Makefile | 9.6 节末段 |
+| ④ Pipeline + SBT | `optixProgramGroupCreate` / `optixPipelineCreate` / `optixSbtRecordPackHeader` | src/pipeline.cpp | 9.2、9.4 节 |
+| ⑤ 发射 | `optixLaunch` | src/main.cpp 渲染循环 | 9.6 节 |
+| ⑥ 遍历/求交/着色 | `optixTrace` / `optixReportIntersection` / `optixIgnoreIntersection` | device/programs.cu | 9.2、9.3、9.5 节；第 6 章 |
+| ⑦ 降噪 | `optixDenoiserInvoke` | src/denoise.cpp | 第 10 章 |
+
+## 9.2 程序模型：五种程序与一次 trace 的时序
 
 OptiX 不是"一个单一的大核函数（kernel）"，而是一个以光线为中心的调度框架：开发者提供若干小程序，遍历硬件与驱动负责在恰当的时机调用它们。一次 `optixLaunch` 以二维网格发起海量线程（sundog 中一个像素对应一个线程），每个线程从同一个入口程序开始执行。sundog 用到五种程序（全部实现在 `device/programs.cu` 这一个模块里；OptiX 还有 exception、callable 等类型，本项目未用）：
 
@@ -12,7 +46,7 @@ OptiX 不是"一个单一的大核函数（kernel）"，而是一个以光线为
 - **最近命中（closest-hit/CH）**：遍历结束、最近命中尘埃落定后调用一次；
 - **未命中（miss）**：整条光线什么都没打中时调用。
 
-后三种程序总是按图元类型成套使用：把某类图元的 IS/AH/CH 打包成的一组称为命中组（hitgroup），它是 9.3 节着色器绑定表（SBT）中记录的基本单位——每条 hitgroup 记录指向其中一组。
+后三种程序总是按图元类型成套使用：把某类图元的 IS/AH/CH 打包成的一组称为命中组（hitgroup），它是 9.4 节着色器绑定表（SBT）中记录的基本单位——每条 hitgroup 记录指向其中一组。
 
 一次 `optixTrace` 的时序是：光线进入加速结构遍历→每遇到候选图元，三角形由硬件求交、自定义图元回调 IS→若产生命中且该实例未禁用 AH，调用 AH，AH 可用 `optixIgnoreIntersection()` 把命中作废（光线像没事一样继续）→遍历维护当前最近命中→遍历结束，有命中调 CH、没有调 miss→控制流回到 raygen。这些程序之间不共享局部变量，唯一的通信通道是随光线携带的光线负载（payload）：可以把一次 trace 理解成一次函数调用——光线的起点、方向与区间是参数，payload 是返回值。
 
@@ -20,7 +54,7 @@ OptiX 不是"一个单一的大核函数（kernel）"，而是一个以光线为
 
 *图：raygen 发起 trace 后的调用时序，含 AH 通过 `optixIgnoreIntersection()` 忽略命中、返回遍历的回路。*
 
-## 9.2 megakernel 决策：路径循环放 raygen，CH 只打包
+## 9.3 megakernel 决策：路径循环放 raygen，CH 只打包
 
 这些程序怎么分工，OptiX 不做规定。经典做法是让 CH 递归地再调 `optixTrace`（"在着色程序里继续追下一段光线"），sundog 选了另一头，即所谓 megakernel（单一大内核）结构：**整个第 4 章的路径循环都写在 `__raygen__render` 里**，管线链接选项 `maxTraceDepth = 1`——全系统只有 raygen 调用 `optixTrace`，CH/AH/miss 一律不再发光线。CH 的职责被压缩到极致：只把命中信息打包进 payload 寄存器，BSDF 求值（见[第 5 章·材质与 BSDF](05-materials.md)）、下一事件估计（NEE）、多重重要性采样（MIS）与俄罗斯轮盘（均见第 4 章）全部回到 raygen 的 for 循环里做。好处有二：一是每线程的栈开销最小（下段展开）；二是控制流集中在一处，寄存器压力（每线程占用的寄存器数，占得越多能同时驻留的线程越少）与分支发散可控——分支发散指同组并行执行的线程走进不同的 if 分支时只能相互等待、依次通过，路径循环收在一个函数里，这种等待更容易控制。
 
@@ -38,7 +72,7 @@ payload 是 trace 调用者与 CH/miss 之间的寄存器通道，sundog 固定 
 
 两处打包很值得玩味：miss 时 p2–p4 **复用**法线寄存器直接携带背景色，raygen 拿来就当辐亮度用，省一次分支后的二次求值；p7 把材质号与灯号（`lightId + 1`，0 表示"不是 NEE 灯"）挤进一个寄存器，raygen 全程不需要读 SBT 数据。阴影光线更简单，只用 1 个寄存器：`traceShadow()` 以 `TERMINATE_ON_FIRST_HIT | DISABLE_CLOSESTHIT` 发射，`__miss__shadow` 把 payload 置 1 表示"可见"——被任何不可忽略的表面挡住时 miss 不会执行，payload 保持 0。属性寄存器（attribute）则是 IS 与 AH/CH 之间的通道：`numAttributeValues = 5`，quadric 的 IS 经它交出法线（3）加 UV（2）；三角形用内建重心坐标，不占这 5 个。
 
-## 9.3 SBT：光线如何找到"它的程序"
+## 9.4 SBT：光线如何找到"它的程序"
 
 同一次 trace，打中奶牛要跑三角形的 CH、打中玻璃球要跑 quadric 的 IS，阴影光线又不该跑任何 CH——运行时按什么规则选程序？答案是着色器绑定表（shader binding table/SBT）：一张记录（record）数组，每条记录 = 一个头部（标识某个程序组）+ 一段用户数据。sundog 的布局（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））：
 
@@ -81,7 +115,7 @@ raygen ×1 | miss ×2（radiance, shadow）| hitgroup ×(2×对象数)
 
 *图：SBT 布局——raygen、两条 miss、每实例两条 hitgroup 记录；索引 = 2×instanceId + rayType。*
 
-## 9.4 anyhit 的三件事与 DISABLE_ANYHIT 快速路径
+## 9.5 anyhit 的三件事与 DISABLE_ANYHIT 快速路径
 
 sundog 的 AH 只有一段共享逻辑 `maskAnyhit()`（device/programs.cu），干三件事：
 
@@ -98,7 +132,7 @@ if (rec->cutoutTexId >= 0) {
 
 AH 每次都要从硬件遍历回到 SM，是有代价的（第 8 章）。因此 `buildIas()` 做了静态分流：`matFront/matBack` 均非 `MAT_NONE` 且无镂空纹理的对象，实例标志设为 `OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT`，SBT 里也选 opaque 变体——这类对象（场景中的绝大多数）的命中处理零 AH 开销；其余对象才走 masked 变体。
 
-## 9.5 主机侧：一帧的编排
+## 9.6 主机侧：一帧的编排
 
 `main.cpp` 把前几章的所有部件串成一条直线：解析 CLI 并覆盖场景参数→加载场景 JSON→上传纹理→加载 OBJ 网格→只为**用到的** quadric 种类建 GAS、每个网格建 GAS、再建 IAS（第 8 章）→创建 `Pipeline`（编译模块、创建 1+2+8 个程序组、链接）并组装 SBT→分配胶片缓冲、填 `LaunchParams`→渲染循环→可选降噪→写 PNG 与 stats。渲染循环本体不过几行（src/main.cpp）：
 

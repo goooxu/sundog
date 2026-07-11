@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="592" viewBox="0 0 940 592" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B45309"/>
+    </marker>
+  </defs>
+  <rect width="940" height="592" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">OptiX 应用的完整生命周期（sundog 实现）</text>
+
+  <!-- ===== lane 1: host one-time setup ===== -->
+  <text x="20" y="64" font-size="17" font-weight="bold" fill="#2563EB">主机 · 一次性准备</text>
+  <g stroke="#2563EB" fill="#2563EB" fill-opacity="0.08">
+    <rect x="20"  y="74" width="206" height="80" rx="8"/>
+    <rect x="252" y="74" width="206" height="80" rx="8"/>
+    <rect x="484" y="74" width="206" height="80" rx="8"/>
+    <rect x="716" y="74" width="204" height="80" rx="8"/>
+  </g>
+  <g font-size="16" fill="#334155">
+    <text x="123" y="98"  text-anchor="middle" font-size="17" font-weight="bold">① 数据上传</text>
+    <text x="123" y="120" text-anchor="middle">cudaMalloc · 纹理对象</text>
+    <text x="123" y="141" text-anchor="middle" fill="#64748B">mesh_obj / textures.cpp</text>
+    <text x="355" y="98"  text-anchor="middle" font-size="17" font-weight="bold">② 构建 GAS / IAS</text>
+    <text x="355" y="120" text-anchor="middle">optixAccelBuild</text>
+    <text x="355" y="141" text-anchor="middle" fill="#64748B">accel.cpp</text>
+    <text x="587" y="98"  text-anchor="middle" font-size="17" font-weight="bold">③ 加载程序模块</text>
+    <text x="587" y="120" text-anchor="middle">PTX → 驱动 JIT</text>
+    <text x="587" y="141" text-anchor="middle" fill="#64748B">device/programs.cu</text>
+    <text x="818" y="98"  text-anchor="middle" font-size="17" font-weight="bold">④ Pipeline + SBT</text>
+    <text x="818" y="120" text-anchor="middle">optixPipelineCreate</text>
+    <text x="818" y="141" text-anchor="middle" fill="#64748B">pipeline.cpp</text>
+  </g>
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)">
+    <line x1="226" y1="114" x2="250" y2="114"/>
+    <line x1="458" y1="114" x2="482" y2="114"/>
+    <line x1="690" y1="114" x2="714" y2="114"/>
+    <path d="M 818 154 L 818 186 L 648 186 L 648 208"/>
+  </g>
+
+  <!-- ===== lane 2: render loop ===== -->
+  <text x="20" y="228" font-size="17" font-weight="bold" fill="#B45309">渲染循环</text>
+  <rect x="300" y="210" width="360" height="70" rx="8" stroke="#B45309" fill="#F59E0B" fill-opacity="0.12"/>
+  <text x="480" y="236" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">⑤ optixLaunch ×（spp ÷ chunk）</text>
+  <text x="480" y="260" text-anchor="middle" font-size="16" fill="#64748B">main.cpp · 每块后 cudaDeviceSynchronize</text>
+  <path d="M 660 230 C 706 218, 706 262, 660 254" stroke="#B45309" stroke-width="2" fill="none" marker-end="url(#arrB)"/>
+  <text x="714" y="246" font-size="16" fill="#B45309">直到 spp 采满</text>
+
+  <!-- launch <-> device double arrows -->
+  <line x1="452" y1="280" x2="452" y2="316" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="508" y1="316" x2="508" y2="280" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="322" y="303" font-size="16" fill="#334155">发射所有像素线程</text>
+  <text x="520" y="303" font-size="16" fill="#334155">全部线程结束后返回</text>
+
+  <!-- ===== lane 3: device ===== -->
+  <rect x="20" y="318" width="900" height="164" rx="10" stroke="#94A3B8" stroke-dasharray="6 4" fill="#64748B" fill-opacity="0.05"/>
+  <text x="34" y="344" font-size="17" font-weight="bold" fill="#334155">⑥ 设备 · 每条光线（绿框 = RT Core 硬件，白框 = 软件程序）</text>
+  <g stroke-width="1.6">
+    <rect x="40"  y="358" width="180" height="62" rx="8" stroke="#16A34A" fill="#16A34A" fill-opacity="0.10"/>
+    <rect x="252" y="358" width="212" height="62" rx="8" stroke="#16A34A" fill="#16A34A" fill-opacity="0.10"/>
+    <rect x="496" y="358" width="188" height="62" rx="8" stroke="#334155" fill="#ffffff"/>
+    <rect x="716" y="358" width="196" height="62" rx="8" stroke="#334155" fill="#ffffff"/>
+  </g>
+  <g font-size="16" fill="#334155">
+    <text x="130" y="383" text-anchor="middle" font-weight="bold">BVH 遍历</text>
+    <text x="130" y="405" text-anchor="middle" fill="#64748B">RT Core</text>
+    <text x="358" y="383" text-anchor="middle" font-weight="bold">求交</text>
+    <text x="358" y="405" text-anchor="middle" fill="#64748B">三角形硬件 / quadric 走 IS</text>
+    <text x="590" y="383" text-anchor="middle" font-weight="bold">AH 否决</text>
+    <text x="590" y="405" text-anchor="middle" fill="#64748B">穿透面 · alpha 镂空</text>
+    <text x="814" y="383" text-anchor="middle" font-weight="bold">CH / miss</text>
+    <text x="814" y="405" text-anchor="middle" fill="#64748B">打包 8 寄存器 payload</text>
+  </g>
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)">
+    <line x1="220" y1="389" x2="250" y2="389"/>
+    <line x1="464" y1="389" x2="494" y2="389"/>
+    <line x1="684" y1="389" x2="714" y2="389"/>
+    <path d="M 814 420 L 814 448 L 240 448 L 240 434"/>
+  </g>
+  <text x="470" y="470" text-anchor="middle" font-size="16" fill="#334155">raygen 路径循环：着色（BSDF · NEE · MIS · RR）→ 发出下一条 optixTrace，×路径深度</text>
+
+  <!-- ===== tail: denoise + output ===== -->
+  <line x1="480" y1="482" x2="480" y2="512" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="252" y="514" width="360" height="64" rx="8" stroke="#2563EB" fill="#2563EB" fill-opacity="0.08"/>
+  <text x="432" y="539" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">⑦ OptiX Denoiser（可选）</text>
+  <text x="432" y="561" text-anchor="middle" font-size="16" fill="#64748B">HDR + albedo/normal 引导 · denoise.cpp</text>
+  <line x1="612" y1="546" x2="648" y2="546" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="650" y="514" width="250" height="64" rx="8" stroke="#334155" fill="#ffffff"/>
+  <text x="775" y="539" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">tonemap → PNG</text>
+  <text x="775" y="561" text-anchor="middle" font-size="16" fill="#64748B">film.cpp</text>
+</svg>

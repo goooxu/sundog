@@ -164,16 +164,18 @@
 
 ## 09-optix-pipeline.md OptiX 工程实现
 
-**回答**：一次 optixTrace 背后发生什么？渲染器代码怎么组织到 GPU 上？
+**回答**：一个 OptiX 应用从头到尾长什么样？一次 optixTrace 背后发生什么？渲染器代码怎么组织到 GPU 上？
 
 小节：
-1. OptiX 程序模型——raygen/IS/AH/CH/miss 五种程序各管什么、一次 trace 的调用时序
-2. sundog 的 megakernel 决策——路径循环放 raygen、trace depth=1、CH 只打包命中信息（8 个 payload 寄存器布局表，对账 programs.cu 顶部注释与 `packHit()`）
-3. SBT——records、`sbtOffset = 2×instanceId`、radiance/shadow 两套 hitgroup、8 个 PG 变体矩阵（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））
-4. anyhit 的三件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用同一逻辑；DISABLE_ANYHIT 快速路径（对账 `maskAnyhit()` 与 accel.cpp 实例 flags）
-5. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过（引 ARCHITECTURE.md）
+1. 一个 OptiX 应用的完整生命周期——教科书七步（①CUDA 数据准备 ②GAS/IAS ③程序编译 ④Pipeline+SBT ⑤optixLaunch ⑥遍历/求交/着色 ⑦Denoiser）逐步走读 + 步骤→API→sundog 文件→深入章节的映射表；点明两处偏差（着色在 raygen；PTX 而非 OptiX-IR）；补齐步骤① CUDA 数据准备的综述（CudaBuffer/网格上传/纹理对象/描述符数组）
+2. OptiX 程序模型——raygen/IS/AH/CH/miss 五种程序各管什么、一次 trace 的调用时序
+3. sundog 的 megakernel 决策——路径循环放 raygen、trace depth=1、CH 只打包命中信息（8 个 payload 寄存器布局表，对账 programs.cu 顶部注释与 `packHit()`）
+4. SBT——records、`sbtOffset = 2×instanceId`、radiance/shadow 两套 hitgroup、8 个 PG 变体矩阵（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））
+5. anyhit 的三件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用同一逻辑；DISABLE_ANYHIT 快速路径（对账 `maskAnyhit()` 与 accel.cpp 实例 flags）
+6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过（引 ARCHITECTURE.md）
 
 图：
+- `figures/ch09-app-flow.svg`：七步生命周期泳道图（主机一次性准备 → 渲染循环 ⑤↔⑥ → 降噪落盘，框内标源文件，硬件/软件分色）
 - `figures/ch09-optix-pipeline.svg`：一次 optixTrace 的程序调用流程图（含 AH ignore 回路）
 - `figures/ch09-sbt.svg`：SBT 内存布局：raygen|miss×2|每实例两条 hitgroup 记录
 - `figures/ch09-aov.png`：beauty / albedo AOV / normal AOV 三联
