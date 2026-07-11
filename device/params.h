@@ -5,11 +5,7 @@
 #include "math.cuh"
 #include <stdint.h>
 
-#if defined(__CUDACC__) || defined(SD_HAVE_CUDA)
 #include <optix.h>
-#else
-typedef unsigned long long OptixTraversableHandle;
-#endif
 
 namespace sd {
 

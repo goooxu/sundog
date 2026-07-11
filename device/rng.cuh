@@ -1,5 +1,4 @@
-// sundog: PCG32 RNG (O'Neill, pcg-random.org). Identical on host and device
-// so unit tests and golden determinism share one implementation.
+// sundog: PCG32 RNG (O'Neill, pcg-random.org).
 #ifndef SUNDOG_RNG_CUH
 #define SUNDOG_RNG_CUH
 

@@ -1,8 +1,6 @@
 // sundog: vector/matrix math shared by OptiX device code and host code.
-// Compiles three ways:
-//   - nvcc (device):        __CUDACC__ defined, CUDA vector types available
-//   - g++ with CUDA (host): SD_HAVE_CUDA defined, include <cuda_runtime.h> first
-//   - plain g++ (tests):    neither -> local vector-type shim below
+// Rendering runs exclusively on the GPU; the host includes this header only
+// for the vector types, the affine scene-assembly math and small constants.
 #ifndef SUNDOG_MATH_CUH
 #define SUNDOG_MATH_CUH
 
@@ -12,21 +10,7 @@
 #  define SD_HD __host__ __device__ __forceinline__
 #else
 #  define SD_HD inline
-#endif
-
-#if defined(SD_HAVE_CUDA) && !defined(__CUDACC__)
-#include <cuda_runtime.h>
-#endif
-
-#if !defined(__CUDACC__) && !defined(SD_HAVE_CUDA)
-struct float2 { float x, y; };
-struct float3 { float x, y, z; };
-struct float4 { float x, y, z, w; };
-struct uint3  { unsigned x, y, z; };
-typedef unsigned long long cudaTextureObject_t;
-SD_HD float2 make_float2(float x, float y) { return {x, y}; }
-SD_HD float3 make_float3(float x, float y, float z) { return {x, y, z}; }
-SD_HD float4 make_float4(float x, float y, float z, float w) { return {x, y, z, w}; }
+#  include <cuda_runtime.h>
 #endif
 
 namespace sd {

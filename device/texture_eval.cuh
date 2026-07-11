@@ -1,5 +1,4 @@
-// sundog: texture evaluation. Image textures need tex2D (device only);
-// procedural kinds are shared with host tests.
+// sundog: texture evaluation (device; image textures via tex2D).
 #ifndef SUNDOG_TEXTURE_EVAL_CUH
 #define SUNDOG_TEXTURE_EVAL_CUH
 
@@ -31,7 +30,7 @@ SD_HD float4 evalTexture(const TextureDesc& tx, float u, float v) {
 #if defined(__CUDA_ARCH__)
       return tex2D<float4>(tx.tex, u, 1.0f - v);
 #else
-      return make_float4(1.0f, 0.0f, 1.0f, 1.0f);  // host tests never sample images
+      return make_float4(1.0f, 0.0f, 1.0f, 1.0f);  // unreachable in host compilation
 #endif
     }
     default:

@@ -1,5 +1,5 @@
 // sundog: analytic intersection math for the five quadric primitives, in
-// canonical object space. Pure functions -> unit-testable on the CPU.
+// canonical object space. The host uses only quadricAabb() (GAS builds).
 //
 // Canonical shapes:
 //   sphere    r=1 at origin

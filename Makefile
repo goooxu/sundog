@@ -14,7 +14,7 @@ ARCH  ?= sm_120
 IR    ?= 0
 DEBUG ?= 0
 
-CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP -DSD_HAVE_CUDA \
+CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP \
             -Isrc -Idevice -Iextern -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
 LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart -ldl -lpthread -Wl,-rpath,$(CUDA_HOME)/lib64
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
@@ -35,10 +35,13 @@ endif
 HOST_SRCS := $(wildcard src/*.cpp)
 HOST_OBJS := $(HOST_SRCS:src/%.cpp=$(BUILD)/%.o)
 
-# Host-only tests: plain g++, no CUDA/OptiX includes -> run on the dev box too.
+# Host tests: scene parsing/loading only (rendering is GPU-only and is
+# validated by golden images + determinism). Needs CUDA/OptiX headers to
+# compile, but no GPU to run.
 TEST_SRCS := $(wildcard tests/host/*.cpp)
 TEST_BINS := $(TEST_SRCS:tests/host/%.cpp=$(BUILD)/tests/%)
-TESTFLAGS := -std=c++17 -O2 -g -Wall -Idevice -Iextern -Isrc
+TESTFLAGS := -std=c++17 -O2 -g -Wall -Idevice -Iextern -Isrc \
+             -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
 
 all: $(BUILD)/sundog
 

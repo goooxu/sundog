@@ -91,7 +91,7 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 全部在测试机上跑：
 
 ```bash
-make host-tests        # 纯 host 单元测试（math/rng/intersect/bsdf，无 GPU 也能跑）
+make host-tests        # 场景解析/加载单测（编译需 CUDA/OptiX 头，运行无需 GPU）
 make smoke             # scripts/run-smoke.sh：probe + 小渲染 + denoise + stats 校验
 make golden            # scripts/run-golden.sh：4 场景 PSNR≥45 对比 golden + 决定性检查
 make check             # 以上全部
@@ -110,11 +110,11 @@ scripts/render-gallery.sh       # 1080p 正式渲染 -> out/gallery/ + docs/GALL
 
 ```
 src/          host 端 C++（CLI、场景解析、accel、pipeline、denoise、PNG、stats）
-device/       CUDA/OptiX 设备代码（单 module）+ host 共享的头（可单测）
+device/       CUDA/OptiX 设备代码（单 module）+ host 共享的类型/装配头
 extern/       第三方单头文件库（见 THIRD_PARTY.md）
 scenes/       场景 JSON + 纹理
 assets/       网格资产（spot.obj，CC0，来源见 assets/LICENSES.md）
-tests/        host 单测、img_compare 工具、golden 参考图
+tests/        场景解析单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
 docs/         SCENES.md、ARCHITECTURE.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图
 docs/report/  技术报告（12 章 + 附录 + figures/，见 report/index.md）

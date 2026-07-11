@@ -16,7 +16,7 @@
 
 这个错误还有两个连带后果。其一，出射折射方向也错了：Snell 定律给出 $`\sin\theta_t=\sin\theta_i/\text{ior}`$，出射光被再次**折向**法线，而物理上离开密介质应**偏离**法线。其二，Schlick 近似容易跟着用错侧的余弦：出射时若沿用玻璃内的入射角余弦，就违背了 Schlick 近似的自变量应取疏介质一侧角度的约定。定量地（$`\text{ior}=1.5`$，纯数学计算可复核）：临界角 $`41.8°`$ 处真实反射率为 $`1`$，而 $`\mathrm{schlick}(\cos 41.8°)\approx 0.041`$，低估约 24 倍；对从玻璃内部出射的余弦加权方向平均，真实平均反射率约 $`0.60`$（其中约 $`55\%`$ 的方向本应发生 TIR），错侧余弦的写法给出约 $`0.086`$，整体低估约 7 倍。
 
-**sundog 的做法**：`bsdfSample()`（device/bsdf.cuh）的电介质分支按面选取 $`\eta`$（`frontface ? 1/ior : ior`），保留 TIR 分支，并让 Schlick 恒用低折射率侧余弦（出射时用折射方向的余弦 $`-\,\omega_t\cdot n=\cos\theta_t`$，与 TIR 分支在临界角处连续衔接），推导见[第 5 章·材质与 BSDF](05-materials.md)。这一条还有专门的回归测试兜底：`testDielectricExitFresnel()`（tests/host/test_bsdf.cpp）钉住玻璃内 40° 入射时反射率为 0.244（错侧余弦只会给 0.041），并断言超临界角必发生 TIR。
+**sundog 的做法**：`bsdfSample()`（device/bsdf.cuh）的电介质分支按面选取 $`\eta`$（`frontface ? 1/ior : ior`），保留 TIR 分支，并让 Schlick 恒用低折射率侧余弦（出射时用折射方向的余弦 $`-\,\omega_t\cdot n=\cos\theta_t`$，与 TIR 分支在临界角处连续衔接），推导见[第 5 章·材质与 BSDF](05-materials.md)。这一差异（正确反射率 0.244 对错侧余弦的 0.041）在第 5 章有完整的数值对照，任何此处的回归都会直接改变 golden 图像。
 
 ## 陷阱 2：Lambertian 采样分布与权重不匹配
 
@@ -29,7 +29,7 @@
 
 于是估计量 $`\text{albedo}\cdot L(\omega_{\text{sampled}})`$ 的期望是 $`\text{albedo}\int L\,p\,\mathrm{d}\omega`$ 而非正确的 $`\text{albedo}\int L\,\frac{\cos\theta}{\pi}\,\mathrm{d}\omega`$：这不是噪声，是**偏差**，加多少 spp 都不收敛到正确值。两个可验算的例子：入射辐亮度 $`L\propto\cos\theta`$（顶光）时高估 $`20\%`$（$`0.80`$ vs $`2/3`$）；$`L\propto 1-\cos\theta`$（掠射光）时低估 $`40\%`$（$`0.20`$ vs $`1/3`$）。唯独 $`L`$ 为常数（均匀天空）时任何归一化 pdf 都给出无偏结果——这正是它"平时看不出来"的原因。
 
-**sundog 的做法**：用精确的余弦采样 `cosineHemisphere()`（device/rng.cuh，Malley 方法：单位圆盘均匀采样后垂直投影上半球，推导见第 5 章），权重 = albedo 严格成立；host 单元测试对该分布验证 $`\mathbb{E}[\cos\theta]=2/3`$ 与 pdf 归一化（tests/host/test_rng.cpp，见[第 11 章·验证方法学与性能](11-validation.md)）。
+**sundog 的做法**：用精确的余弦采样 `cosineHemisphere()`（device/rng.cuh，Malley 方法：单位圆盘均匀采样后垂直投影上半球，推导见第 5 章），权重 = albedo 严格成立；该分布满足 $`\mathbb{E}[\cos\theta]=2/3`$ 与 pdf 归一化（推导见第 3 章）。
 
 ## 陷阱 3：阴影线把玻璃当不透明
 
@@ -67,4 +67,4 @@
 
 ## 小结
 
-六组陷阱里，第 1、2 条是数学错误（有偏或错误的物理），第 3 条是被灯光模型放大的近似，第 4–6 条是工程质量问题（性能与可复现性）。它们共同的教训是：蒙特卡洛渲染器"图看着差不多"完全不构成正确性证据——分布错了、权重错了、判别式恒正了，图往往**仍然像那么回事**。这也是 sundog 把白炉测试、解析对账单测与逐位决定性（[第 11 章·验证方法学与性能](11-validation.md)）放进构建流程的原因。
+六组陷阱里，第 1、2 条是数学错误（有偏或错误的物理），第 3 条是被灯光模型放大的近似，第 4–6 条是工程质量问题（性能与可复现性）。它们共同的教训是：蒙特卡洛渲染器"图看着差不多"完全不构成正确性证据——分布错了、权重错了、判别式恒正了，图往往**仍然像那么回事**。这也是 sundog 把 golden 图像校验与逐位决定性（[第 11 章·验证方法学与性能](11-validation.md)）放进构建流程的原因。

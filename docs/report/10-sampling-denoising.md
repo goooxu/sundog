@@ -6,9 +6,9 @@
 
 蒙特卡洛渲染处处要随机数：像素内抖动、光圈采样、选灯、光源上取点、BSDF 采样、俄罗斯轮盘。在 GPU 上这带来三个特殊要求：同时活跃的百万条路径各要一条互不相关的随机数流；生成要便宜到可以内联在寄存器里做；而且结果必须**可复现**——否则第 11 章的回归测试就没有"参考答案"可言。
 
-CUDA 自带的 curand 库不满足最后两条的组合。curand 的典型用法是为每个线程在显存里维护一个生成器状态：先跑一次初始化核函数，渲染核函数再读写这些状态。状态与"线程"绑定，意味着随机序列取决于线程与像素的映射方式和 launch 配置。设想把图像分上下两块各自 launch：同一像素在两种分块下由不同的线程处理，curand 的状态跟着线程走，该像素拿到的随机序列就变了——分块方式一变，图像就变；而下文按（像素，样本）播种的 PCG32 与"谁来算"无关。此外，状态缓冲还占显存和带宽；并且它是设备端专用 API，host 上没有同一份实现，CPU 单元测试无法逐位核对 GPU 的行为。
+CUDA 自带的 curand 库不满足最后两条的组合。curand 的典型用法是为每个线程在显存里维护一个生成器状态：先跑一次初始化核函数，渲染核函数再读写这些状态。状态与"线程"绑定，意味着随机序列取决于线程与像素的映射方式和 launch 配置。设想把图像分上下两块各自 launch：同一像素在两种分块下由不同的线程处理，curand 的状态跟着线程走，该像素拿到的随机序列就变了——分块方式一变，图像就变；而下文按（像素，样本）播种的 PCG32 与"谁来算"无关。此外，状态缓冲还占显存和带宽。
 
-sundog 改用 PCG32（permuted congruential generator，O'Neill 的 pcg-random.org 方案）：状态只有两个 64 位整数，内部是一个线性同余生成器（linear congruential generator/LCG）递推加一步输出置换（异或移位 + 随机旋转），统计质量远好于朴素 LCG。整个实现（`Pcg32`（device/rng.cuh））用 `SD_HD` 宏同时编译为 host 和 device 代码——单元测试与 GPU 跑的是**同一份**源码，`test_rng.cpp` 还把它与官方参考序列逐字对表。
+sundog 改用 PCG32（permuted congruential generator，O'Neill 的 pcg-random.org 方案）：状态只有两个 64 位整数，内部是一个线性同余生成器（linear congruential generator/LCG）递推加一步输出置换（异或移位 + 随机旋转），统计质量远好于朴素 LCG。整个实现只有十几行（`Pcg32`（device/rng.cuh）），编写时与官方参考实现的输出序列逐字核对过。
 
 关键在播种。raygen 里每个（像素，样本）对现场构造一个独立生成器（`Pcg32::init()`（device/rng.cuh）、raygen 主循环（device/programs.cu））：
 
@@ -51,7 +51,7 @@ if (s < nStrata * nStrata) {
 
 ## 纹理：从 UV 到线性颜色
 
-材质的反照率可以不是常数，而是表面参数 $`(u,v)`$ 的函数——这就是纹理（texture）。[第 6 章·几何求交](06-geometry.md)已经给出每种图元的 UV 参数化，`evalTexture()`（device/texture_eval.cuh）负责把 UV 变成颜色，支持四种：纯色、棋盘格（按 $`\lfloor u s_x\rfloor + \lfloor v s_y\rfloor`$ 的奇偶选色）、网格线（小数部分落在格边宽度内取线色），以及图像纹理。前三种是纯算术，host 单测可直接覆盖；图像纹理走 GPU 纹理单元：
+材质的反照率可以不是常数，而是表面参数 $`(u,v)`$ 的函数——这就是纹理（texture）。[第 6 章·几何求交](06-geometry.md)已经给出每种图元的 UV 参数化，`evalTexture()`（device/texture_eval.cuh）负责把 UV 变成颜色，支持四种：纯色、棋盘格（按 $`\lfloor u s_x\rfloor + \lfloor v s_y\rfloor`$ 的奇偶选色）、网格线（小数部分落在格边宽度内取线色），以及图像纹理。前三种是纯算术；图像纹理走 GPU 纹理单元：
 
 ```c++
 case TX_IMAGE:
