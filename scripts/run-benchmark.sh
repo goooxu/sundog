@@ -5,7 +5,7 @@
 # (default /tmp/sundog-build/sundog). Callable from any cwd.
 #
 # Tiers:
-#   A. feature — the five gallery scenes, quick 960x540 / 64 spp stats pass
+#   A. feature — the five gallery scenes at their native 1920x1080 / 64 spp
 #                (render time, ray throughput, VRAM).
 #   B. denoise — 02-cornell-lume at 16 spp with/without --denoise, PSNR of
 #                each against a 4096 spp reference (img_compare).
@@ -33,7 +33,7 @@ else
   FEATURE_SCENES=(01-prism-court 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm)
   DN_SCENE=02-cornell-lume DN_REF_SPP=4096 DN_TEST_SPP=16
 fi
-DN_SIZE=960x540
+DN_SIZE=1920x1080
 
 fail() { echo "run-benchmark: FAIL: $*" >&2; exit 1; }
 [ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
@@ -57,7 +57,7 @@ psnr_of() { # psnr_of A B -> prints numeric PSNR (inf possible)
 }
 
 # =============================== tier A: feature =============================
-echo "==== tier A: feature scenes (960x540 / 64 spp) ===="
+echo "==== tier A: feature scenes (1920x1080 / 64 spp) ===="
 A_ROWS=()
 for scene in "${FEATURE_SCENES[@]}"; do
   scene_json="$ROOT/scenes/$scene.json"
@@ -68,7 +68,7 @@ for scene in "${FEATURE_SCENES[@]}"; do
   echo "-- $scene"
   st="$TMP/feat-$scene.stats.json"
   "$SUNDOG" --scene "$scene_json" --out "$TMP/feat-$scene.png" \
-            --size 960x540 --spp 64 --no-denoise --quiet --stats "$st"
+            --size 1920x1080 --spp 64 --no-denoise --quiet --stats "$st"
   A_ROWS+=("| $scene | $(jget "$st" 'd["scene_stats"]["objects"]') \
 | $(jget "$st" 'd["scene_stats"]["mesh_triangles"]') \
 | $(jget "$st" 'd["scene_stats"]["lights"]') \
@@ -110,7 +110,7 @@ mkdir -p "$(dirname "$OUT_MD")"
   echo "由 \`scripts/run-benchmark.sh\` 生成于 $(date -Is)。GPU：$gpu_name。"
   [ "$QUICK" = 1 ] && { echo; echo "> **--quick 自测模式**：数据仅验证脚本流程，无参考价值。"; }
   echo
-  echo "## A. 特性层 — 画廊场景（960x540 / 64 spp / 不降噪）"
+  echo "## A. 特性层 — 画廊场景（1920x1080 / 64 spp / 不降噪）"
   echo
   echo "| 场景 | 物体 | 三角形 | 灯 | 渲染 (s) | Mrays/s | 峰值显存 (MB) |"
   echo "|---|---|---|---|---|---|---|"
