@@ -6,15 +6,19 @@
 
 粉笔、石膏、粗糙的墙面有一个共同点：不管从哪个角度看，亮度都差不多。这类**朗伯（Lambertian）**材质的 BSDF 是一个常数。[第 2 章·光的度量与渲染方程](02-rendering-equation.md)已推导过，能量守恒把这个常数定为
 
-$$f_r = \frac{\text{albedo}}{\pi},$$
+```math
+f_r = \frac{\text{albedo}}{\pi},
+```
 
-其中 albedo 是反照率（各通道反射的能量比例，$\le 1$）。
+其中 albedo 是反照率（各通道反射的能量比例，$`\le 1`$）。
 
-怎么采样它？渲染方程的被积函数是 $f_r\,L_i\cos\theta$，其中 $f_r$ 是常数，所以按[第 3 章·蒙特卡洛积分](03-monte-carlo.md)的重要性采样原则，pdf 应正比于 $\cos\theta$，即 $p(\omega)=\cos\theta/\pi$（归一化：$\int_{H^2}\frac{\cos\theta}{\pi}\,\mathrm{d}\omega = 1$）。其构造（Malley 方法：均匀圆盘点"竖直抬升"到半球）与 $p(\omega)=\cos\theta/\pi$ 的验证见第 3 章 3.5 节，实现即 `cosineHemisphere()`（device/rng.cuh）。于是第 4 章维护的吞吐量因子出现一个漂亮的化简：
+怎么采样它？渲染方程的被积函数是 $`f_r\,L_i\cos\theta`$，其中 $`f_r`$ 是常数，所以按[第 3 章·蒙特卡洛积分](03-monte-carlo.md)的重要性采样原则，pdf 应正比于 $`\cos\theta`$，即 $`p(\omega)=\cos\theta/\pi`$（归一化：$`\int_{H^2}\frac{\cos\theta}{\pi}\,\mathrm{d}\omega = 1`$）。其构造（Malley 方法：均匀圆盘点"竖直抬升"到半球）与 $`p(\omega)=\cos\theta/\pi`$ 的验证见第 3 章 3.5 节，实现即 `cosineHemisphere()`（device/rng.cuh）。于是第 4 章维护的吞吐量因子出现一个漂亮的化简：
 
-$$\frac{f_r\cos\theta}{p(\omega)}=\frac{\text{albedo}}{\pi}\cdot\cos\theta\cdot\frac{\pi}{\cos\theta}=\text{albedo}.$$
+```math
+\frac{f_r\cos\theta}{p(\omega)}=\frac{\text{albedo}}{\pi}\cdot\cos\theta\cdot\frac{\pi}{\cos\theta}=\text{albedo}.
+```
 
-**权重恰好是反照率**——`bsdfSample()`（device/bsdf.cuh）的 `MT_LAMBERT` 分支正是这么写的：`s.pdf = li.z / π`（`li.z` 即局部坐标里的 $\cos\theta$），`s.weight = albedo`。直观解释：每弹一次，路径能量按材质吸收率打一次折扣，$\beta$ 单调不增，能量守恒自动成立。
+**权重恰好是反照率**——`bsdfSample()`（device/bsdf.cuh）的 `MT_LAMBERT` 分支正是这么写的：`s.pdf = li.z / π`（`li.z` 即局部坐标里的 $`\cos\theta`$），`s.weight = albedo`。直观解释：每弹一次，路径能量按材质吸收率打一次折扣，$`\beta`$ 单调不增，能量守恒自动成立。
 
 ## 5.2 微表面理论与 GGX
 
@@ -23,91 +27,111 @@ $$\frac{f_r\cos\theta}{p(\omega)}=\frac{\text{albedo}}{\pi}\cdot\cos\theta\cdot\
 ![微表面几何](figures/ch05-microfacet.svg)
 *图：宏观表面由微镜面构成；只有法线恰好等于半程向量 h 的微镜面才把 ω_i 反射向 ω_o；部分微镜面被遮蔽（masking）或处于阴影（shadowing）。*
 
-先定义**半程向量**（half vector）$h=\dfrac{\omega_i+\omega_o}{\lVert\omega_i+\omega_o\rVert}$：只有法线正好等于 $h$ 的那部分微镜面，才能把来自 $\omega_i$ 的光镜面反射向 $\omega_o$。微表面 BRDF 由三个因子组成：
+先定义**半程向量**（half vector）$`h=\dfrac{\omega_i+\omega_o}{\lVert\omega_i+\omega_o\rVert}`$：只有法线正好等于 $`h`$ 的那部分微镜面，才能把来自 $`\omega_i`$ 的光镜面反射向 $`\omega_o`$。微表面 BRDF 由三个因子组成：
 
-**法线分布函数（normal distribution function / NDF）** $D(h)$ 描述微镜面法线的统计密度。sundog 用 GGX（又名 Trowbridge–Reitz）分布：
+**法线分布函数（normal distribution function / NDF）** $`D(h)`$ 描述微镜面法线的统计密度。sundog 用 GGX（又名 Trowbridge–Reitz）分布：
 
-$$D(h)=\frac{\alpha^2}{\pi\big((n\cdot h)^2(\alpha^2-1)+1\big)^2},$$
+```math
+D(h)=\frac{\alpha^2}{\pi\big((n\cdot h)^2(\alpha^2-1)+1\big)^2},
+```
 
-其中**粗糙度（roughness）**参数 $\alpha=\text{roughness}^2$（这层平方映射让滑杆手感更线性，对账 `MaterialDesc.roughness` 的注释与各调用点的 `alpha = roughness * roughness`）。这正是 `ggxD()`（device/bsdf.cuh）：`k = c²(α²−1)+1`，返回 `α²/(π k²)`。GGX 的特点是"尾巴长"——离 $n$ 很远的方向仍有少量密度，高光边缘因此有真实的柔和过渡。
+其中**粗糙度（roughness）**参数 $`\alpha=\text{roughness}^2`$（这层平方映射让滑杆手感更线性，对账 `MaterialDesc.roughness` 的注释与各调用点的 `alpha = roughness * roughness`）。这正是 `ggxD()`（device/bsdf.cuh）：`k = c²(α²−1)+1`，返回 `α²/(π k²)`。GGX 的特点是"尾巴长"——离 $`n`$ 很远的方向仍有少量密度，高光边缘因此有真实的柔和过渡。
 
-**几何遮蔽项（masking-shadowing）** $G$ 描述微镜面之间的互相遮挡：掠射角下大部分微镜面要么背对视线（遮蔽）要么照不到光（阴影）。Smith 模型先定义辅助函数
+**几何遮蔽项（masking-shadowing）** $`G`$ 描述微镜面之间的互相遮挡：掠射角下大部分微镜面要么背对视线（遮蔽）要么照不到光（阴影）。Smith 模型先定义辅助函数
 
-$$\Lambda(\omega)=\frac{-1+\sqrt{1+\alpha^2\tan^2\theta}}{2},$$
+```math
+\Lambda(\omega)=\frac{-1+\sqrt{1+\alpha^2\tan^2\theta}}{2},
+```
 
-然后单向遮蔽 $G_1(\omega)=\dfrac{1}{1+\Lambda(\omega)}$，双向遮蔽用高度相关形式
+然后单向遮蔽 $`G_1(\omega)=\dfrac{1}{1+\Lambda(\omega)}`$，双向遮蔽用高度相关形式
 
-$$G(\omega_o,\omega_i)=\frac{1}{1+\Lambda(\omega_o)+\Lambda(\omega_i)}.$$
+```math
+G(\omega_o,\omega_i)=\frac{1}{1+\Lambda(\omega_o)+\Lambda(\omega_i)}.
+```
 
-对账 `ggxLambda()`：代码里 `t2 = (1−c²)/c²` 就是 $\tan^2\theta$，返回 `0.5(−1+√(1+α²t2))`；`ggxG1()`、`ggxG()` 与上两式逐字对应。
+对账 `ggxLambda()`：代码里 `t2 = (1−c²)/c²` 就是 $`\tan^2\theta`$，返回 `0.5(−1+√(1+α²t2))`；`ggxG1()`、`ggxG()` 与上两式逐字对应。
 
-**菲涅尔项** $F$ 留到 5.4 节。三者合成完整的微表面 BRDF：
+**菲涅尔项** $`F`$ 留到 5.4 节。三者合成完整的微表面 BRDF：
 
-$$f_r(\omega_o,\omega_i)=\frac{F(\omega_o\cdot h)\,D(h)\,G(\omega_o,\omega_i)}{4\,(n\cdot\omega_o)(n\cdot\omega_i)},$$
+```math
+f_r(\omega_o,\omega_i)=\frac{F(\omega_o\cdot h)\,D(h)\,G(\omega_o,\omega_i)}{4\,(n\cdot\omega_o)(n\cdot\omega_i)},
+```
 
-分母中的 4 来自半程向量 $h\to$ 出射方向的换元雅可比（5.3 节将给出 $\mathrm{d}\omega_i=4(\omega_o\cdot h)\,\mathrm{d}\omega_h$），两个余弦则来自把微表面反射功率换算回宏观辐亮度时的投影面积因子；完整推导可参考 Walter et al. 2007。对账 `bsdfEval()` 的 `MT_METAL` 分支：`F * ggxD(h,α) * ggxG(lo,li,α) / (4 lo.z li.z)`，其中 `lo.z`、`li.z` 是局部标架（`Onb`，$n=+Z$）下的两个余弦，与公式一致。
+分母中的 4 来自半程向量 $`h\to`$ 出射方向的换元雅可比（5.3 节将给出 $`\mathrm{d}\omega_i=4(\omega_o\cdot h)\,\mathrm{d}\omega_h`$），两个余弦则来自把微表面反射功率换算回宏观辐亮度时的投影面积因子；完整推导可参考 Walter et al. 2007。对账 `bsdfEval()` 的 `MT_METAL` 分支：`F * ggxD(h,α) * ggxG(lo,li,α) / (4 lo.z li.z)`，其中 `lo.z`、`li.z` 是局部标架（`Onb`，$`n=+Z`$）下的两个余弦，与公式一致。
 
 ![粗糙度阶梯](figures/ch05-roughness-ladder.png)
 *图：5 个金属球，roughness = 0 / 0.1 / 0.25 / 0.45 / 0.7——从完美镜面到近漫反射的连续过渡。*
 
 ## 5.3 VNDF 采样：按"看得见的"微镜面采样
 
-有了 $f_r$ 还需要好的采样策略。朴素做法按 $D$ 采样微镜面法线，但掠射角下 $D$ 采出的很多法线属于被遮蔽的微镜面——要么产生无效方向，要么权重出现 $1/(n\cdot\omega_o)$ 的爆炸项。更好的做法是只按**从 $\omega_o$ 方向看得见的**微镜面采样，即**可见法线分布采样（VNDF sampling）**。它的目标密度有直观的构成：分子 $G_1(\omega_o)\,(\omega_o\cdot h)\,D(h)$ 是"法线为 $h$ 且从 $\omega_o$ 方向看得见"的微镜面朝 $\omega_o$ 的投影面积密度，分母 $n\cdot\omega_o$ 是它在半球上的积分值（宏观表面的投影面积），除掉后恰好归一：
+有了 $`f_r`$ 还需要好的采样策略。朴素做法按 $`D`$ 采样微镜面法线，但掠射角下 $`D`$ 采出的很多法线属于被遮蔽的微镜面——要么产生无效方向，要么权重出现 $`1/(n\cdot\omega_o)`$ 的爆炸项。更好的做法是只按**从 $`\omega_o`$ 方向看得见的**微镜面采样，即**可见法线分布采样（VNDF sampling）**。它的目标密度有直观的构成：分子 $`G_1(\omega_o)\,(\omega_o\cdot h)\,D(h)`$ 是"法线为 $`h`$ 且从 $`\omega_o`$ 方向看得见"的微镜面朝 $`\omega_o`$ 的投影面积密度，分母 $`n\cdot\omega_o`$ 是它在半球上的积分值（宏观表面的投影面积），除掉后恰好归一：
 
-$$D_{\text{vis}}(h)=\frac{G_1(\omega_o)\,(\omega_o\cdot h)\,D(h)}{n\cdot\omega_o}.$$
+```math
+D_{\text{vis}}(h)=\frac{G_1(\omega_o)\,(\omega_o\cdot h)\,D(h)}{n\cdot\omega_o}.
+```
 
-`ggxSampleVndf()`（device/bsdf.cuh）实现 Heitz 的构造，分三步：①按 $\alpha$ 把空间拉伸成粗糙度为 1 的"标准"空间；②在 $\omega_o$ 的投影半圆盘上均匀采样；③还原拉伸并归一化——短短十行，精确产生 $D_{\text{vis}}$ 分布（细节见 Heitz, "Sampling the GGX Distribution of Visible Normals", 2018）。采到 $h$ 后令 $\omega_i=\mathrm{reflect}(-\omega_o,h)$，其中 $\mathrm{reflect}(v,n)=v-2(v\cdot n)n$，即把 $v$ 关于法线 $n$ 做镜像（`reflect()`，device/math.cuh）；从 $h$ 到 $\omega_i$ 的变换雅可比是 $\frac{1}{4(\omega_o\cdot h)}$（即 $\mathrm{d}\omega_i=4(\omega_o\cdot h)\,\mathrm{d}\omega_h$），于是
+`ggxSampleVndf()`（device/bsdf.cuh）实现 Heitz 的构造，分三步：①按 $`\alpha`$ 把空间拉伸成粗糙度为 1 的"标准"空间；②在 $`\omega_o`$ 的投影半圆盘上均匀采样；③还原拉伸并归一化——短短十行，精确产生 $`D_{\text{vis}}`$ 分布（细节见 Heitz, "Sampling the GGX Distribution of Visible Normals", 2018）。采到 $`h`$ 后令 $`\omega_i=\mathrm{reflect}(-\omega_o,h)`$，其中 $`\mathrm{reflect}(v,n)=v-2(v\cdot n)n`$，即把 $`v`$ 关于法线 $`n`$ 做镜像（`reflect()`，device/math.cuh）；从 $`h`$ 到 $`\omega_i`$ 的变换雅可比是 $`\frac{1}{4(\omega_o\cdot h)}`$（即 $`\mathrm{d}\omega_i=4(\omega_o\cdot h)\,\mathrm{d}\omega_h`$），于是
 
-$$p(\omega_i)=\frac{D_{\text{vis}}(h)}{4(\omega_o\cdot h)}=\frac{G_1(\omega_o)\,D(h)}{4\,(n\cdot\omega_o)},$$
+```math
+p(\omega_i)=\frac{D_{\text{vis}}(h)}{4(\omega_o\cdot h)}=\frac{G_1(\omega_o)\,D(h)}{4\,(n\cdot\omega_o)},
+```
 
 对账 `ggxPdf()`：`ggxG1(wo,α) * ggxD(h,α) / (4 wo.z)`。这个 pdf 也被第 4 章的 MIS 用来给 NEE 侧算平衡启发式权重。采样权重随之化简：
 
-$$\frac{f_r\,(n\cdot\omega_i)}{p(\omega_i)}
+```math
+\frac{f_r\,(n\cdot\omega_i)}{p(\omega_i)}
 =\frac{F\,D\,G}{4(n\cdot\omega_o)(n\cdot\omega_i)}\cdot(n\cdot\omega_i)\cdot\frac{4(n\cdot\omega_o)}{G_1(\omega_o)\,D}
-=F\cdot\frac{G}{G_1(\omega_o)}.$$
+=F\cdot\frac{G}{G_1(\omega_o)}.
+```
 
-$D$、两个余弦全部相消，只剩菲涅尔乘一个 $\le 1$ 的遮蔽比值——对账 `bsdfSample()` `MT_METAL` 分支：`s.weight = F * (ggxG(...) / ggxG1(...))`。由于 $G/G_1(\omega_o)\le 1$ 且 $F\le 1$，权重永不大于 1，金属材质不产生萤火虫噪点。
+$`D`$、两个余弦全部相消，只剩菲涅尔乘一个 $`\le 1`$ 的遮蔽比值——对账 `bsdfSample()` `MT_METAL` 分支：`s.weight = F * (ggxG(...) / ggxG1(...))`。由于 $`G/G_1(\omega_o)\le 1`$ 且 $`F\le 1`$，权重永不大于 1，金属材质不产生萤火虫噪点。
 
-当 `roughness < 1e-3` 时反射瓣已窄于浮点精度，代码退化为**delta 镜面**：方向由 `reflect()` 唯一确定，pdf 在数学上是狄拉克 delta 分布，无法参与普通的 pdf 运算，因此 `s.pdf = 0`、`s.isDelta = true`、权重直接取 $F$。第 4 章的 NEE 与 MIS 靠 `bsdfIsDelta()` 识别并跳过这类瓣（对光源方向求值恒为零，采样它没有意义）。
+当 `roughness < 1e-3` 时反射瓣已窄于浮点精度，代码退化为**delta 镜面**：方向由 `reflect()` 唯一确定，pdf 在数学上是狄拉克 delta 分布，无法参与普通的 pdf 运算，因此 `s.pdf = 0`、`s.isDelta = true`、权重直接取 $`F`$。第 4 章的 NEE 与 MIS 靠 `bsdfIsDelta()` 识别并跳过这类瓣（对光源方向求值恒为零，采样它没有意义）。
 
 ## 5.4 菲涅尔：反射与透射的分配
 
-站在湖边：低头看脚下的水几乎透明，远眺水面却像镜子。反射与透射的比例随入射角变化，这就是**菲涅尔（Fresnel）**效应。对折射率为 $\eta_i\to\eta_t$ 的电介质界面，物理精确的（非偏振）反射率为
+站在湖边：低头看脚下的水几乎透明，远眺水面却像镜子。反射与透射的比例随入射角变化，这就是**菲涅尔（Fresnel）**效应。对折射率为 $`\eta_i\to\eta_t`$ 的电介质界面，物理精确的（非偏振）反射率为
 
-$$r_s=\frac{\eta_i\cos\theta_i-\eta_t\cos\theta_t}{\eta_i\cos\theta_i+\eta_t\cos\theta_t},\qquad
+```math
+r_s=\frac{\eta_i\cos\theta_i-\eta_t\cos\theta_t}{\eta_i\cos\theta_i+\eta_t\cos\theta_t},\qquad
 r_p=\frac{\eta_t\cos\theta_i-\eta_i\cos\theta_t}{\eta_t\cos\theta_i+\eta_i\cos\theta_t},\qquad
-F=\frac{r_s^2+r_p^2}{2},$$
+F=\frac{r_s^2+r_p^2}{2},
+```
 
-其中 $\theta_t$ 是折射（透射）角，由下节的 Snell 定律 $\eta_i\sin\theta_i=\eta_t\sin\theta_t$ 确定。实时与离线渲染中广泛使用 Schlick 近似：
+其中 $`\theta_t`$ 是折射（透射）角，由下节的 Snell 定律 $`\eta_i\sin\theta_i=\eta_t\sin\theta_t`$ 确定。实时与离线渲染中广泛使用 Schlick 近似：
 
-$$F(\cos\theta)\approx F_0+(1-F_0)(1-\cos\theta)^5,\qquad
-F_0=\left(\frac{1-\eta}{1+\eta}\right)^2,$$
+```math
+F(\cos\theta)\approx F_0+(1-F_0)(1-\cos\theta)^5,\qquad
+F_0=\left(\frac{1-\eta}{1+\eta}\right)^2,
+```
 
-其中 $F_0$ 是垂直入射反射率（玻璃 $\eta=1.5$ 时 $F_0=0.04$），$\eta$ 是相对折射率。sundog 全部使用 Schlick：标量版 `schlick()`（device/math.cuh）把 $(1-\cos\theta)^5$ 写成 `m2*m2*m` 并夹取 $1-\cos\theta\in[0,1]$；三通道版 `schlick3()` 形式相同。
+其中 $`F_0`$ 是垂直入射反射率（玻璃 $`\eta=1.5`$ 时 $`F_0=0.04`$），$`\eta`$ 是相对折射率。sundog 全部使用 Schlick：标量版 `schlick()`（device/math.cuh）把 $`(1-\cos\theta)^5`$ 写成 `m2*m2*m` 并夹取 $`1-\cos\theta\in[0,1]`$；三通道版 `schlick3()` 形式相同。
 
 ![Fresnel 曲线](figures/ch05-fresnel-curves.png)
 *图：η=1.5 的精确 Fresnel 与 Schlick 近似，0°–90°——两条曲线高度贴合，仅在 85° 附近有约 0.036 的最大绝对偏差。*
 
-金属没有透射，其菲涅尔反射率天然是彩色的（金反黄光、铜反红光）。工程上的标准做法是**把材质颜色直接当作 $F_0$**：`bsdfEval()` 与 `bsdfSample()` 的金属分支都写作 `schlick3(dot(lo,h), albedo)`——正视金属时看到的颜色就是 $F_0$，掠射时按 Schlick 曲线趋白，这正是真实金属边缘泛白的原因。
+金属没有透射，其菲涅尔反射率天然是彩色的（金反黄光、铜反红光）。工程上的标准做法是**把材质颜色直接当作 $`F_0`$**：`bsdfEval()` 与 `bsdfSample()` 的金属分支都写作 `schlick3(dot(lo,h), albedo)`——正视金属时看到的颜色就是 $`F_0`$，掠射时按 Schlick 曲线趋白，这正是真实金属边缘泛白的原因。
 
 ## 5.5 折射与全内反射
 
-光穿过玻璃界面时方向改变，服从 Snell 定律 $\eta_i\sin\theta_i=\eta_t\sin\theta_t$。记相对折射率 $\eta=\eta_i/\eta_t$，把单位入射方向 $v$ 分解为切向与法向分量可推出折射方向：
+光穿过玻璃界面时方向改变，服从 Snell 定律 $`\eta_i\sin\theta_i=\eta_t\sin\theta_t`$。记相对折射率 $`\eta=\eta_i/\eta_t`$，把单位入射方向 $`v`$ 分解为切向与法向分量可推出折射方向：
 
-$$\omega_t=\eta\,v+\big(\eta\cos\theta_i-\sqrt{k}\big)\,n,\qquad
-k=1-\eta^2(1-\cos^2\theta_i)=\cos^2\theta_t,$$
+```math
+\omega_t=\eta\,v+\big(\eta\cos\theta_i-\sqrt{k}\big)\,n,\qquad
+k=1-\eta^2(1-\cos^2\theta_i)=\cos^2\theta_t,
+```
 
-其中 $\cos\theta_i=-v\cdot n$（$n$ 已朝向入射侧）。对账 `refract()`（device/math.cuh）：`cosi = -dot(v,n)`、`k = 1 - eta*eta*(1 - cosi*cosi)`、`out = eta*v + (eta*cosi - sqrtf(k))*n`，并在 `k < 0` 时返回 `false`。
+其中 $`\cos\theta_i=-v\cdot n`$（$`n`$ 已朝向入射侧）。对账 `refract()`（device/math.cuh）：`cosi = -dot(v,n)`、`k = 1 - eta*eta*(1 - cosi*cosi)`、`out = eta*v + (eta*cosi - sqrtf(k))*n`，并在 `k < 0` 时返回 `false`。
 
 ![Snell 折射与全内反射](figures/ch05-snell.svg)
 *图：折射几何、临界角与全内反射——光从密介质射向疏介质且入射角超过临界角时，折射方向不存在。*
 
-$k<0$ 何时发生？$k=1-\eta^2\sin^2\theta_i$，仅当 $\eta>1$（从密介质射向疏介质）且 $\sin\theta_i>1/\eta$ 时为负——此时 Snell 定律要求 $\sin\theta_t>1$，无解，光被完全反射，即**全内反射（total internal reflection / TIR）**。临界角 $\sin\theta_c = 1/\eta$，玻璃约 $41.8°$。玻璃球内壁的亮环、光纤的导光都来自 TIR。
+$`k<0`$ 何时发生？$`k=1-\eta^2\sin^2\theta_i`$，仅当 $`\eta>1`$（从密介质射向疏介质）且 $`\sin\theta_i>1/\eta`$ 时为负——此时 Snell 定律要求 $`\sin\theta_t>1`$，无解，光被完全反射，即**全内反射（total internal reflection / TIR）**。临界角 $`\sin\theta_c = 1/\eta`$，玻璃约 $`41.8°`$。玻璃球内壁的亮环、光纤的导光都来自 TIR。
 
 由此 `bsdfSample()` 的 `MT_DIELECTRIC` 物理分支要做三个"按面选取"：
 
-1. **相对折射率按面选取**：`eta = frontface ? 1/ior : ior`——进入玻璃时 $\eta=1/1.5<1$（永不 TIR），离开玻璃时 $\eta=1.5>1$（可能 TIR）。`frontface` 由几何求交阶段根据几何法线与光线方向的点积判定（见 5.6 节与[第 6 章·几何求交](06-geometry.md)）。
-2. **$F_0$ 与面无关**：$F_0=\big(\frac{1-\eta}{1+\eta}\big)^2$ 对 $\eta$ 与 $1/\eta$ 给出同一个值（玻璃两侧都是 0.04），代码按当前 `eta` 计算，结果对称。
+1. **相对折射率按面选取**：`eta = frontface ? 1/ior : ior`——进入玻璃时 $`\eta=1/1.5<1`$（永不 TIR），离开玻璃时 $`\eta=1.5>1`$（可能 TIR）。`frontface` 由几何求交阶段根据几何法线与光线方向的点积判定（见 5.6 节与[第 6 章·几何求交](06-geometry.md)）。
+2. **$`F_0`$ 与面无关**：$`F_0=\big(\frac{1-\eta}{1+\eta}\big)^2`$ 对 $`\eta`$ 与 $`1/\eta`$ 给出同一个值（玻璃两侧都是 0.04），代码按当前 `eta` 计算，结果对称。
 3. **Schlick 的余弦必须取低折射率一侧**：代码写作
 
 ```c
@@ -116,21 +140,21 @@ float cosine = frontface ? -dot(rayDir, n) : -dot(refr, n);
 float reflectProb = schlick(cosine, f0);
 ```
 
-进入玻璃时用入射角（空气侧）的余弦；**离开玻璃时用折射方向的余弦** $-\,\omega_t\cdot n=\cos\theta_t$（同样是空气侧）。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $\cos\theta_t\to 0$，Schlick 给出 $F\to 1$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$F$ 在临界角处仍只有约 0.04，反射率被严重低估——这正是原版 cxxrt 的 bug 之一，完整分析见[附录·原 cxxrt 的计算问题与修正](appendix-cxxrt.md)。
+进入玻璃时用入射角（空气侧）的余弦；**离开玻璃时用折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$（同样是空气侧）。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这正是原版 cxxrt 的 bug 之一，完整分析见[附录·原 cxxrt 的计算问题与修正](appendix-cxxrt.md)。
 
-采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $F$ 取反射、$1-F$ 取折射，两个分支的 $f/p$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $\eta^2$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，sundog 与原版一致地省略它。）
+采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，sundog 与原版一致地省略它。）
 
-`--parity` 分支则原样保留 cxxrt 的算法——恒用 $\eta=1/\text{ior}$、Schlick 恒用入射侧余弦——用于与 CPU 原版的逐式公平基准（见[第 11 章·验证方法学与性能](11-validation.md)）。两种模式的可视对比：
+`--parity` 分支则原样保留 cxxrt 的算法——恒用 $`\eta=1/\text{ior}`$、Schlick 恒用入射侧余弦——用于与 CPU 原版的逐式公平基准（见[第 11 章·验证方法学与性能](11-validation.md)）。两种模式的可视对比：
 
 ![玻璃 TIR 对比](figures/ch05-glass-tir.png)
 *图：玻璃奶牛。左：物理模式（含 TIR 与正确 Fresnel，内反射更强、更暗更"玻璃"）；右：--parity（复刻原版，无 TIR，偏亮偏透）。*
 
 ## 5.6 双面材质与穿透面
 
-cxxrt 留下了一个有表现力的场景语义，sundog 完整继承：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $n$ 都以此为前提（$n\cdot\omega_o>0$ 恒成立）。
+cxxrt 留下了一个有表现力的场景语义，sundog 完整继承：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $`n`$ 都以此为前提（$`n\cdot\omega_o>0`$ 恒成立）。
 
 `MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。同一段 anyhit 逻辑同时服务辐射光线与阴影光线，所以光与影穿透行为一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
 
 ## 小结
 
-本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $D$、$G$、$F$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $F\cdot G/G_1$；玻璃是按菲涅尔概率二选一的双 delta 瓣，物理模式修正了原版"永不 TIR、余弦选错侧"的问题。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。
+本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $`D`$、$`G`$、$`F`$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $`F\cdot G/G_1`$；玻璃是按菲涅尔概率二选一的双 delta 瓣，物理模式修正了原版"永不 TIR、余弦选错侧"的问题。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。

@@ -63,26 +63,26 @@
 
 | 符号 | 含义 | 代码对应 |
 |---|---|---|
-| $x$ | 表面点 | `x` (programs.cu) |
-| $\omega_i, \omega_o$ | 入射/出射方向（都从 $x$ 指出，单位向量） | `wi`, `wo` |
-| $n$ | 着色法线（朝入射侧） | `ns` |
-| $L(x,\omega)$ | 辐亮度 | — |
-| $L_e$ | 自发光辐亮度 | `Le` |
-| $f_r$ | BRDF/BSDF | `bsdfEval` |
-| $\theta$ | 与法线夹角，$\cos\theta = n\cdot\omega$ | `cosS` 等 |
-| $p(\omega)$ | 立体角 pdf | `pdf` |
-| $\beta$ | 路径吞吐量 | `beta` |
-| $\alpha$ | GGX 粗糙度参数（= roughness²） | `alpha` |
-| $\eta$ | 相对折射率 | `eta` |
-| $F_0$ | 垂直入射反射率 | `f0` |
-| $N$ | 样本数（spp） | `sppTotal` |
+| $`x`$ | 表面点 | `x` (programs.cu) |
+| $`\omega_i, \omega_o`$ | 入射/出射方向（都从 $`x`$ 指出，单位向量） | `wi`, `wo` |
+| $`n`$ | 着色法线（朝入射侧） | `ns` |
+| $`L(x,\omega)`$ | 辐亮度 | — |
+| $`L_e`$ | 自发光辐亮度 | `Le` |
+| $`f_r`$ | BRDF/BSDF | `bsdfEval` |
+| $`\theta`$ | 与法线夹角，$`\cos\theta = n\cdot\omega`$ | `cosS` 等 |
+| $`p(\omega)`$ | 立体角 pdf | `pdf` |
+| $`\beta`$ | 路径吞吐量 | `beta` |
+| $`\alpha`$ | GGX 粗糙度参数（= roughness²） | `alpha` |
+| $`\eta`$ | 相对折射率 | `eta` |
+| $`F_0`$ | 垂直入射反射率 | `f0` |
+| $`N`$ | 样本数（spp） | `sppTotal` |
 
-- 向量默认列向量、单位化时明说；点乘写 $n\cdot\omega$
-- 期望 $\mathbb{E}[\cdot]$，方差 $\mathrm{Var}[\cdot]$
+- 向量默认列向量、单位化时明说；点乘写 $`n\cdot\omega`$
+- 期望 $`\mathbb{E}[\cdot]`$，方差 $`\mathrm{Var}[\cdot]`$
 
 ## Markdown 约定
 
-- 数学：行内 `$...$`，独立公式 `$$...$$`（GitHub 原生渲染）；重要公式前空行独立成段；不用公式编号，引用时用文字（"上式""渲染方程"）
+- 数学：行内用 ``$`...`$``（美元+反引号），独立公式用 ```` ```math ```` 围栏块——两种写法 GitHub 与 GitLab 都原生渲染；**不要用裸 `$...$` / `$$...$$`**（GitHub 对紧邻中文全角字符的 `$` 解析会失效，GitLab 则完全不支持）。重要公式前空行独立成段；不用公式编号，引用时用文字（"上式""渲染方程"）
 - 源码引用：`` `bsdfSample()`（device/bsdf.cuh）``格式——函数名+文件路径，不写行号（会漂移）
 - 图：`![说明](figures/chNN-name.png)`，图后紧跟一行斜体图注 `*图：……*`；所有图放 `docs/report/figures/`
 - 交叉引用其他章：`[第 3 章·蒙特卡洛积分](03-monte-carlo.md)`

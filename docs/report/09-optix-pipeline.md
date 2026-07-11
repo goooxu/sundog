@@ -50,11 +50,15 @@ raygen ×1 | miss ×2（radiance, shadow）| hitgroup ×(2×对象数)
 
 命中时的记录索引由三方拼出：实例的 `sbtOffset`（第 8 章 `buildIas()` 设为 `2×instanceId`）、GAS 内部的记录序号、以及 trace 调用传入的偏移与步长，通式为
 
-$$\text{index} = \text{instance.sbtOffset} + \text{SBTstride}\times(\text{GAS 内部记录序号}) + \text{SBToffset}.$$
+```math
+\text{index} = \text{instance.sbtOffset} + \text{SBTstride}\times(\text{GAS 内部记录序号}) + \text{SBToffset}.
+```
 
 对账 `traceRadiance()/traceShadow()`（device/programs.cu）：radiance 光线传 `(SBToffset, SBTstride, missSBTIndex) = (0, 2, 0)`，shadow 光线传 `(1, 2, 1)`；而本项目每个 GAS 只有 1 条记录（构建输入 `numSbtRecords = 1`），内部序号恒为 0，stride 那一项随之消失，于是化简为
 
-$$\text{index} = 2\times\text{instanceId} + \text{rayType},$$
+```math
+\text{index} = 2\times\text{instanceId} + \text{rayType},
+```
 
 正好落在"该对象的该光线类型"那条记录上；miss 记录也按 rayType 各选各的。
 
