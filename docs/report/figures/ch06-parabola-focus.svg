@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="560" viewBox="0 0 760 560" font-family="sans-serif">
+  <defs>
+    <marker id="ar-ray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="ar-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="760" height="560" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">抛物面 y = (x²+z²)/2 的剖面（z = 0）：y = x²/2</text>
+
+  <!-- 对称轴 -->
+  <line x1="380" y1="60" x2="380" y2="470" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+  <text x="392" y="90" font-size="16" fill="#94A3B8">对称轴</text>
+
+  <!-- 抛物线（二次 Bézier 精确表示 y=x²/2，x∈[-1.4,1.4]，180px/单位） -->
+  <path d="M 128 263.6 Q 380 616.4 632 263.6" fill="none" stroke="#334155" stroke-width="2.5"/>
+
+  <!-- 平行入射光 -->
+  <text x="60" y="62" font-size="16" fill="#F59E0B">平行入射光</text>
+  <line x1="182" y1="70" x2="182" y2="331" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="272" y1="70" x2="272" y2="407.6" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="488" y1="70" x2="488" y2="407.6" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="560" y1="70" x2="560" y2="350" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+
+  <!-- 反射光：全部经过焦点 (380,350) -->
+  <line x1="182" y1="331" x2="414.8" y2="353.3" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="272" y1="407.6" x2="411.5" y2="333.5" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="488" y1="407.6" x2="348.5" y2="333.5" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+  <line x1="560" y1="350" x2="345" y2="350" stroke="#F59E0B" stroke-width="2.2" marker-end="url(#ar-ray)"/>
+
+  <!-- 焦点 -->
+  <circle cx="380" cy="350" r="5.5" fill="#2563EB"/>
+  <line x1="378" y1="374" x2="380" y2="358" stroke="#94A3B8" stroke-width="1.2"/>
+  <text x="356" y="392" font-size="17" font-weight="bold" fill="#2563EB">焦点 F</text>
+  <text x="356" y="416" font-size="16" fill="#2563EB">(0, ½)</text>
+
+  <!-- 顶点 -->
+  <circle cx="380" cy="440" r="4" fill="#334155"/>
+  <text x="392" y="462" font-size="16" fill="#334155">顶点 (0, 0)</text>
+
+  <!-- 命中点处的法线（x=1 处，方向 ∝ (−1,1)） -->
+  <line x1="560" y1="350" x2="515" y2="305" stroke="#16A34A" stroke-width="2" marker-end="url(#ar-n)"/>
+  <text x="494" y="296" font-size="16" fill="#16A34A">法线 n</text>
+
+  <!-- 说明 -->
+  <text x="24" y="510" font-size="16" fill="#334155">平行于对称轴的入射光线，经抛物面反射后全部通过焦点 F</text>
+  <text x="24" y="536" font-size="16" fill="#64748B">（scenes/04-parabolica 中灯光聚束成光柱正是此原理）</text>
+</svg>

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" font-family="sans-serif">
+  <defs>
+    <marker id="ar-l" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="900" height="560" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">两级加速结构：IAS → 实例 → GAS</text>
+
+  <!-- 顶层 IAS -->
+  <rect x="300" y="64" width="300" height="56" rx="10" fill="#2563EB" fill-opacity="0.10" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="450" y="99" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">顶层 IAS（实例加速结构）</text>
+
+  <!-- IAS → 实例 -->
+  <line x1="380" y1="120" x2="170" y2="176" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="450" y1="120" x2="450" y2="176" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="520" y1="120" x2="730" y2="176" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+
+  <!-- 实例 0 -->
+  <rect x="40" y="180" width="240" height="110" rx="10" fill="none" stroke="#334155" stroke-width="2"/>
+  <text x="160" y="208" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">实例 0（奶牛）</text>
+  <text x="160" y="238" font-size="16" fill="#334155" text-anchor="middle">变换 M₀（3×4）</text>
+  <text x="160" y="268" font-size="16" fill="#2563EB" text-anchor="middle">sbtOffset = 0</text>
+
+  <!-- 实例 1 -->
+  <rect x="330" y="180" width="240" height="110" rx="10" fill="none" stroke="#334155" stroke-width="2"/>
+  <text x="450" y="208" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">实例 1（奶牛）</text>
+  <text x="450" y="238" font-size="16" fill="#334155" text-anchor="middle">变换 M₁（3×4）</text>
+  <text x="450" y="268" font-size="16" fill="#2563EB" text-anchor="middle">sbtOffset = 2</text>
+
+  <!-- 实例 2 -->
+  <rect x="620" y="180" width="240" height="110" rx="10" fill="none" stroke="#334155" stroke-width="2"/>
+  <text x="740" y="208" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">实例 2（球）</text>
+  <text x="740" y="238" font-size="16" fill="#334155" text-anchor="middle">变换 M₂（3×4）</text>
+  <text x="740" y="268" font-size="16" fill="#2563EB" text-anchor="middle">sbtOffset = 4</text>
+
+  <!-- 实例 → GAS -->
+  <line x1="160" y1="290" x2="220" y2="376" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="450" y1="290" x2="300" y2="376" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="740" y1="290" x2="680" y2="376" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="238" y="330" font-size="16" fill="#64748B">共享同一份 GAS</text>
+
+  <!-- 底层 GAS -->
+  <rect x="110" y="380" width="300" height="110" rx="10" fill="#F59E0B" fill-opacity="0.10" stroke="#334155" stroke-width="2"/>
+  <text x="260" y="412" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">奶牛 GAS</text>
+  <text x="260" y="442" font-size="16" fill="#334155" text-anchor="middle">内建三角形图元（硬件求交）</text>
+  <text x="260" y="472" font-size="16" fill="#64748B" text-anchor="middle">5856 个三角形</text>
+
+  <rect x="520" y="380" width="300" height="110" rx="10" fill="#F59E0B" fill-opacity="0.10" stroke="#334155" stroke-width="2"/>
+  <text x="670" y="412" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">球 GAS</text>
+  <text x="670" y="442" font-size="16" fill="#334155" text-anchor="middle">自定义图元（AABB）</text>
+  <text x="670" y="472" font-size="16" fill="#64748B" text-anchor="middle">求交走 IS 程序</text>
+
+  <text x="40" y="534" font-size="16" fill="#334155">sbtOffset = 2 × instanceId（每个实例占 radiance / shadow 两条 hitgroup 记录，见第 9 章 SBT）</text>
+</svg>

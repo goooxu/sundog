@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="470" viewBox="0 0 940 470" font-family="sans-serif">
+  <defs>
+    <marker id="ar-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#DC2626"/>
+    </marker>
+    <marker id="ar-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="940" height="470" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">非均匀缩放 M = diag(½, 1)（x 方向压扁）下的法线变换</text>
+
+  <!-- ============ 左：错误做法 ============ -->
+  <text x="100" y="80" font-size="18" font-weight="bold" fill="#DC2626">错误：直接用 M 变换法线</text>
+  <ellipse cx="240" cy="260" rx="55" ry="110" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="2.2"/>
+  <!-- 表面点 P（θ=45°）与切线 -->
+  <circle cx="278.9" cy="182.2" r="4.5" fill="#334155"/>
+  <line x1="252" y1="128.6" x2="305.8" y2="235.8" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="222" y="120" font-size="16" fill="#334155">切线</text>
+  <!-- 错误法线 n' = M·n ∝ (0.354, 0.707) -->
+  <line x1="278.9" y1="182.2" x2="312.4" y2="115.2" stroke="#DC2626" stroke-width="2.4" marker-end="url(#ar-bad)"/>
+  <text x="320" y="108" font-size="17" font-weight="bold" fill="#DC2626">n′ = M·n ✗</text>
+  <text x="306" y="164" font-size="16" fill="#DC2626">≠ 90°</text>
+
+  <!-- ============ 右：正确做法 ============ -->
+  <text x="560" y="80" font-size="18" font-weight="bold" fill="#16A34A">正确：用 (M⁻¹)ᵀ 变换</text>
+  <ellipse cx="700" cy="260" rx="55" ry="110" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="2.2"/>
+  <circle cx="738.9" cy="182.2" r="4.5" fill="#334155"/>
+  <line x1="712" y1="128.6" x2="765.8" y2="235.8" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="676" y="120" font-size="16" fill="#334155">切线</text>
+  <!-- 正确法线 ∝ (0.894, 0.447) -->
+  <line x1="738.9" y1="182.2" x2="806" y2="148.7" stroke="#16A34A" stroke-width="2.4" marker-end="url(#ar-n)"/>
+  <text x="780" y="130" font-size="17" font-weight="bold" fill="#16A34A">n′ = (M⁻¹)ᵀ·n ✓</text>
+  <!-- 直角标记：P + 14t、+14n -->
+  <path d="M 732.6 169.7 L 745.1 163.4 L 751.4 175.9" fill="none" stroke="#16A34A" stroke-width="1.5"/>
+  <text x="758" y="202" font-size="16" fill="#16A34A">90°</text>
+
+  <!-- 分隔线 -->
+  <line x1="470" y1="60" x2="470" y2="390" stroke="#CBD5E1" stroke-width="1.5"/>
+
+  <!-- 底部说明 -->
+  <text x="24" y="422" font-size="16" fill="#334155">切向量随 M 变换仍相切：t′ = M·t；要求 n′·t′ = 0 ⇒ n′ = (M⁻¹)ᵀ n（再归一化）</text>
+  <text x="24" y="450" font-size="16" fill="#64748B">代码：optixTransformNormalFromObjectToWorldSpace() + normalize()</text>
+</svg>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="480" viewBox="0 0 880 480"
+     font-family="'Noto Sans CJK SC','WenQuanYi Micro Hei','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">
+  <defs>
+    <marker id="arrO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="480" fill="#FFFFFF"/>
+
+  <!-- 定义 -->
+  <text x="56" y="66" font-size="22" fill="#334155">辐亮度　L(x, ω) = d²Φ / (dA · cosθ · dω)</text>
+  <text x="56" y="100" fill="#334155">单位投影面积、单位立体角上的功率（W · sr⁻¹ · m⁻²）</text>
+  <text x="56" y="132" fill="#334155">三要素：位置 dA ＋ 方向 ω（锥 dω）＋ 倾角 cosθ</text>
+
+  <!-- 面元 dA -->
+  <polygon points="300,330 450,330 410,378 260,378" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="2"/>
+  <text x="230" y="410" text-anchor="middle" fill="#334155">面元 dA</text>
+
+  <!-- 法线 n -->
+  <line x1="355" y1="354" x2="355" y2="192" stroke="#16A34A" stroke-width="2.5" marker-end="url(#arrG)"/>
+  <text x="340" y="205" text-anchor="end" fill="#16A34A">法线 n</text>
+
+  <!-- 方向 ω 与立体角锥 dω（θ=35°） -->
+  <line x1="355" y1="354" x2="464" y2="198" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrO)"/>
+  <text x="488" y="238" fill="#B45309">方向 ω</text>
+  <line x1="355" y1="354" x2="514.1" y2="172.3" stroke="#2563EB" stroke-width="1.4"/>
+  <line x1="355" y1="354" x2="471.5" y2="142.5" stroke="#2563EB" stroke-width="1.4"/>
+  <g transform="translate(492.8,157.4) rotate(35)">
+    <ellipse cx="0" cy="0" rx="26" ry="9" fill="#2563EB" fill-opacity="0.15" stroke="#2563EB" stroke-width="1.8"/>
+  </g>
+  <text x="540" y="150" fill="#2563EB">立体角锥 dω</text>
+
+  <!-- 夹角 θ -->
+  <path d="M355,292 A62,62 0 0 1 390.6,303.2" fill="none" stroke="#334155" stroke-width="1.6"/>
+  <text x="382" y="276" fill="#334155">θ</text>
+
+  <!-- 底注 -->
+  <text x="440" y="442" text-anchor="middle" fill="#334155">cosθ：把 dA 投影到与 ω 垂直的平面 —— 斜着看，有效面积只有 dA·cosθ</text>
+  <text x="440" y="470" text-anchor="middle" fill="#334155">L 沿光线传播不变；相机像素最终测到的就是辐亮度</text>
+</svg>

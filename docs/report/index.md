@@ -1,0 +1,41 @@
+# sundog 渲染技术报告
+
+这是一份**面向没有计算机图形学背景的工程师**的完整技术报告：从"数字图像是什么"
+一路讲到"RTX 5090 上每秒数十亿次求交是怎么发生的"。数学假设读者具备
+微积分、线性代数与概率论基础；每个图形学概念都先给直觉与图，再给严格推导，
+最后落到 sundog 源码的具体函数。
+
+写作/审查规范见 [STYLE.md](STYLE.md)，章节规格见 [OUTLINE.md](OUTLINE.md)。
+所有渲染对比图可由 `scripts/render-report-figures.sh` 与
+`scripts/gen-report-charts.py` 再生。
+
+## 阅读路径
+
+- **完整阅读**（推荐，约 3-4 万字）：按 01 → 11 → 附录顺序。
+- **只关心原理**：01 → 02 → 03 → 04 → 05（成像、渲染方程、蒙特卡洛、路径追踪、材质）。
+- **只关心 GPU 工程**：01（速览）→ 08 → 09 → 10 → 11（加速结构、OptiX、决定性、验证）。
+- **想看"踩坑复盘"**：直接读[附录](appendix-cxxrt.md)——原 CPU 版渲染器的六类计算问题。
+
+## 章节导航
+
+| 章 | 标题 | 回答的问题 |
+|---|---|---|
+| [01](01-images-and-rays.md) | 成像与光线 | 渲染在计算什么？为什么沿反方向追光线？ |
+| [02](02-rendering-equation.md) | 光的度量与渲染方程 | 如何用数学描述"亮度"和"反光"？ |
+| [03](03-monte-carlo.md) | 蒙特卡洛积分 | 为什么用随机采样？噪点从哪来、怎么减？ |
+| [04](04-path-tracing.md) | 路径追踪算法 | 完整算法：NEE、MIS、俄罗斯轮盘、clamp |
+| [05](05-materials.md) | 材质与 BSDF | 漫反射/金属/玻璃的数学模型与采样 |
+| [06](06-geometry.md) | 几何求交 | 光线怎么打中球/圆柱/抛物面/三角形？ |
+| [07](07-transforms.md) | 变换与实例化 | 为什么只需一份"单位几何"？法线为何用逆转置？ |
+| [08](08-acceleration.md) | 加速结构与 RT Core | 亿级三角形为什么能实时求交？ |
+| [09](09-optix-pipeline.md) | OptiX 工程实现 | 一次 optixTrace 背后发生什么？SBT/payload 怎么组织？ |
+| [10](10-sampling-denoising.md) | 随机数、纹理与 AI 降噪 | 并行随机数如何可复现？低 spp 怎么变干净？ |
+| [11](11-validation.md) | 验证方法学与性能 | 怎么证明"算得对"？80–122× 加速从哪来？ |
+| [附录](appendix-cxxrt.md) | 原 cxxrt 的计算问题与修正 | 重写过程中发现的六类问题案例复盘 |
+
+## 延伸阅读
+
+- Pharr, Jakob, Humphreys, *Physically Based Rendering: From Theory to Implementation*（PBRT，本领域标准教材）
+- Shirley 等，*Ray Tracing in One Weekend* 系列（原 cxxrt 的思想源头）
+- NVIDIA, *OptiX Programming Guide*（本项目工程层的官方参考）
+- Veach 的博士论文（MIS 的出处）

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470"
+     font-family="'Noto Sans CJK SC','WenQuanYi Micro Hei','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">
+  <defs>
+    <marker id="arrO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="900" height="470" fill="#FFFFFF"/>
+
+  <!-- 公式 -->
+  <text x="450" y="54" text-anchor="middle" font-size="20" fill="#334155">Snell 定律：η₁ sinθ₁ = η₂ sinθ₂</text>
+  <text x="450" y="88" text-anchor="middle" fill="#334155">临界角 θc = arcsin(η₁/η₂) ≈ 41.8°（η₂=1.5）；θ &gt; θc 时折射无解 → 全内反射</text>
+
+  <!-- 界面与介质 -->
+  <rect x="60" y="250" width="780" height="150" fill="#2563EB" fill-opacity="0.10"/>
+  <line x1="60" y1="250" x2="840" y2="250" stroke="#334155" stroke-width="3"/>
+  <text x="64" y="150" fill="#334155">空气 η₁ = 1.0</text>
+  <text x="64" y="330" fill="#334155">玻璃 η₂ = 1.5</text>
+
+  <!-- 法线（虚线） -->
+  <line x1="300" y1="110" x2="300" y2="390" stroke="#16A34A" stroke-width="1.5" stroke-dasharray="6,5"/>
+  <line x1="620" y1="110" x2="620" y2="390" stroke="#16A34A" stroke-width="1.5" stroke-dasharray="6,5"/>
+  <text x="308" y="126" fill="#16A34A">法线</text>
+
+  <!-- 情形①：θ₂=30° < θc，发生折射（并有部分反射） -->
+  <line x1="219.2" y1="390" x2="300" y2="250" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="212" y="368" text-anchor="end" fill="#B45309">入射①</text>
+  <line x1="300" y1="250" x2="447.4" y2="120" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="470" y="136" fill="#B45309">折射①</text>
+  <text x="470" y="160" fill="#B45309">（偏离法线）</text>
+  <line x1="300" y1="250" x2="369" y2="370" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrO)"/>
+  <text x="355" y="394" text-anchor="middle" fill="#B45309">部分反射①</text>
+  <path d="M300,310 A60,60 0 0 1 270,302" fill="none" stroke="#334155" stroke-width="1.6"/>
+  <text x="272" y="335" fill="#334155">θ₂</text>
+  <path d="M300,190 A60,60 0 0 1 345,210.3" fill="none" stroke="#334155" stroke-width="1.6"/>
+  <text x="330" y="180" fill="#334155">θ₁</text>
+
+  <!-- 情形②：θ=55° > θc，全内反射 -->
+  <line x1="405.8" y1="400" x2="620" y2="250" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="390" y="424" text-anchor="middle" fill="#B45309">入射②（更斜）</text>
+  <line x1="620" y1="250" x2="834.2" y2="400" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="775" y="292" text-anchor="middle" fill="#B45309">全内反射（TIR）</text>
+  <path d="M620,305 A55,55 0 0 1 575,281.6" fill="none" stroke="#334155" stroke-width="1.6"/>
+  <text x="573" y="330" text-anchor="middle" fill="#334155">θ &gt; θc</text>
+
+  <!-- 底注 -->
+  <text x="450" y="450" text-anchor="middle" fill="#334155">从玻璃射向空气：入射角小 → 折射＋部分反射；超过临界角 → 全部能量反射回玻璃</text>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470"
+     font-family="'Noto Sans CJK SC','WenQuanYi Micro Hei','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">
+  <defs>
+    <marker id="arrO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="900" height="470" fill="#FFFFFF"/>
+
+  <!-- 宏观平面（虚线）与宏观法线 -->
+  <line x1="100" y1="300" x2="800" y2="300" stroke="#334155" stroke-width="1.5" stroke-dasharray="8,6"/>
+  <text x="100" y="340" fill="#334155">宏观平面（虚线）</text>
+  <line x1="150" y1="300" x2="150" y2="207" stroke="#16A34A" stroke-width="2.5" marker-end="url(#arrG)"/>
+  <text x="150" y="190" text-anchor="middle" fill="#16A34A">宏观法线 n</text>
+
+  <!-- 微表面轮廓（锯齿） -->
+  <path d="M220,318 L255,282 L290,322 L330,290 L355,316 L390,302 L430,298 L465,330 L500,284 L535,320 L570,286 L605,324 L640,292 L675,318 L710,288 L745,322 L780,300 L780,348 L220,348 Z"
+        fill="#334155" fill-opacity="0.08" stroke="none"/>
+  <polyline fill="none" stroke="#334155" stroke-width="2.5"
+        points="220,318 255,282 290,322 330,290 355,316 390,302 430,298 465,330 500,284 535,320 570,286 605,324 640,292 675,318 710,288 745,322 780,300"/>
+
+  <!-- 与 h 对齐的微镜面（高亮） -->
+  <line x1="390" y1="302" x2="430" y2="298" stroke="#2563EB" stroke-width="6"/>
+  <text x="410" y="390" text-anchor="middle" fill="#2563EB">微法线 = h 的微面（高亮）</text>
+  <line x1="410" y1="374" x2="411" y2="308" stroke="#2563EB" stroke-width="1.3" stroke-dasharray="4,4"/>
+
+  <!-- 入射 / 出射 / 半程向量 -->
+  <line x1="250" y1="150" x2="404" y2="295" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="262" y="138" text-anchor="middle" fill="#B45309">入射 ω_i</text>
+  <line x1="413" y1="296" x2="543" y2="113" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="556" y="106" fill="#B45309">出射 ω_o</text>
+  <line x1="410" y1="300" x2="401" y2="210" stroke="#16A34A" stroke-width="2.5" marker-end="url(#arrG)"/>
+  <text x="400" y="183" text-anchor="end" fill="#16A34A">半程向量 h</text>
+
+  <!-- 被遮蔽的路径：入射打不到目标微面 -->
+  <line x1="500" y1="225" x2="636" y2="296" stroke="#F59E0B" stroke-width="2"/>
+  <text x="520" y="208" fill="#B45309">ω_i′</text>
+  <line x1="636" y1="296" x2="661" y2="309" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5,4"/>
+  <line x1="658" y1="304" x2="674" y2="320" stroke="#334155" stroke-width="3"/>
+  <line x1="658" y1="320" x2="674" y2="304" stroke="#334155" stroke-width="3"/>
+  <text x="700" y="180" text-anchor="middle" fill="#334155">这条路径被相邻微面挡住（遮蔽 G）</text>
+  <line x1="700" y1="188" x2="670" y2="302" stroke="#334155" stroke-width="1.3"/>
+
+  <!-- 底注 -->
+  <text x="450" y="428" text-anchor="middle" fill="#334155">只有微法线 ≈ h 的微面才把 ω_i 镜面反射到 ω_o，其比例由 D(h) 描述（GGX）</text>
+  <text x="450" y="456" text-anchor="middle" fill="#334155">f_r = D · G · F / (4 cosθ_i cosθ_o)：D 分布项、G 遮蔽-阴影项、F 菲涅尔项</text>
+</svg>

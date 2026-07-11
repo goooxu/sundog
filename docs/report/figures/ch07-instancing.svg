@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="960" height="470" viewBox="0 0 960 470" font-family="sans-serif">
+  <defs>
+    <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+    <!-- 单位奶牛（局部坐标 0..150 × 0..110） -->
+    <g id="cow">
+      <path d="M 22 42 Q 8 50 14 70" fill="none" stroke="#334155" stroke-width="1.8"/>
+      <rect x="34" y="70" width="9" height="32" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.5"/>
+      <rect x="52" y="74" width="9" height="30" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.5"/>
+      <rect x="76" y="74" width="9" height="30" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.5"/>
+      <rect x="94" y="70" width="9" height="32" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.5"/>
+      <ellipse cx="65" cy="50" rx="45" ry="27" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.8"/>
+      <polygon points="103,20 97,8 110,14" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.5"/>
+      <circle cx="118" cy="32" r="15" fill="#2563EB" fill-opacity="0.12" stroke="#334155" stroke-width="1.8"/>
+      <circle cx="122" cy="28" r="2" fill="#334155"/>
+      <ellipse cx="50" cy="44" rx="13" ry="8" fill="#334155" fill-opacity="0.30"/>
+      <ellipse cx="84" cy="58" rx="9" ry="6" fill="#334155" fill-opacity="0.30"/>
+      <polyline points="38,40 60,28 82,42 62,58 38,40" fill="none" stroke="#334155" stroke-width="1" stroke-opacity="0.35"/>
+    </g>
+  </defs>
+  <rect x="0" y="0" width="960" height="470" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">实例化：一份几何，多个变换</text>
+
+  <!-- 左：物体空间 -->
+  <text x="30" y="80" font-size="17" fill="#334155">物体空间（单位大小）</text>
+  <rect x="30" y="90" width="260" height="240" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-dasharray="7 5"/>
+  <use xlink:href="#cow" href="#cow" transform="translate(85,150) scale(1.2)"/>
+  <text x="30" y="358" font-size="16" fill="#334155">一份奶牛 GAS：5856 个三角形</text>
+
+  <!-- 右：世界空间 -->
+  <text x="430" y="52" font-size="17" fill="#334155">世界空间</text>
+  <rect x="430" y="60" width="500" height="360" fill="none" stroke="#334155" stroke-width="1.8"/>
+
+  <use xlink:href="#cow" href="#cow" transform="translate(445,95) scale(0.6)"/>
+  <use xlink:href="#cow" href="#cow" transform="translate(660,95) rotate(12) scale(0.95)"/>
+  <use xlink:href="#cow" href="#cow" transform="translate(770,245) scale(-1.25,1.25)"/>
+
+  <text x="445" y="88" font-size="16" fill="#64748B">实例 1：缩放 0.6</text>
+  <text x="660" y="88" font-size="16" fill="#64748B">实例 2：旋转 12°</text>
+  <text x="582" y="404" font-size="16" fill="#64748B">实例 3：镜像 + 缩放 1.25</text>
+
+  <!-- 三支带矩阵的箭头 -->
+  <line x1="292" y1="140" x2="438" y2="130" stroke="#2563EB" stroke-width="2.2" marker-end="url(#ar-acc)"/>
+  <text x="298" y="124" font-size="16" font-weight="bold" fill="#2563EB">M₁ (3×4)</text>
+  <line x1="292" y1="205" x2="632" y2="155" stroke="#2563EB" stroke-width="2.2" marker-end="url(#ar-acc)"/>
+  <text x="298" y="186" font-size="16" font-weight="bold" fill="#2563EB">M₂ (3×4)</text>
+  <line x1="292" y1="262" x2="572" y2="296" stroke="#2563EB" stroke-width="2.2" marker-end="url(#ar-acc)"/>
+  <text x="298" y="252" font-size="16" font-weight="bold" fill="#2563EB">M₃ (3×4)</text>
+
+  <text x="30" y="450" font-size="16" fill="#334155">几何数据只保存一份；每个实例仅存一个 3×4 仿射矩阵 Mᵢ（12 个 float）——32768 头奶牛仍只有 5856 个三角形</text>
+</svg>

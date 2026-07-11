@@ -77,8 +77,8 @@ closesthit 按 frontface 选 matFront/matBack，法线翻向入射侧后交给 r
 3x4 行主变换直接来自场景 JSON 的 transform 链（scale → rotate → translate
 自上而下复合）。非均匀缩放没问题：法线用
 `optixTransformNormalFromObjectToWorldSpace`（逆转置）变换后归一化。
-实例化的规模能力见 `scenes/05-bunny-swarm.json`：4096 个 bunny 实例共享
-同一份 144k 三角形 GAS。
+实例化的规模能力见 `scenes/05-spot-swarm.json`：32768 个 Spot 实例共享
+同一份 5,856 三角形 GAS（≈1.9 亿等效三角形）。
 
 ## NEE + MIS（balance heuristic）
 

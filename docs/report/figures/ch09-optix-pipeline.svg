@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="760" viewBox="0 0 960 760" font-family="sans-serif">
+  <defs>
+    <marker id="ar-l" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="ar-ray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="760" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">一次 optixTrace 的程序调用流程</text>
+
+  <!-- 1. raygen -->
+  <rect x="300" y="70" width="360" height="56" rx="10" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="480" y="94" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">raygen（__raygen__render）</text>
+  <text x="480" y="118" font-size="16" fill="#334155" text-anchor="middle">在路径循环中调用 optixTrace</text>
+  <text x="676" y="100" font-size="16" fill="#64748B">trace 深度 = 1（megakernel）</text>
+
+  <line x1="480" y1="126" x2="480" y2="166" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+
+  <!-- 2. 遍历 -->
+  <rect x="300" y="170" width="360" height="56" rx="10" fill="#334155" fill-opacity="0.08" stroke="#334155" stroke-width="2"/>
+  <text x="480" y="194" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">BVH 遍历</text>
+  <text x="480" y="218" font-size="16" fill="#334155" text-anchor="middle">RT Core 硬件加速</text>
+
+  <line x1="390" y1="226" x2="292" y2="266" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="250" y="250" font-size="16" fill="#64748B">三角形</text>
+  <line x1="570" y1="226" x2="668" y2="266" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="690" y="250" font-size="16" fill="#64748B">自定义图元</text>
+
+  <!-- 3a. 三角形硬件求交 -->
+  <rect x="140" y="270" width="300" height="64" rx="10" fill="#334155" fill-opacity="0.08" stroke="#334155" stroke-width="2"/>
+  <text x="290" y="296" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">内建三角形求交</text>
+  <text x="290" y="320" font-size="16" fill="#334155" text-anchor="middle">RT Core 硬件</text>
+
+  <!-- 3b. IS -->
+  <rect x="520" y="270" width="300" height="64" rx="10" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="670" y="296" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">IS：__intersection__quadric</text>
+  <text x="670" y="320" font-size="16" fill="#334155" text-anchor="middle">球 / 矩形 / 圆盘 / 圆柱 / 抛物面</text>
+
+  <line x1="290" y1="334" x2="388" y2="376" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="670" y1="334" x2="572" y2="376" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="480" y="364" font-size="16" fill="#64748B" text-anchor="middle">报告候选命中 t</text>
+
+  <!-- 4. AH -->
+  <rect x="300" y="380" width="360" height="72" rx="10" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="480" y="402" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">AH：__anyhit__mask（非 opaque 才执行）</text>
+  <text x="480" y="424" font-size="16" fill="#334155" text-anchor="middle">MAT_NONE 穿透面 / alpha &lt; 0.5 镂空</text>
+  <text x="480" y="446" font-size="16" fill="#334155" text-anchor="middle">→ optixIgnoreIntersection()</text>
+
+  <!-- AH ignore 回路 -->
+  <path d="M 660 416 C 900 416, 900 198, 664 198" fill="none" stroke="#F59E0B" stroke-width="2.2" stroke-dasharray="8 5" marker-end="url(#ar-ray)"/>
+  <text x="848" y="296" font-size="16" fill="#F59E0B">忽略命中</text>
+  <text x="848" y="318" font-size="16" fill="#F59E0B">回到遍历</text>
+
+  <line x1="480" y1="452" x2="480" y2="492" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+
+  <!-- 5. 命中定序 -->
+  <rect x="300" y="496" width="360" height="56" rx="10" fill="#334155" fill-opacity="0.08" stroke="#334155" stroke-width="2"/>
+  <text x="480" y="520" font-size="17" font-weight="bold" fill="#334155" text-anchor="middle">维护最近命中 t（命中定序）</text>
+  <text x="480" y="544" font-size="16" fill="#334155" text-anchor="middle">遍历结束后选出最近命中</text>
+
+  <line x1="390" y1="552" x2="286" y2="592" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="240" y="580" font-size="16" fill="#64748B">有命中</text>
+  <line x1="570" y1="552" x2="674" y2="592" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <text x="688" y="580" font-size="16" fill="#64748B">无命中</text>
+
+  <!-- 6. CH -->
+  <rect x="110" y="596" width="340" height="64" rx="10" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="280" y="622" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">CH：__closesthit__radiance</text>
+  <text x="280" y="646" font-size="16" fill="#334155" text-anchor="middle">打包 t、法线、matId 到 payload</text>
+
+  <!-- 7. miss -->
+  <rect x="510" y="596" width="340" height="64" rx="10" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="680" y="622" font-size="17" font-weight="bold" fill="#2563EB" text-anchor="middle">miss：__miss__radiance</text>
+  <text x="680" y="646" font-size="16" fill="#334155" text-anchor="middle">payload 写入背景颜色</text>
+
+  <line x1="280" y1="660" x2="386" y2="698" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+  <line x1="680" y1="660" x2="574" y2="698" stroke="#334155" stroke-width="2" marker-end="url(#ar-l)"/>
+
+  <!-- 8. 返回 -->
+  <rect x="280" y="700" width="400" height="52" rx="10" fill="none" stroke="#2563EB" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="480" y="732" font-size="16" fill="#2563EB" text-anchor="middle">payload p0–p7 返回 raygen，路径循环继续</text>
+
+  <!-- 图例 -->
+  <rect x="40" y="702" width="24" height="16" fill="#2563EB" fill-opacity="0.08" stroke="#2563EB" stroke-width="2"/>
+  <text x="72" y="716" font-size="16" fill="#334155">GPU 程序（软件）</text>
+  <rect x="40" y="730" width="24" height="16" fill="#334155" fill-opacity="0.08" stroke="#334155" stroke-width="2"/>
+  <text x="72" y="744" font-size="16" fill="#334155">RT Core / 运行时（硬件）</text>
+</svg>

@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470"
+     font-family="'Noto Sans CJK SC','WenQuanYi Micro Hei','PingFang SC','Microsoft YaHei',sans-serif" font-size="17">
+  <defs>
+    <marker id="arrO" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrS" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="900" height="470" fill="#FFFFFF"/>
+
+  <!-- 光轴 -->
+  <line x1="50" y1="240" x2="870" y2="240" stroke="#334155" stroke-width="1" stroke-dasharray="8,6"/>
+
+  <!-- 对焦平面（过 P 的竖直虚线） -->
+  <line x1="140" y1="110" x2="140" y2="385" stroke="#334155" stroke-width="1.5" stroke-dasharray="6,5"/>
+  <text x="140" y="410" text-anchor="middle" fill="#334155">对焦平面</text>
+
+  <!-- 薄透镜（跨 y=130..350） -->
+  <path d="M450,130 C482,185 482,295 450,350 C418,295 418,185 450,130 Z"
+        fill="#2563EB" fill-opacity="0.12" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="450" y="378" text-anchor="middle" fill="#2563EB">薄透镜</text>
+
+  <!-- 光圈直径（沿透镜平面的双箭头） -->
+  <line x1="450" y1="135" x2="450" y2="345" stroke="#334155" stroke-width="1.5"
+        stroke-dasharray="5,4" marker-start="url(#arrS)" marker-end="url(#arrS)"/>
+  <text x="450" y="104" text-anchor="middle" fill="#334155">光圈直径 A</text>
+
+  <!-- 成像平面（传感器） x=740 -->
+  <line x1="740" y1="110" x2="740" y2="380" stroke="#334155" stroke-width="3.5"/>
+  <text x="740" y="94" text-anchor="middle" fill="#334155">成像平面（传感器）</text>
+
+  <!-- 对焦点 P (140,300)：三条实线光线经透镜汇聚于 P' (740,184) -->
+  <circle cx="140" cy="300" r="5" fill="#2563EB"/>
+  <text x="126" y="288" text-anchor="end" fill="#2563EB">对焦点 P</text>
+  <g stroke="#F59E0B" stroke-width="2.2" fill="none">
+    <line x1="140" y1="300" x2="450" y2="130"/>
+    <line x1="140" y1="300" x2="450" y2="240"/>
+    <line x1="140" y1="300" x2="450" y2="350"/>
+    <line x1="450" y1="130" x2="740" y2="184" marker-end="url(#arrO)"/>
+    <line x1="450" y1="240" x2="740" y2="184" marker-end="url(#arrO)"/>
+    <line x1="450" y1="350" x2="740" y2="184" marker-end="url(#arrO)"/>
+  </g>
+  <circle cx="740" cy="184" r="5" fill="#2563EB"/>
+  <text x="758" y="150" fill="#2563EB">P′ 仍成一点</text>
+  <line x1="762" y1="158" x2="746" y2="178" stroke="#2563EB" stroke-width="1.5"/>
+
+  <!-- 离焦点 Q (270,170)：两条虚线边缘光线，汇聚点在传感器之后 (830,300) -->
+  <circle cx="270" cy="170" r="5" fill="#334155"/>
+  <text x="252" y="163" text-anchor="end" fill="#334155">离焦点 Q</text>
+  <g stroke="#F59E0B" stroke-width="2" stroke-dasharray="7,5" fill="none">
+    <line x1="270" y1="170" x2="450" y2="130"/>
+    <line x1="270" y1="170" x2="450" y2="350"/>
+    <line x1="450" y1="130" x2="740" y2="259.7"/>
+    <line x1="450" y1="350" x2="740" y2="311.8"/>
+    <line x1="740" y1="259.7" x2="830" y2="300"/>
+    <line x1="740" y1="311.8" x2="830" y2="300"/>
+  </g>
+  <circle cx="830" cy="300" r="4" fill="none" stroke="#334155" stroke-width="1.5"/>
+
+  <!-- 弥散圈：传感器上的圆斑 -->
+  <ellipse cx="740" cy="286" rx="8" ry="28" fill="#F59E0B" fill-opacity="0.35" stroke="#F59E0B" stroke-width="2"/>
+  <text x="640" y="402" text-anchor="middle" fill="#B45309">弥散圈（圆斑）</text>
+  <line x1="680" y1="384" x2="736" y2="318" stroke="#B45309" stroke-width="1.5"/>
+
+  <!-- 底部说明 -->
+  <text x="450" y="446" text-anchor="middle" fill="#334155">对焦平面上的点成一点；离焦点成圆斑 —— 光圈 A 越大，圆斑越大，景深越浅</text>
+</svg>

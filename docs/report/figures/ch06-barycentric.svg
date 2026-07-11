@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="470" viewBox="0 0 880 470" font-family="sans-serif">
+  <defs>
+    <marker id="ar-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="470" fill="#FFFFFF"/>
+
+  <text x="24" y="36" font-size="20" font-weight="bold" fill="#334155">三角形重心坐标与属性插值</text>
+
+  <!-- ============ 左：三角形 ============ -->
+  <!-- 子三角形（面积 ∝ 对面顶点的权重） -->
+  <!-- S0 = (P, v1, v2)，对应 v0 的权重 1-u-v -->
+  <polygon points="271,296 460,340 280,90" fill="#2563EB" fill-opacity="0.15"/>
+  <!-- S1 = (P, v2, v0)，对应 v1 的权重 u -->
+  <polygon points="271,296 280,90 140,380" fill="#F59E0B" fill-opacity="0.15"/>
+  <!-- S2 = (P, v0, v1)，对应 v2 的权重 v -->
+  <polygon points="271,296 140,380 460,340" fill="#16A34A" fill-opacity="0.12"/>
+  <!-- 外框与顶点连线 -->
+  <polygon points="140,380 460,340 280,90" fill="none" stroke="#334155" stroke-width="2.2"/>
+  <line x1="271" y1="296" x2="140" y2="380" stroke="#334155" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <line x1="271" y1="296" x2="460" y2="340" stroke="#334155" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <line x1="271" y1="296" x2="280" y2="90" stroke="#334155" stroke-width="1.3" stroke-dasharray="5 4"/>
+
+  <!-- 顶点 -->
+  <circle cx="140" cy="380" r="4.5" fill="#334155"/>
+  <circle cx="460" cy="340" r="4.5" fill="#334155"/>
+  <circle cx="280" cy="90" r="4.5" fill="#334155"/>
+  <text x="52" y="404" font-size="17" fill="#334155">v₀（n₀, uv₀）</text>
+  <text x="382" y="376" font-size="17" fill="#334155">v₁（n₁, uv₁）</text>
+  <text x="238" y="72" font-size="17" fill="#334155">v₂（n₂, uv₂）</text>
+
+  <!-- 顶点法线与插值法线 -->
+  <line x1="140" y1="380" x2="110" y2="322" stroke="#16A34A" stroke-width="2" marker-end="url(#ar-n)"/>
+  <text x="84" y="314" font-size="16" fill="#16A34A">n₀</text>
+  <line x1="460" y1="340" x2="492" y2="300" stroke="#16A34A" stroke-width="2" marker-end="url(#ar-n)"/>
+  <text x="452" y="290" font-size="16" fill="#16A34A">n₁</text>
+  <line x1="280" y1="90" x2="290" y2="48" stroke="#16A34A" stroke-width="2" marker-end="url(#ar-n)"/>
+  <text x="298" y="56" font-size="16" fill="#16A34A">n₂</text>
+  <line x1="271" y1="296" x2="300" y2="238" stroke="#16A34A" stroke-width="2.6" marker-end="url(#ar-n)"/>
+  <text x="306" y="232" font-size="16" fill="#16A34A">n(P)</text>
+
+  <!-- P 与面积标签 -->
+  <circle cx="271" cy="296" r="5" fill="#2563EB"/>
+  <text x="254" y="318" font-size="18" font-weight="bold" fill="#2563EB">P</text>
+  <text x="362" y="260" font-size="16" fill="#334155" text-anchor="middle">S₀</text>
+  <text x="212" y="272" font-size="16" fill="#334155" text-anchor="middle">S₁</text>
+  <text x="290" y="345" font-size="16" fill="#334155" text-anchor="middle">S₂</text>
+
+  <text x="60" y="442" font-size="16" fill="#334155">面积比 S₀ : S₁ : S₂ = (1−u−v) : u : v</text>
+
+  <!-- ============ 右：公式 ============ -->
+  <rect x="520" y="110" width="336" height="222" rx="10" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+  <text x="540" y="146" font-size="17" fill="#334155">重心坐标：(1−u−v, u, v)</text>
+  <text x="540" y="186" font-size="17" fill="#2563EB">P = (1−u−v)·v₀ + u·v₁ + v·v₂</text>
+  <text x="540" y="226" font-size="17" fill="#16A34A">n = (1−u−v)·n₀ + u·n₁ + v·n₂</text>
+  <text x="540" y="266" font-size="17" fill="#334155">uv = (1−u−v)·uv₀ + u·uv₁ + v·uv₂</text>
+  <text x="540" y="308" font-size="16" fill="#64748B">optixGetTriangleBarycentrics() → (u,v)</text>
+
+  <text x="520" y="398" font-size="16" fill="#64748B">例：图中 P 的重心坐标取 (0.45, 0.30, 0.25)</text>
+  <text x="520" y="426" font-size="16" fill="#64748B">插值后的法线需再归一化（平滑法线）</text>
+</svg>
