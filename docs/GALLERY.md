@@ -49,17 +49,24 @@ Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗
 
 ![06-spot-cascade](gallery/06-spot-cascade.png)
 
-512 只 Spot 从空中倾泻进康奈尔配色的房间：场景 JSON 只声明初始位姿与速度，加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）沉降到静止再烘焙渲染——堆叠形态完全出自物理，混入金色金属与玻璃奶牛。
+512 只 Spot 倾泻到第 1.0 秒的锐利定格：场景 JSON 只声明初始位姿与速度，加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）推进到指定瞬间（--physics-time）烘焙渲染——下层已开始堆积，上方牛雨仍在翻滚下落，墙外有被弹飞的散兵。
+
+## 06-spot-cascade-settled
+
+![06-spot-cascade-settled](gallery/06-spot-cascade-settled.png)
+
+同一份初始条件模拟到全体休眠的静止堆（对照）：不同时刻、同一物理，堆叠形态完全出自模拟。
 
 ## 渲染统计
 
 | 图像 | 分辨率 | spp | 降噪 | 渲染时间 (s) | Mrays/s | 峰值显存 (MB) |
 |---|---|---|---|---|---|---|
-| 01-prism-court | 1920x1080 | 512 | 否 | 0.70 | 5190 | 690 |
-| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.25 | 5335 | 690 |
-| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.21 | 6769 | 694 |
-| 03-spot-atrium-spp32-denoised | 1920x1080 | 32 | 是 | 0.03 | 6776 | 696 |
-| 03-spot-atrium-spp32-raw | 1920x1080 | 32 | 否 | 0.03 | 6801 | 694 |
-| 04-parabolica | 1920x1080 | 512 | 否 | 0.38 | 6607 | 694 |
-| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.18 | 4090 | 708 |
-| 06-spot-cascade | 1920x1080 | 256 | 否 | 0.48 | 4652 | 694 |
+| 01-prism-court | 1920x1080 | 512 | 否 | 0.70 | 5188 | 690 |
+| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.25 | 5341 | 690 |
+| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.21 | 6775 | 694 |
+| 03-spot-atrium-spp32-denoised | 1920x1080 | 32 | 是 | 0.03 | 6797 | 696 |
+| 03-spot-atrium-spp32-raw | 1920x1080 | 32 | 否 | 0.03 | 6779 | 694 |
+| 04-parabolica | 1920x1080 | 512 | 否 | 0.38 | 6606 | 694 |
+| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.18 | 4079 | 708 |
+| 06-spot-cascade | 1920x1080 | 256 | 否 | 0.50 | 4563 | 694 |
+| 06-spot-cascade-settled | 1920x1080 | 256 | 否 | 0.48 | 4653 | 694 |

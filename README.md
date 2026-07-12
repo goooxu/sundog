@@ -18,8 +18,10 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 
 ![Spot Cascade](docs/gallery/06-spot-cascade.png)
 
-**Spot Cascade** — 512 只奶牛的堆叠姿态由 **PhysX GPU 刚体模拟**在加载时沉降得出，
-场景文件里只有初始位姿与速度。
+**Spot Cascade** — 512 只奶牛倾泻到第 1.0 秒的锐利定格（`--physics-time`），
+姿态由 **PhysX GPU 刚体模拟**在加载时算出，场景文件里只有初始位姿与速度。
+同一份初始条件模拟到静止的对照见
+[docs/gallery/06-spot-cascade-settled.png](docs/gallery/06-spot-cascade-settled.png)。
 
 | ![32 spp 原始](docs/gallery/03-spot-atrium-spp32-raw.png) | ![32 spp + AI 降噪](docs/gallery/03-spot-atrium-spp32-denoised.png) |
 |:---:|:---:|
@@ -44,7 +46,8 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 - **灯光**：point（带半径软阴影）、distant，以及 emissive rect/disk/sphere 区域光
 - **物理装载**：场景 JSON 声明刚体初始条件（`physics` 块 + 逐对象 opt-in），
   加载时用 **PhysX 5 GPU 刚体**（`eENABLE_GPU_DYNAMICS` + GPU 宽相，在 RTX 上模拟）
-  沉降到静止并烘焙最终变换，再构建加速结构
+  沉降到静止——或按 `stop_time`/`--physics-time` **锐利定格于运动中的任一瞬间**
+  ——烘焙变换后再构建加速结构
 - **降噪**：OptiX AI denoiser（HDR + albedo/normal 引导 AOV）
 - **决定性**：PCG32，固定 `--seed` 时同 GPU/驱动上逐位一致（golden 测试依赖此性质）
 - **统计**：`--stats` 输出 JSON（分段计时、光线数、Mrays/s、显存峰值）
@@ -84,6 +87,7 @@ sundog --probe
 --size WxH         分辨率                --chunk N      每次 optixLaunch 的 spp（默认 16）
 --max-depth N      路径深度上限          --clamp F      间接光 firefly 钳制（0 = 关）
 --denoise / --no-denoise                 --gamma F      输出 gamma（默认 2.2）
+--physics-time F   刚体定格于模拟第 F 秒（0 = 强制沉降到静止）
 --stats FILE.json  渲染统计              --exposure F   曝光（EV）
 --aov-albedo / --aov-normal F.png        --probe        打印 GPU/驱动/OptiX 信息
 --quiet            关闭进度输出

@@ -48,7 +48,14 @@ for entry in "${ENTRIES[@]}"; do
     echo "render-gallery: WARNING: scene $name.json not found, skipping" >&2
     continue
   fi
-  render "$name" "$scene" "$spp" --no-denoise
+  if [ "$name" = "06-spot-cascade" ]; then
+    # hero = mid-pour freeze-frame (PhysX baked at t=1.0 s); companion = the
+    # same initial conditions simulated to rest
+    render "06-spot-cascade"         "$scene" "$spp" --no-denoise --physics-time 1.0
+    render "06-spot-cascade-settled" "$scene" "$spp" --no-denoise
+  else
+    render "$name" "$scene" "$spp" --no-denoise
+  fi
   if [ "$name" = "03-spot-atrium" ]; then
     # low-spp denoiser comparison pair
     render "03-spot-atrium-spp32-denoised" "$scene" 32 --denoise
@@ -85,9 +92,13 @@ DESC = {
         "32768 个实例化 Spot 卡通奶牛的阵列（约 1.9 亿等效三角形）——同一份三角形 GAS 通过 IAS 实例复用，"
         "展示单层实例化的规模能力。",
     "06-spot-cascade":
-        "512 只 Spot 从空中倾泻进康奈尔配色的房间：场景 JSON 只声明初始位姿与速度，"
-        "加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）沉降到静止再烘焙渲染——"
-        "堆叠形态完全出自物理，混入金色金属与玻璃奶牛。",
+        "512 只 Spot 倾泻到第 1.0 秒的锐利定格：场景 JSON 只声明初始位姿与速度，"
+        "加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）推进到指定瞬间"
+        "（--physics-time）烘焙渲染——下层已开始堆积，上方牛雨仍在翻滚下落，"
+        "墙外有被弹飞的散兵。",
+    "06-spot-cascade-settled":
+        "同一份初始条件模拟到全体休眠的静止堆（对照）：不同时刻、同一物理，"
+        "堆叠形态完全出自模拟。",
 }
 
 lines = [
