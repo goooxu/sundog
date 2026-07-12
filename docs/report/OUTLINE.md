@@ -214,6 +214,25 @@
 
 ---
 
+## 12-physics.md 物理装载：PhysX GPU 刚体模拟
+
+**回答**：512 只堆叠奶牛的位姿从哪来？刚体模拟怎么与渲染共用一块 GPU，又怎么保持逐位可复现？
+
+小节：
+1. 为什么渲染器要长出物理——自然堆叠"摆不出来"；场景只声明初始条件，模拟生成最终位姿；管线位置在第 9 章生命周期 ①② 之间（对账 `runPhysics()` 调用处（src/main.cpp）与 scenes/06-spot-cascade.json 的 physics 块）
+2. 刚体动力学速成——状态 (p,q,v,ω)、四元数姿态、牛顿–欧拉方程、半隐式欧拉与固定步长 dt=1/240（对账 `updateMassAndInertia` 调用）
+3. 碰撞：从形状到接触——凸包 ≤64 顶点实例共享（对账 `convexOf()` 与 PxMeshScale）、rect 薄盒挤出、宽相/窄相（呼应第 8 章）、迭代约束求解 8/2、restitution/friction、speculative CCD、休眠=沉降
+4. GPU 上的物理与位姿烘焙——eENABLE_GPU_DYNAMICS+GPU 宽相、共卡串行、唯一 PhysX TU 模块边界；T·R·S 列范数分解与烘焙（对账 `decompose()`/`bakePose()`（src/physics.cpp）），实测 2100 步/8.75 s/约 2.5 s 墙钟（stats physics 分段）
+5. 两种停机：沉降与定格——stop_time/--physics-time、画廊 06 主图 t=1.0 s、决定性四要素与双渲 sha256 实测；06 不进 golden
+
+图：
+- `figures/ch12-physics-pipeline.svg`：装载管线与 PhysX 模块边界
+- `figures/ch12-trs-bake.svg`：T·R·S 分解/烘焙示意
+- `figures/ch12-freeze-sequence.png`：t=0.3/0.7/1.0/1.4 + 沉降态五联
+- 复用 `../gallery/06-spot-cascade.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
 ## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
 **回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
@@ -244,6 +263,7 @@
 | ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
 | ch06-primitives.png | 5 原语同框 | features.json 256spp |
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
+| ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -264,7 +284,7 @@ ch04-mis-weights, ch05-microfacet, ch05-snell, ch06-ray-quadric,
 ch06-barycentric, ch06-parabola-focus, ch07-instancing,
 ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
 ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
-appendix-lambert-bias（共 23 张）
+ch12-physics-pipeline, ch12-trs-bake, appendix-lambert-bias（共 25 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；

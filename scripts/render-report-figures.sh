@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 9 comparison PNGs from the
+# sundog report figures — renders the 10 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
@@ -247,5 +247,21 @@ python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
   "$RAW/ch09-beauty.png|beauty · 64 spp" \
   "$RAW/ch09-albedo.png|albedo AOV" \
   "$RAW/ch09-normal.png|normal AOV"
+
+# --------------------------------------------------- ch12-freeze-sequence.png
+# 06-spot-cascade frozen at four instants plus the settled state: the same
+# initial conditions, different --physics-time. Small panels, modest spp.
+for t in 0.3 0.7 1.0 1.4; do
+  render "ch12-freeze-$t" "$ROOT/scenes/06-spot-cascade.json" \
+         --size 480x270 --spp 24 --physics-time "$t"
+done
+render "ch12-freeze-settled" "$ROOT/scenes/06-spot-cascade.json" \
+       --size 480x270 --spp 24
+python3 "$COMPOSE" strip "$FIG/ch12-freeze-sequence.png" --label-size 20 \
+  "$RAW/ch12-freeze-0.3.png|t = 0.3 s" \
+  "$RAW/ch12-freeze-0.7.png|t = 0.7 s" \
+  "$RAW/ch12-freeze-1.0.png|t = 1.0 s（画廊主图）" \
+  "$RAW/ch12-freeze-1.4.png|t = 1.4 s" \
+  "$RAW/ch12-freeze-settled.png|沉降静止 · 8.75 s"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

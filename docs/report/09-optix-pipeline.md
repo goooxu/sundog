@@ -36,6 +36,8 @@
 | ⑥ 遍历/求交/着色 | `optixTrace` / `optixReportIntersection` / `optixIgnoreIntersection` | device/programs.cu | 9.2、9.3、9.5 节；第 6 章 |
 | ⑦ 降噪 | `optixDenoiserInvoke` | src/denoise.cpp | 第 10 章 |
 
+带 `physics` 块的场景（如画廊 06 号）在 ① 与 ② 之间还有一步：PhysX GPU 刚体模拟把场景声明的初始条件推演成最终位姿再烘焙回变换，之后的六步对此毫无感知——见[第 12 章·物理装载](12-physics.md)。
+
 ## 9.2 程序模型：五种程序与一次 trace 的时序
 
 OptiX 不是"一个单一的大核函数（kernel）"，而是一个以光线为中心的调度框架：开发者提供若干小程序，遍历硬件与驱动负责在恰当的时机调用它们。一次 `optixLaunch` 以二维网格发起海量线程（sundog 中一个像素对应一个线程），每个线程从同一个入口程序开始执行。sundog 用到五种程序（全部实现在 `device/programs.cu` 这一个模块里；OptiX 还有 exception、callable 等类型，本项目未用）：

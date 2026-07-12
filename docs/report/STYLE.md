@@ -53,6 +53,17 @@
 | 每像素采样数 | samples per pixel / spp | |
 | 命中组 | hitgroup | 某类图元的 IS/AH/CH 程序打包成的一组，SBT 记录的指向单位 |
 | 环境光遮蔽 | —— | 本书不涉及，勿引入 |
+| 刚体 | rigid body | 不发生形变的理想物体 |
+| 位姿 | pose | 位置 + 姿态（平移 + 旋转） |
+| 四元数 | quaternion | q，单位四元数表示旋转 |
+| 角速度 | angular velocity | ω |
+| 惯量张量 | inertia tensor | I，旋转世界的"质量" |
+| 凸包 | convex hull | 包住全部顶点的最小凸多面体 |
+| 宽相 / 窄相 | broad / narrow phase | 碰撞检测的两级筛选 |
+| 恢复系数 | restitution | 碰撞后保留的法向速度比例 |
+| 休眠 | sleeping | 动能长期低于阈值的刚体被冻结 |
+| 沉降 | settling | 模拟到全体刚体休眠 |
+| 定格 | freeze-frame | 模拟推进到 stop_time 即烘焙 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | |

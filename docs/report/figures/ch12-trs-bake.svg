@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="380" viewBox="0 0 940 380" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B45309"/>
+    </marker>
+  </defs>
+  <rect width="940" height="380" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">位姿烘焙：物理只演化 T·R，缩放 S 原样保留</text>
+
+  <g stroke-width="1.6">
+    <rect x="20"  y="64" width="270" height="150" rx="8" stroke="#2563EB" fill="#2563EB" fill-opacity="0.08"/>
+    <rect x="336" y="64" width="270" height="150" rx="8" stroke="#B45309" fill="#F59E0B" fill-opacity="0.10"/>
+    <rect x="652" y="64" width="268" height="150" rx="8" stroke="#16A34A" fill="#16A34A" fill-opacity="0.08"/>
+  </g>
+  <g font-size="16" fill="#334155">
+    <text x="155" y="92"  text-anchor="middle" font-size="17" font-weight="bold">作者态（场景 JSON）</text>
+    <text x="155" y="120" text-anchor="middle">M = T · R · S</text>
+    <text x="155" y="146" text-anchor="middle">变换链复合（第 7 章 §7.1）</text>
+    <text x="155" y="172" text-anchor="middle" fill="#64748B">缩放藏在 3×3 部分的列长里</text>
+    <text x="471" y="92"  text-anchor="middle" font-size="17" font-weight="bold">模拟中（PhysX）</text>
+    <text x="471" y="120" text-anchor="middle">刚体位姿 = ( p , q )</text>
+    <text x="471" y="146" text-anchor="middle">平移向量 + 单位四元数</text>
+    <text x="471" y="172" text-anchor="middle" fill="#64748B">S 不进动力学：挂在碰撞形状上</text>
+    <text x="786" y="92"  text-anchor="middle" font-size="17" font-weight="bold">烘焙后</text>
+    <text x="786" y="120" text-anchor="middle">M′ = T(p′) · R(q′) · S</text>
+    <text x="786" y="146" text-anchor="middle">行主 3×4 写回 Affine</text>
+    <text x="786" y="172" text-anchor="middle" fill="#64748B">直拷 OptixInstance.transform</text>
+  </g>
+
+  <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)">
+    <line x1="290" y1="139" x2="334" y2="139"/>
+    <line x1="606" y1="139" x2="650" y2="139"/>
+  </g>
+  <text x="312" y="126" text-anchor="middle" font-size="15" fill="#334155">分解</text>
+  <text x="628" y="126" text-anchor="middle" font-size="15" fill="#334155">烘焙</text>
+  <path d="M 540 214 C 566 244, 420 250, 402 218" stroke="#B45309" stroke-width="2" fill="none" marker-end="url(#arrB)"/>
+  <text x="471" y="262" text-anchor="middle" font-size="15" fill="#B45309">simulate × N 步（重力 · 碰撞 · 摩擦）</text>
+
+  <g font-size="16" fill="#334155">
+    <text x="20" y="308">分解（decompose()）：s<tspan font-size="12" dy="4">j</tspan><tspan dy="-4"> = ‖第 j 列‖，R 的第 j 列 = 第 j 列 ÷ s</tspan><tspan font-size="12" dy="4">j</tspan><tspan dy="-4">；校验列正交（拒剪切）、det &gt; 0（拒镜像）、动态体要求 S 均匀</tspan></text>
+    <text x="20" y="340">烘焙（bakePose()）：M′ 第 i 行 = [ R′<tspan font-size="12" dy="4">i0</tspan><tspan dy="-4">·s</tspan><tspan font-size="12" dy="4">0</tspan><tspan dy="-4">   R′</tspan><tspan font-size="12" dy="4">i1</tspan><tspan dy="-4">·s</tspan><tspan font-size="12" dy="4">1</tspan><tspan dy="-4">   R′</tspan><tspan font-size="12" dy="4">i2</tspan><tspan dy="-4">·s</tspan><tspan font-size="12" dy="4">2</tspan><tspan dy="-4">   p′</tspan><tspan font-size="12" dy="4">i</tspan><tspan dy="-4"> ]</tspan></text>
+  </g>
+</svg>

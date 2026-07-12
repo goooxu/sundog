@@ -31,8 +31,8 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
 
 > 📖 **技术报告**：[docs/report/](docs/report/index.md) ——面向无图形学背景读者的
-> 12 章教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程与 RT Core，
-> 数学推导与源码逐一对账。
+> 12 章 + 附录教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程、RT Core 与
+> PhysX 物理装载，数学推导与源码逐一对账。
 
 ## 特性
 
