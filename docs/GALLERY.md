@@ -1,6 +1,6 @@
 # sundog 画廊
 
-由 `scripts/render-gallery.sh` 生成于 2026-07-11。
+由 `scripts/render-gallery.sh` 生成于 2026-07-12。
 正式图入库于 `docs/gallery/`（无损重压缩的 1080p PNG）；渲染原件在 `out/gallery/`（不入库）。
 
 ## 01-prism-court
@@ -45,14 +45,21 @@ Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗
 
 32768 个实例化 Spot 卡通奶牛的阵列（约 1.9 亿等效三角形）——同一份三角形 GAS 通过 IAS 实例复用，展示单层实例化的规模能力。
 
+## 06-spot-cascade
+
+![06-spot-cascade](gallery/06-spot-cascade.png)
+
+512 只 Spot 从空中倾泻进康奈尔配色的房间：场景 JSON 只声明初始位姿与速度，加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）沉降到静止再烘焙渲染——堆叠形态完全出自物理，混入金色金属与玻璃奶牛。
+
 ## 渲染统计
 
 | 图像 | 分辨率 | spp | 降噪 | 渲染时间 (s) | Mrays/s | 峰值显存 (MB) |
 |---|---|---|---|---|---|---|
-| 01-prism-court | 1920x1080 | 512 | 否 | 0.70 | 5197 | 690 |
-| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.25 | 5361 | 690 |
-| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.21 | 6785 | 694 |
-| 03-spot-atrium-spp32-denoised | 1920x1080 | 32 | 是 | 0.03 | 6799 | 696 |
-| 03-spot-atrium-spp32-raw | 1920x1080 | 32 | 否 | 0.03 | 6813 | 694 |
-| 04-parabolica | 1920x1080 | 512 | 否 | 0.38 | 6619 | 694 |
-| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.18 | 4136 | 708 |
+| 01-prism-court | 1920x1080 | 512 | 否 | 0.70 | 5190 | 690 |
+| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.25 | 5335 | 690 |
+| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.21 | 6769 | 694 |
+| 03-spot-atrium-spp32-denoised | 1920x1080 | 32 | 是 | 0.03 | 6776 | 696 |
+| 03-spot-atrium-spp32-raw | 1920x1080 | 32 | 否 | 0.03 | 6801 | 694 |
+| 04-parabolica | 1920x1080 | 512 | 否 | 0.38 | 6607 | 694 |
+| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.18 | 4090 | 708 |
+| 06-spot-cascade | 1920x1080 | 256 | 否 | 0.48 | 4652 | 694 |

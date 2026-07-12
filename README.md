@@ -1,9 +1,10 @@
 # sundog
 
 **sundog** 是面向 NVIDIA RTX GPU 的开源路径追踪渲染器，基于
-**OptiX 9.1 + CUDA 13.0**，目标硬件是 NVIDIA RTX 5090（sm_120，Blackwell）。
-输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + MIS）、硬件三角形与
-大规模实例化、OptiX AI 降噪，固定种子时输出逐位可复现。
+**OptiX 9.1 + CUDA 13.0 + PhysX 5.8**，目标硬件是 NVIDIA RTX 5090（sm_120，
+Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + MIS）、
+硬件三角形与大规模实例化、PhysX GPU 刚体装载、OptiX AI 降噪，固定种子时
+输出逐位可复现。
 
 ![Prism Court](docs/gallery/01-prism-court.png)
 
@@ -14,6 +15,11 @@
 | ![Spot Atrium](docs/gallery/03-spot-atrium.png) | ![Spot Swarm](docs/gallery/05-spot-swarm.png) |
 |:---:|:---:|
 | **Spot Atrium** — 硬件三角形 + OBJ UV 纹理（Spot 卡通奶牛，CC0） | **Spot Swarm** — 32768 实例 ≈1.9 亿等效三角形 |
+
+![Spot Cascade](docs/gallery/06-spot-cascade.png)
+
+**Spot Cascade** — 512 只奶牛的堆叠姿态由 **PhysX GPU 刚体模拟**在加载时沉降得出，
+场景文件里只有初始位姿与速度。
 
 | ![32 spp 原始](docs/gallery/03-spot-atrium-spp32-raw.png) | ![32 spp + AI 降噪](docs/gallery/03-spot-atrium-spp32-denoised.png) |
 |:---:|:---:|
@@ -36,6 +42,9 @@
 - **双面材质**：正/背面独立材质、`null` 穿透面、alpha cutout 镂空
 - **纹理**：solid / checker / grid / PNG 图像（sRGB）
 - **灯光**：point（带半径软阴影）、distant，以及 emissive rect/disk/sphere 区域光
+- **物理装载**：场景 JSON 声明刚体初始条件（`physics` 块 + 逐对象 opt-in），
+  加载时用 **PhysX 5 GPU 刚体**（`eENABLE_GPU_DYNAMICS` + GPU 宽相，在 RTX 上模拟）
+  沉降到静止并烘焙最终变换，再构建加速结构
 - **降噪**：OptiX AI denoiser（HDR + albedo/normal 引导 AOV）
 - **决定性**：PCG32，固定 `--seed` 时同 GPU/驱动上逐位一致（golden 测试依赖此性质）
 - **统计**：`--stats` 输出 JSON（分段计时、光线数、Mrays/s、显存峰值）
@@ -45,11 +54,12 @@
 源码放 NFS（双机共享），构建产物放测试机本地 `/tmp`：
 
 ```bash
-# 一次性：用户态安装 CUDA 13.0 toolkit + OptiX 9.1 SDK 到 /tmp（无需 sudo）
+# 一次性：用户态安装 CUDA 13.0 toolkit + OptiX 9.1 SDK + PhysX 5.8 到 /tmp（无需 sudo；
+# PhysX 首次从 NFS 源码包构建并缓存产物 tarball 回 NFS，之后秒级恢复）
 scripts/setup-testbox.sh
 
 # 每个 shell：
-source scripts/env-testbox.sh   # CUDA_HOME、OPTIX_HOME、SUNDOG_BUILD=/tmp/sundog-build
+source scripts/env-testbox.sh   # CUDA_HOME、OPTIX_HOME、PHYSX_HOME、LD_LIBRARY_PATH、SUNDOG_BUILD
 ```
 
 `/tmp` 重启即清空——重跑 `setup-testbox.sh` 即可（幂等）。
@@ -84,7 +94,7 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 ## 场景格式
 
 见 [docs/SCENES.md](docs/SCENES.md)。示例场景在 `scenes/`（`smoke.json` 最小、
-`features.json` 全特性、`01…05` 画廊）。
+`features.json` 全特性、`01…06` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU）。
 
 ## 测试
 

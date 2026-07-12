@@ -6,7 +6,9 @@
 ## 总体数据流
 
 ```
-scene JSON ──> host 解析/上传 ──> GAS(5 种 quadric + 每网格一个) ──> IAS
+scene JSON ──> host 解析 ──> (可选) PhysX GPU 刚体沉降，烘焙 xform
+                                │
+                 上传 ──> GAS(5 种 quadric + 每网格一个) ──> IAS
                                                 │
 CLI ──> LaunchParams ──> optixLaunch(分块 spp) ─┴─> accum/AOV float4 缓冲
                                                       │
@@ -79,6 +81,21 @@ closesthit 按 frontface 选 matFront/matBack，法线翻向入射侧后交给 r
 `optixTransformNormalFromObjectToWorldSpace`（逆转置）变换后归一化。
 实例化的规模能力见 `scenes/05-spot-swarm.json`：32768 个 Spot 实例共享
 同一份 5,856 三角形 GAS（≈1.9 亿等效三角形）。
+
+## PhysX GPU 刚体装载
+
+带顶层 `physics` 块的场景（格式见 `docs/SCENES.md`）在网格加载之后、GAS 构建
+之前跑一遍 PhysX 5 刚体模拟（`src/physics.cpp`，工程里唯一接触 PhysX 头的
+TU——`scene_json.cpp` 只解析纯结构体描述，host 单测因此无需 PhysX）。模拟
+**必须在 GPU 上执行**（`eENABLE_GPU_DYNAMICS` + `PxBroadPhaseType::eGPU`，
+CUDA context manager 建不起来直接报错，不回退 CPU）；渲染与物理共用同一块
+GPU，先模拟后渲染串行执行。碰撞体映射：rect → 沿背面挤出的实体薄盒（仅静态）、
+sphere → 精确球、mesh → 顶点上限 64 的凸包（每网格烹制一次，实例共享 +
+`PxMeshScale`）。全部刚体休眠（或超时告警）后，`getGlobalPose()` 与原缩放
+重组为 T·R·S 烘焙回对象 xform，下游对物理一无所知。GPU dynamics 不支持
+sweep CCD，改用每刚体 speculative CCD + 厚碰撞板防穿透。固定步长/迭代数/
+actor 顺序下同机跑间可复现；耗时计入 stats 的 `timings_ms.physics`。
+示例：`scenes/06-spot-cascade.json`（512 只 Spot 倾泻沉降）。
 
 ## NEE + MIS（balance heuristic）
 
