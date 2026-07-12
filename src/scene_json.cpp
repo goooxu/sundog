@@ -97,6 +97,25 @@ Scene loadScene(const std::string& path) {
     s.render.exposure = r.value("exposure", s.render.exposure);
   }
 
+  if (j.contains("physics")) {
+    const auto& p = j["physics"];
+    s.physics.enabled = true;
+    if (p.contains("gravity")) s.physics.gravity = jf3(p["gravity"]);
+    s.physics.timestep = p.value("timestep", s.physics.timestep);
+    s.physics.maxTime = p.value("max_time", s.physics.maxTime);
+    s.physics.friction = p.value("friction", s.physics.friction);
+    s.physics.restitution = p.value("restitution", s.physics.restitution);
+    if (p.contains("solver_iterations")) {
+      const auto& si = p["solver_iterations"];
+      if (!si.is_array() || si.size() != 2) fail("physics: solver_iterations must be [pos, vel]");
+      s.physics.posIters = si[0].get<int>();
+      s.physics.velIters = si[1].get<int>();
+    }
+    s.physics.sleepThreshold = p.value("sleep_threshold", s.physics.sleepThreshold);
+    if (s.physics.timestep <= 0.0f || s.physics.maxTime <= 0.0f)
+      fail("physics: timestep and max_time must be positive");
+  }
+
   if (!j.contains("camera")) fail("missing camera");
   {
     const auto& c = j["camera"];
@@ -239,6 +258,29 @@ Scene loadScene(const std::string& path) {
     so.xform = parseTransform(o.value("transform", json()));
     so.nee = o.value("nee", true);
 
+    if (o.contains("physics")) {
+      if (!s.physics.enabled)
+        fail("physics: object opts in but the scene has no top-level physics block");
+      const auto& p = o["physics"];
+      so.physics.enabled = true;
+      so.physics.dynamic = p.value("dynamic", false);
+      so.physics.density = p.value("density", so.physics.density);
+      if (p.contains("velocity")) so.physics.velocity = jf3(p["velocity"]);
+      if (p.contains("angular_velocity")) so.physics.angularVelocity = jf3(p["angular_velocity"]);
+      so.physics.friction = p.value("friction", so.physics.friction);
+      so.physics.restitution = p.value("restitution", so.physics.restitution);
+      so.physics.thickness = p.value("thickness", so.physics.thickness);
+      if (so.geomKind == GK_DISK || so.geomKind == GK_CYLINDER || so.geomKind == GK_PARABOLA)
+        fail("physics: shape '" + shape + "' is not supported as a collider "
+             "(use sphere, rect, or mesh)");
+      if (so.geomKind == GK_RECT && so.physics.dynamic)
+        fail("physics: rect colliders are static-only (zero-thickness plates tunnel)");
+      if (so.physics.dynamic && so.physics.density <= 0.0f)
+        fail("physics: dynamic body needs positive density");
+      if (so.physics.thickness <= 0.0f)
+        fail("physics: thickness must be positive");
+    }
+
     // Auto-register emissive rect/disk/sphere objects as NEE area lights.
     uint16_t emId = MAT_NONE;
     if (so.matFront != MAT_NONE && s.materials[so.matFront].kind == MT_EMISSIVE)
@@ -291,6 +333,9 @@ Scene loadScene(const std::string& path) {
       so.lightId = (int)s.lights.size();
       s.lights.push_back(ld);
     }
+    if (so.physics.dynamic && so.lightId != -1)
+      fail("physics: a dynamic object cannot be an NEE area light (the light "
+           "frame is baked at parse time); set nee:false or keep it static");
     s.objects.push_back(so);
   }
 

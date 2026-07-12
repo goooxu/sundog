@@ -12,7 +12,8 @@ struct RenderStats {
   int width = 0, height = 0, spp = 0, maxDepth = 0;
   unsigned seed = 0;
   bool denoised = false;
-  double sceneLoadMs = 0, gasBuildMs = 0, renderMs = 0, denoiseMs = 0, totalMs = 0;
+  double sceneLoadMs = 0, physicsMs = 0, gasBuildMs = 0, renderMs = 0, denoiseMs = 0,
+         totalMs = 0;
   unsigned long long raysTraced = 0;
   double mraysPerSec = 0;
   size_t peakVramMB = 0;

@@ -7,6 +7,7 @@
 #include "denoise.h"
 #include "film.h"
 #include "mesh_obj.h"
+#include "physics.h"
 #include "pipeline.h"
 #include "scene.h"
 #include "stats.h"
@@ -64,6 +65,19 @@ int main(int argc, char** argv) {
       meshTriangles += meshes.back().numTris;
     }
     double sceneLoadMs = msSince(tLoad);
+
+    // ---- physics settling (bakes final poses into object xforms) ----
+    double physicsMs = 0;
+    if (scene.physics.enabled) {
+      auto tPhys = Clock::now();
+      PhysicsStats phys = runPhysics(scene, meshes);
+      physicsMs = msSince(tPhys);
+      if (!cli.quiet) {
+        printf("physics(GPU): %d bodies, %d statics, %d steps, %s at %.2f s sim time (%.0f ms wall)\n",
+               phys.bodies, phys.statics, phys.steps,
+               phys.settled ? "settled" : "TIMEOUT", phys.simSeconds, physicsMs);
+      }
+    }
 
     // ---- acceleration structures ----
     auto tGas = Clock::now();
@@ -172,6 +186,7 @@ int main(int argc, char** argv) {
       st.seed = rs.seed;
       st.denoised = rs.denoise;
       st.sceneLoadMs = sceneLoadMs;
+      st.physicsMs = physicsMs;
       st.gasBuildMs = gasBuildMs;
       st.renderMs = renderMs;
       st.denoiseMs = denoiseMs;

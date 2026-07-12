@@ -16,6 +16,7 @@ void writeStats(const RenderStats& st, const std::string& path) {
   j["seed"] = st.seed;
   j["denoised"] = st.denoised;
   j["timings_ms"] = {{"scene_load", st.sceneLoadMs},
+                     {"physics", st.physicsMs},
                      {"gas_build", st.gasBuildMs},
                      {"render", st.renderMs},
                      {"denoise", st.denoiseMs},

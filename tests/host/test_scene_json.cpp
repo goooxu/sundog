@@ -341,6 +341,89 @@ static void testErrorPaths() {
   CHECK(cut.textures[cut.objects[0].cutoutTexId].desc.kind == TX_IMAGE);
 }
 
+static void testPhysicsParsing() {
+  // full positive path: global block + static collider + dynamic mesh body
+  Scene s = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,4,9],"lookat":[0,0,0]},
+      "physics": {"gravity":[0,-9.81,0], "timestep":0.005, "max_time":8.0,
+                  "friction":0.7, "restitution":0.2, "solver_iterations":[16,4],
+                  "sleep_threshold":0.01},
+      "materials": {"m":{"type":"lambert"}},
+      "meshes": {"cow":{"obj":"../assets/spot.obj"}},
+      "objects":[
+        {"shape":"rect","material":"m","physics":{"thickness":0.4},
+         "transform":[{"scale":5}]},
+        {"shape":"mesh:cow","material":"m",
+         "physics":{"dynamic":true,"density":300,"velocity":[0.1,-2,0],
+                    "angular_velocity":[1,0,-1]},
+         "transform":[{"scale":0.5},{"rotate_y":45},{"translate":[0,3,0]}]},
+        {"shape":"sphere","material":"m","transform":[{"translate":[9,1,0]}]}
+      ] })",
+      "physics scene");
+  CHECK(s.physics.enabled);
+  CHECK_NEAR(s.physics.gravity.y, -9.81, 1e-6);
+  CHECK_NEAR(s.physics.timestep, 0.005, 1e-7);
+  CHECK_NEAR(s.physics.maxTime, 8.0, 1e-6);
+  CHECK_NEAR(s.physics.friction, 0.7, 1e-6);
+  CHECK_NEAR(s.physics.restitution, 0.2, 1e-6);
+  CHECK(s.physics.posIters == 16 && s.physics.velIters == 4);
+  CHECK_NEAR(s.physics.sleepThreshold, 0.01, 1e-7);
+  const PhysicsObject& floor = s.objects[0].physics;
+  CHECK(floor.enabled && !floor.dynamic);
+  CHECK_NEAR(floor.thickness, 0.4, 1e-6);
+  CHECK(floor.friction < 0.0f && floor.restitution < 0.0f);  // scene defaults
+  const PhysicsObject& cow = s.objects[1].physics;
+  CHECK(cow.enabled && cow.dynamic);
+  CHECK_NEAR(cow.density, 300.0, 1e-4);
+  CHECK_NEAR(cow.velocity.y, -2.0, 1e-6);
+  CHECK_NEAR(cow.angularVelocity.z, -1.0, 1e-6);
+  CHECK(!s.objects[2].physics.enabled);  // opt-in only
+
+  // scenes without a physics block stay disabled
+  Scene mini = expectLoadOk(kMinimalScene, "minimal scene (no physics)");
+  CHECK(!mini.physics.enabled);
+  CHECK(!mini.objects[0].physics.enabled);
+
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m",
+                                 "physics":{"dynamic":true}}] })",
+                 "object physics without top-level block");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "physics": {},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"cylinder","material":"m",
+                                 "physics":{}}] })",
+                 "cylinder collider unsupported");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "physics": {},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"rect","material":"m",
+                                 "physics":{"dynamic":true}}] })",
+                 "dynamic rect rejected");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "physics": {},
+                     "materials": {"e":{"type":"emissive","intensity":5}},
+                     "objects":[{"shape":"sphere","material":"e",
+                                 "physics":{"dynamic":true}}] })",
+                 "dynamic NEE area light rejected");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "physics": {"timestep":0},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}] })",
+                 "non-positive timestep");
+
+  // a dynamic emitter is fine when kept out of NEE
+  Scene neeOff = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+      "physics": {},
+      "materials": {"e":{"type":"emissive","intensity":5}},
+      "objects":[{"shape":"sphere","material":"e","nee":false,
+                  "physics":{"dynamic":true}}] })",
+      "dynamic emissive with nee:false");
+  CHECK(neeOff.objects[0].physics.dynamic && neeOff.lights.empty());
+}
+
 static void testMakeCamera() {
   CameraSettings cs;
   cs.lookfrom = f3(0, 0, 5);
@@ -366,6 +449,7 @@ int main() {
   testSmokeScene();
   testFeaturesScene();
   testErrorPaths();
+  testPhysicsParsing();
   testMakeCamera();
   TEST_DONE("test_scene_json");
 }

@@ -2,6 +2,7 @@
 # so objects/binaries land on local NVMe.
 CUDA_HOME  ?= /tmp/cuda-13.0
 OPTIX_HOME ?= /tmp/optix-9.1.0
+PHYSX_HOME ?= /tmp/physx-5.8
 BUILD      ?= $(if $(SUNDOG_BUILD),$(SUNDOG_BUILD),build)
 NVCC       := $(CUDA_HOME)/bin/nvcc
 BIN2C      := $(CUDA_HOME)/bin/bin2c
@@ -15,8 +16,16 @@ IR    ?= 0
 DEBUG ?= 0
 
 CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP \
-            -Isrc -Idevice -Iextern -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
-LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart -ldl -lpthread -Wl,-rpath,$(CUDA_HOME)/lib64
+            -Isrc -Idevice -Iextern -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include \
+            -I$(PHYSX_HOME)/include
+# PhysX static archives must precede -ldl/-lpthread; libPhysXGpu_64.so is
+# dlopen'ed at runtime from $(PHYSX_HOME)/bin (rpath below + LD_LIBRARY_PATH
+# in scripts/env-testbox.sh).
+PHYSX_LIBS := -L$(PHYSX_HOME)/lib \
+              -lPhysXExtensions_static_64 -lPhysX_static_64 -lPhysXPvdSDK_static_64 \
+              -lPhysXCooking_static_64 -lPhysXCommon_static_64 -lPhysXFoundation_static_64
+LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) -ldl -lpthread \
+            -Wl,-rpath,$(CUDA_HOME)/lib64 -Wl,-rpath,$(PHYSX_HOME)/bin
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
              -Idevice -I$(OPTIX_HOME)/include
 
