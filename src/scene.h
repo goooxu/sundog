@@ -57,6 +57,7 @@ struct PhysicsSettings {
   float3 gravity{0.0f, -9.81f, 0.0f};
   float timestep = 1.0f / 240.0f;
   float maxTime = 15.0f;  // sim-time cap; bake anyway on timeout
+  float stopTime = 0.0f;  // >0: freeze-frame — bake at exactly this sim time
   float friction = 0.6f, restitution = 0.1f;
   int posIters = 8, velIters = 2;
   float sleepThreshold = -1.0f;  // <0 = PhysX default

@@ -92,8 +92,14 @@ the CLI. `clamp` limits indirect per-sample contributions (firefly control,
 ```json
 "physics": { "gravity": [0,-9.81,0], "timestep": 0.0041667, "max_time": 15.0,
              "friction": 0.6, "restitution": 0.1,
-             "solver_iterations": [8, 2], "sleep_threshold": 0.05 }
+             "solver_iterations": [8, 2], "sleep_threshold": 0.05,
+             "stop_time": 0 }
 ```
+
+`stop_time > 0` 是**锐利定格**模式：模拟恰好推进到该时刻（秒）就停下烘焙，
+凌空翻滚的刚体原样冻结进画面；`0`/缺省 = 模拟到全体休眠（或 `max_time`
+超时）。CLI `--physics-time F` 可覆盖场景值（`0` 强制回沉降模式）——画廊
+主图 06 就是同一场景在 `--physics-time 1.0` 下的定格，对照图则是沉降态。
 
 对象通过自己的 `physics` 键 **显式 opt-in**（没有该键的对象不参与碰撞）：
 

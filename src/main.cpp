@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <stdexcept>
 
 using namespace sd;
 using Clock = std::chrono::steady_clock;
@@ -66,16 +67,21 @@ int main(int argc, char** argv) {
     }
     double sceneLoadMs = msSince(tLoad);
 
-    // ---- physics settling (bakes final poses into object xforms) ----
+    // ---- physics settling / freeze-frame (bakes poses into object xforms) ----
     double physicsMs = 0;
+    if (cli.physicsTime >= 0.0f && !scene.physics.enabled)
+      throw std::runtime_error("--physics-time: scene has no physics block");
     if (scene.physics.enabled) {
+      if (cli.physicsTime >= 0.0f) scene.physics.stopTime = cli.physicsTime;
+      bool freeze = scene.physics.stopTime > 0.0f;
       auto tPhys = Clock::now();
       PhysicsStats phys = runPhysics(scene, meshes);
       physicsMs = msSince(tPhys);
       if (!cli.quiet) {
         printf("physics(GPU): %d bodies, %d statics, %d steps, %s at %.2f s sim time (%.0f ms wall)\n",
                phys.bodies, phys.statics, phys.steps,
-               phys.settled ? "settled" : "TIMEOUT", phys.simSeconds, physicsMs);
+               freeze ? "captured" : (phys.settled ? "settled" : "TIMEOUT"),
+               phys.simSeconds, physicsMs);
       }
     }
 

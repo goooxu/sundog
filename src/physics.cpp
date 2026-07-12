@@ -185,20 +185,32 @@ PhysicsStats runPhysics(Scene& scene, const std::vector<GpuMesh>& meshes) {
       if (!b.actor->isSleeping()) return false;
     return true;
   };
-  const int maxSteps = (int)ceilf(cfg.maxTime / cfg.timestep);
-  while (st.steps < maxSteps) {
-    px->simulate(cfg.timestep);
-    px->fetchResults(true);
-    st.steps++;
-    if (st.steps % 30 == 0 && allAsleep()) {
-      st.settled = true;
-      break;
+  if (cfg.stopTime > 0.0f) {
+    // Freeze-frame: run exactly to the requested instant and bake mid-motion
+    // poses. No sleep checks, no timeout warning — stopping here is the plan.
+    const int steps = (int)ceilf(cfg.stopTime / cfg.timestep);
+    while (st.steps < steps) {
+      px->simulate(cfg.timestep);
+      px->fetchResults(true);
+      st.steps++;
     }
+    st.settled = true;
+  } else {
+    const int maxSteps = (int)ceilf(cfg.maxTime / cfg.timestep);
+    while (st.steps < maxSteps) {
+      px->simulate(cfg.timestep);
+      px->fetchResults(true);
+      st.steps++;
+      if (st.steps % 30 == 0 && allAsleep()) {
+        st.settled = true;
+        break;
+      }
+    }
+    if (!st.settled) st.settled = allAsleep();
+    if (!st.settled)
+      fprintf(stderr, "physics: WARNING: not settled after %.1f s sim time; baking anyway\n",
+              cfg.maxTime);
   }
-  if (!st.settled) st.settled = allAsleep();
-  if (!st.settled)
-    fprintf(stderr, "physics: WARNING: not settled after %.1f s sim time; baking anyway\n",
-            cfg.maxTime);
 
   for (const DynBody& b : dyn)
     bakePose(scene.objects[b.obj].xform, b.actor->getGlobalPose(), b.scale);

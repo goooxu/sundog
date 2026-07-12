@@ -112,8 +112,11 @@ Scene loadScene(const std::string& path) {
       s.physics.velIters = si[1].get<int>();
     }
     s.physics.sleepThreshold = p.value("sleep_threshold", s.physics.sleepThreshold);
+    s.physics.stopTime = p.value("stop_time", s.physics.stopTime);
     if (s.physics.timestep <= 0.0f || s.physics.maxTime <= 0.0f)
       fail("physics: timestep and max_time must be positive");
+    if (s.physics.stopTime < 0.0f)
+      fail("physics: stop_time must be >= 0 (0 = settle to sleep)");
   }
 
   if (!j.contains("camera")) fail("missing camera");

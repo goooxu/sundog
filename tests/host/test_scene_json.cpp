@@ -347,7 +347,7 @@ static void testPhysicsParsing() {
       "camera": {"lookfrom":[0,4,9],"lookat":[0,0,0]},
       "physics": {"gravity":[0,-9.81,0], "timestep":0.005, "max_time":8.0,
                   "friction":0.7, "restitution":0.2, "solver_iterations":[16,4],
-                  "sleep_threshold":0.01},
+                  "sleep_threshold":0.01, "stop_time":1.25},
       "materials": {"m":{"type":"lambert"}},
       "meshes": {"cow":{"obj":"../assets/spot.obj"}},
       "objects":[
@@ -368,6 +368,7 @@ static void testPhysicsParsing() {
   CHECK_NEAR(s.physics.restitution, 0.2, 1e-6);
   CHECK(s.physics.posIters == 16 && s.physics.velIters == 4);
   CHECK_NEAR(s.physics.sleepThreshold, 0.01, 1e-7);
+  CHECK_NEAR(s.physics.stopTime, 1.25, 1e-6);
   const PhysicsObject& floor = s.objects[0].physics;
   CHECK(floor.enabled && !floor.dynamic);
   CHECK_NEAR(floor.thickness, 0.4, 1e-6);
@@ -412,6 +413,11 @@ static void testPhysicsParsing() {
                      "materials": {"m":{"type":"lambert"}},
                      "objects":[{"shape":"sphere","material":"m"}] })",
                  "non-positive timestep");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "physics": {"stop_time":-1},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}] })",
+                 "negative stop_time");
 
   // a dynamic emitter is fine when kept out of NEE
   Scene neeOff = expectLoadOk(R"({

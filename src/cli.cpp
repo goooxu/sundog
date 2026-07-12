@@ -24,6 +24,8 @@ options:
   --clamp F           firefly clamp for indirect light (0 = off)
   --gamma F           output gamma (default 2.2)
   --exposure F        exposure in EV stops
+  --physics-time F    freeze-frame: bake rigid bodies at sim time F seconds
+                      instead of settling (0 = force settle-to-sleep)
   --stats FILE.json   write render statistics
   --aov-albedo F.png  write albedo guide AOV
   --aov-normal F.png  write normal guide AOV
@@ -60,6 +62,10 @@ CliOptions parseCli(int argc, char** argv) {
     else if (!strcmp(a, "--clamp")) o.clampVal = (float)atof(need(i));
     else if (!strcmp(a, "--gamma")) o.gamma = (float)atof(need(i));
     else if (!strcmp(a, "--exposure")) o.exposure = (float)atof(need(i));
+    else if (!strcmp(a, "--physics-time")) {
+      o.physicsTime = (float)atof(need(i));
+      if (o.physicsTime < 0.0f) usageDie("--physics-time wants a value >= 0");
+    }
     else if (!strcmp(a, "--stats")) o.statsPath = need(i);
     else if (!strcmp(a, "--aov-albedo")) o.aovAlbedoPath = need(i);
     else if (!strcmp(a, "--aov-normal")) o.aovNormalPath = need(i);

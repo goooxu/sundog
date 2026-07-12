@@ -21,6 +21,7 @@ struct CliOptions {
   float clampVal = -1.0f;
   float gamma = -1.0f;
   float exposure = -1e30f;
+  float physicsTime = -1.0f;  // >=0 overrides physics stop_time (0 = settle)
   bool probe = false;
   bool quiet = false;
 };
