@@ -23,6 +23,7 @@ ENTRIES=(
   "03-spot-atrium:256"
   "04-parabolica:512"
   "05-spot-swarm:128"
+  "06-spot-cascade:256"
 )
 
 fail() { echo "render-gallery: FAIL: $*" >&2; exit 1; }
@@ -83,6 +84,10 @@ DESC = {
     "05-spot-swarm":
         "32768 个实例化 Spot 卡通奶牛的阵列（约 1.9 亿等效三角形）——同一份三角形 GAS 通过 IAS 实例复用，"
         "展示单层实例化的规模能力。",
+    "06-spot-cascade":
+        "512 只 Spot 从空中倾泻进康奈尔配色的房间：场景 JSON 只声明初始位姿与速度，"
+        "加载时由 NVIDIA PhysX GPU 刚体模拟（eENABLE_GPU_DYNAMICS）沉降到静止再烘焙渲染——"
+        "堆叠形态完全出自物理，混入金色金属与玻璃奶牛。",
 }
 
 lines = [

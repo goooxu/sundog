@@ -5,8 +5,9 @@
 # (default /tmp/sundog-build/sundog). Callable from any cwd.
 #
 # Tiers:
-#   A. feature — the five gallery scenes at their native 1920x1080 / 64 spp
-#                (render time, ray throughput, VRAM).
+#   A. feature — the six gallery scenes at their native 1920x1080 / 64 spp
+#                (render time, ray throughput, VRAM; 06's PhysX settling is
+#                reported under timings_ms.physics, not render).
 #   B. denoise — 02-cornell-lume at 16 spp with/without --denoise, PSNR of
 #                each against a 4096 spp reference (img_compare).
 # Missing scenes are skipped and noted in the report.
@@ -30,7 +31,7 @@ if [ "$QUICK" = 1 ]; then
   DN_SCENE=smoke DN_REF_SPP=64 DN_TEST_SPP=4
 else
   OUT_MD="$ROOT/docs/BENCHMARKS.md"
-  FEATURE_SCENES=(01-prism-court 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm)
+  FEATURE_SCENES=(01-prism-court 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade)
   DN_SCENE=02-cornell-lume DN_REF_SPP=4096 DN_TEST_SPP=16
 fi
 DN_SIZE=1920x1080
