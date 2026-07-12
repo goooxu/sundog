@@ -24,6 +24,7 @@ ENTRIES=(
   "04-parabolica:512"
   "05-spot-swarm:128"
   "06-spot-cascade:256"
+  "07-campfire:512"
 )
 
 fail() { echo "render-gallery: FAIL: $*" >&2; exit 1; }
@@ -99,6 +100,10 @@ DESC = {
     "06-spot-cascade-settled":
         "同一份初始条件模拟到全体休眠的静止堆（对照）：不同时刻、同一物理，"
         "堆叠形态完全出自模拟。",
+    "07-campfire":
+        "篝火夜景：火焰是程序化的发射型参与介质（发射+吸收，raygen 内解析"
+        "圆柱界定后光线行进积分），也是全场唯一主光源——照明由火焰内嵌的暖色"
+        "软阴影点光经 NEE 完成。五只 Spot 围坐，微弱月光勾勒轮廓。",
 }
 
 lines = [
