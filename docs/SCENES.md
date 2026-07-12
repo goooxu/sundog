@@ -80,6 +80,30 @@ Area lights are *not* declared here — make an emissive object instead.
 the CLI. `clamp` limits indirect per-sample contributions (firefly control,
 0 = off). Fixed `seed` gives bit-identical images on the same GPU/driver.
 
+## Flames（体积火焰光源）
+
+顶层 `flames` 数组声明程序化火焰——sundog 的第一类**参与介质**（发射 +
+吸收，无散射）：raygen 在每段光线上与火焰的竖直包围圆柱解析求交，行进积分
+噪声塑形的发射场（黑→深红→橙→黄白梯度），并按透射率衰减其后的一切贡献。
+火焰因此"看得见"（含反射/折射里的像），也会遮挡（烟雾感吸收）。
+
+```json
+"flames": [
+  { "base": [0, 0.12, 0], "height": 1.7, "radius": 0.5,
+    "intensity": 22, "sigma": 4.5, "noise_scale": 3.0, "seed": 3,
+    "light_intensity": 40 }
+]
+```
+
+- `base`/`height`/`radius`（必填）：火根位置、火高、包围圆柱半径（轴恒为 +y）
+- `intensity`（默认 20）发射亮度；`sigma`（默认 4）吸收密度；
+  `noise_scale`（默认 3）火舌噪声频率；`seed`（默认 0）多团火去相关
+- `light_intensity`（默认 12）：**照明近似**——每团火自动注册 2 个带半径的
+  暖色点光（轴上 0.35H/0.70H 处，半径 0.3R 软阴影），经常规 NEE 照亮场景。
+  体积发射本身被 BSDF 路径偶然穿过时也会记入，与点光有轻微能量重复——
+  火焰立体角小、σ 小，量级可忽略，此为如实声明的工程近似
+- 限制：阴影线不穿越体积衰减（火焰是光学薄介质）；火焰不写 AOV 引导层
+
 ## Physics（PhysX GPU 刚体沉降）
 
 带顶层 `physics` 块的场景在加载时先跑一遍 **PhysX 5 GPU** 刚体模拟
