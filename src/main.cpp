@@ -103,10 +103,11 @@ int main(int argc, char** argv) {
     pipeline.buildSbt(scene, meshes);
     Film film(rs.width, rs.height);
 
-    CudaBuffer texBuf, matBuf, lightBuf, rayCounter;
+    CudaBuffer texBuf, matBuf, lightBuf, flameBuf, rayCounter;
     texBuf.upload(texDescs);
     matBuf.upload(scene.materials);
     if (!scene.lights.empty()) lightBuf.upload(scene.lights);
+    if (!scene.flames.empty()) flameBuf.upload(scene.flames);
     rayCounter.allocZero(sizeof(unsigned long long));
 
     LaunchParams params{};
@@ -127,6 +128,8 @@ int main(int argc, char** argv) {
     params.materials = matBuf.as<MaterialDesc>();
     params.lights = lightBuf.ptr ? lightBuf.as<LightDesc>() : nullptr;
     params.numLights = (int)scene.lights.size();
+    params.flames = flameBuf.ptr ? flameBuf.as<FlameDesc>() : nullptr;
+    params.numFlames = (int)scene.flames.size();
     params.handle = ias.handle;
 
     // ---- render loop ----

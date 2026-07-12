@@ -83,6 +83,7 @@ struct Scene {
   std::vector<SceneMesh> meshes;
   std::vector<SceneObject> objects;
   std::vector<LightDesc> lights;
+  std::vector<FlameDesc> flames;
   PhysicsSettings physics;
   std::string baseDir;  // for resolving relative asset paths
 };

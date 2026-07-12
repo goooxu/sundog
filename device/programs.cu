@@ -11,6 +11,7 @@
 #include "texture_eval.cuh"
 #include "bsdf.cuh"
 #include "light_sample.cuh"
+#include "volume.cuh"
 
 using namespace sd;
 
@@ -258,6 +259,20 @@ extern "C" __global__ void __raygen__render() {
     for (int depth = 0; depth < params.maxDepth; depth++) {
       HitInfo hit = traceRadiance(o, d);
       raysTraced++;
+
+      // ---- emissive media (procedural flames) ----
+      // March before the surface/background contribution: emission along the
+      // segment reaches the eye first, and the segment's transmittance
+      // attenuates everything behind it via beta.
+      if (params.numFlames > 0) {
+        float3 trans = f3(1.0f);
+        float3 Lv = marchFlames(params.flames, params.numFlames, o, d,
+                                hit.hit ? hit.t : 1e16f, rng, trans);
+        float3 cv = beta * Lv;
+        if (depth >= 1 && params.clampVal > 0.0f) cv = min3(cv, f3(params.clampVal));
+        L += cv;
+        beta *= trans;
+      }
 
       if (!hit.hit) {
         float3 c = beta * hit.nOrBg;

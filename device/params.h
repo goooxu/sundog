@@ -55,6 +55,19 @@ struct BgDesc {
   float3 b;        // zenith
 };
 
+// Emissive participating medium (emission + absorption, no scattering):
+// an upright procedural flame bounded by the cylinder {|xz - base.xz| <= radius,
+// base.y <= y <= base.y + height}, ray-marched in raygen (device/volume.cuh).
+struct FlameDesc {
+  float3 base;       // world position of the flame root (axis is +y)
+  float height;
+  float radius;      // bounding-cylinder radius (profile stays inside)
+  float intensity;   // emission scale
+  float sigma;       // absorption density scale
+  float noiseScale;  // fbm frequency
+  unsigned seed;     // decorrelates multiple flames
+};
+
 struct CameraData {
   float3 origin;
   float3 lowerLeft;   // world position of image plane (0,0) corner point
@@ -86,6 +99,8 @@ struct LaunchParams {
   MaterialDesc* materials;
   LightDesc* lights;
   int numLights;
+  FlameDesc* flames;
+  int numFlames;
 
   OptixTraversableHandle handle;
 };

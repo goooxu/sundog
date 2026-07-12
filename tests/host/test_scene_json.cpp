@@ -430,6 +430,67 @@ static void testPhysicsParsing() {
   CHECK(neeOff.objects[0].physics.dynamic && neeOff.lights.empty());
 }
 
+static void testFlameParsing() {
+  Scene s = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,2,6],"lookat":[0,0,0]},
+      "materials": {"m":{"type":"lambert"}},
+      "objects":[{"shape":"rect","material":"m","transform":[{"scale":8}]}],
+      "flames":[{"base":[1,0.2,-1], "height":1.5, "radius":0.4,
+                 "intensity":25, "sigma":5, "noise_scale":2.5, "seed":7,
+                 "light_intensity":16}]
+      })",
+      "flame scene");
+  CHECK(s.flames.size() == 1);
+  const FlameDesc& f = s.flames[0];
+  CHECK_NEAR(f.base.x, 1.0, 1e-6);
+  CHECK_NEAR(f.height, 1.5, 1e-6);
+  CHECK_NEAR(f.radius, 0.4, 1e-6);
+  CHECK_NEAR(f.intensity, 25.0, 1e-5);
+  CHECK_NEAR(f.sigma, 5.0, 1e-6);
+  CHECK_NEAR(f.noiseScale, 2.5, 1e-6);
+  CHECK(f.seed == 7u);
+  // two embedded warm point lights per flame, on the axis, soft radius
+  CHECK_MSG(s.lights.size() == 2, "flame lights: %zu", s.lights.size());
+  CHECK(s.lights[0].kind == LT_POINT && s.lights[1].kind == LT_POINT);
+  CHECK_NEAR(s.lights[0].p.y, 0.2 + 0.35 * 1.5, 1e-5);
+  CHECK_NEAR(s.lights[1].p.y, 0.2 + 0.70 * 1.5, 1e-5);
+  CHECK_NEAR(s.lights[0].radius, 0.12, 1e-6);  // 0.3 * radius
+  CHECK(s.lights[0].L.x > s.lights[1].L.x);    // 0.65/0.35 split
+
+  // defaults
+  Scene d = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,2,6],"lookat":[0,0,0]},
+      "materials": {"m":{"type":"lambert"}},
+      "objects":[{"shape":"sphere","material":"m"}],
+      "flames":[{"base":[0,0,0], "height":1, "radius":0.5}] })",
+      "flame defaults");
+  CHECK_NEAR(d.flames[0].intensity, 20.0, 1e-5);
+  CHECK_NEAR(d.flames[0].sigma, 4.0, 1e-6);
+  CHECK_NEAR(d.flames[0].noiseScale, 3.0, 1e-6);
+  CHECK(d.flames[0].seed == 0u);
+
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}],
+                     "flames":[{"base":[0,0,0],"height":0,"radius":0.5}] })",
+                 "flame zero height");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}],
+                     "flames":[{"base":[0,0,0],"height":1,"radius":-1}] })",
+                 "flame negative radius");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}],
+                     "flames":{"base":[0,0,0]} })",
+                 "flames not an array");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}],
+                     "flames":[{"height":1,"radius":0.5}] })",
+                 "flame missing base");
+}
+
 static void testMakeCamera() {
   CameraSettings cs;
   cs.lookfrom = f3(0, 0, 5);
@@ -456,6 +517,7 @@ int main() {
   testFeaturesScene();
   testErrorPaths();
   testPhysicsParsing();
+  testFlameParsing();
   testMakeCamera();
   TEST_DONE("test_scene_json");
 }

@@ -342,6 +342,42 @@ Scene loadScene(const std::string& path) {
     s.objects.push_back(so);
   }
 
+  if (j.contains("flames")) {
+    if (!j["flames"].is_array()) fail("flames must be an array");
+    for (const auto& fj : j["flames"]) {
+      FlameDesc fd{};
+      fd.base = jf3(fj.at("base"));
+      fd.height = fj.at("height").get<float>();
+      fd.radius = fj.at("radius").get<float>();
+      fd.intensity = fj.value("intensity", 20.0f);
+      fd.sigma = fj.value("sigma", 4.0f);
+      fd.noiseScale = fj.value("noise_scale", 3.0f);
+      fd.seed = (unsigned)fj.value("seed", 0);
+      if (fd.height <= 0.0f || fd.radius <= 0.0f)
+        fail("flame: height and radius must be positive");
+      if (fd.intensity < 0.0f || fd.sigma < 0.0f)
+        fail("flame: intensity and sigma must be >= 0");
+      // The volume emission makes the flame visible; two embedded warm point
+      // lights (soft shadows via radius) make it illuminate the scene through
+      // the regular NEE machinery. Documented approximation: BSDF paths that
+      // happen to cross the volume add a small extra on top of these lights.
+      float lightI = fj.value("light_intensity", 12.0f);
+      const float frac[2] = {0.65f, 0.35f};
+      const float hfac[2] = {0.35f, 0.70f};
+      const float3 warm[2] = {f3(1.0f, 0.50f, 0.15f), f3(1.0f, 0.62f, 0.25f)};
+      for (int k = 0; k < 2; k++) {
+        LightDesc ld{};
+        ld.texId = -1;
+        ld.kind = LT_POINT;
+        ld.p = fd.base + f3(0.0f, hfac[k] * fd.height, 0.0f);
+        ld.radius = 0.3f * fd.radius;
+        ld.L = warm[k] * (lightI * frac[k]);
+        s.lights.push_back(ld);
+      }
+      s.flames.push_back(fd);
+    }
+  }
+
   if (j.contains("lights")) {
     for (const auto& l : j["lights"]) {
       LightDesc ld{};
