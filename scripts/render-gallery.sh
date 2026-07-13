@@ -18,7 +18,7 @@ SIZE="${GALLERY_SIZE:-1920x1080}"
 
 # scene:spp — main gallery list
 ENTRIES=(
-  "01-obsidian-hall:512"
+  "01-marble-run:512"
   "02-cornell-lume:512"
   "03-spot-atrium:256"
   "04-parabolica:512"
@@ -76,10 +76,10 @@ import json, sys, datetime, os
 gallery, out_md, *stems = sys.argv[1:]
 
 DESC = {
-    "01-obsidian-hall":
-        "曜石陈列馆：黑镜面地板上的圆柱展台弧线，粗糙度阶梯金属球与玻璃球"
-        "列展，两盏抛物面聚光灯打出光池，冷白灯带侧光拉出长影，一件立式"
-        "镜环收进整个展厅——纯 quadric（零三角形），五种解析图元全部到场。",
+    "01-marble-run":
+        "晨光弹珠乐园：一串彩色弹珠沿弹跳弧线定格——落下、触地、穿过红绿"
+        "拱门、落进金色抛物面碗；糖果色朗伯球、粗糙度阶梯金属球与玻璃弹珠"
+        "同场——纯 quadric（零三角形），五种解析图元全部到场。",
     "02-cornell-lume":
         "Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗糙度钢球，"
         "NEE+MIS 在小光源下的收敛能力一目了然。",

@@ -6,7 +6,7 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 硬件三角形与大规模实例化、PhysX GPU 刚体装载、OptiX AI 降噪，固定种子时
 输出逐位可复现。
 
-![Obsidian Hall](docs/gallery/01-obsidian-hall.png)
+![Marble Run](docs/gallery/01-marble-run.png)
 
 | ![Cornell Lume](docs/gallery/02-cornell-lume.png) | ![Parabolica](docs/gallery/04-parabolica.png) |
 |:---:|:---:|

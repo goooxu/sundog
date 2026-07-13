@@ -1,0 +1,539 @@
+{
+  "render": {
+    "width": 1920,
+    "height": 1080,
+    "spp": 256,
+    "max_depth": 12,
+    "seed": 3,
+    "clamp": 10
+  },
+  "camera": {
+    "lookfrom": [
+      5.9,
+      1.7,
+      6.3
+    ],
+    "lookat": [
+      1.5,
+      0.9,
+      -0.7
+    ],
+    "vfov": 41,
+    "aperture": 0.035
+  },
+  "background": {
+    "type": "gradient",
+    "horizon": [
+      1.0,
+      0.82,
+      0.58
+    ],
+    "zenith": [
+      0.35,
+      0.55,
+      0.85
+    ]
+  },
+  "textures": {
+    "court": {
+      "type": "grid",
+      "a": [
+        0.8,
+        0.77,
+        0.72
+      ],
+      "b": [
+        0.68,
+        0.64,
+        0.58
+      ],
+      "scale": [
+        22,
+        22
+      ],
+      "width": 0.03
+    }
+  },
+  "materials": {
+    "floor": {
+      "type": "lambert",
+      "texture": "court"
+    },
+    "rail": {
+      "type": "metal",
+      "color": [
+        0.85,
+        0.86,
+        0.88
+      ],
+      "roughness": 0.15
+    },
+    "bowl": {
+      "type": "metal",
+      "color": [
+        1.0,
+        0.78,
+        0.34
+      ],
+      "roughness": 0.12
+    },
+    "arch": {
+      "type": "lambert",
+      "color": [
+        0.85,
+        0.3,
+        0.24
+      ]
+    },
+    "coral": {
+      "type": "lambert",
+      "color": [
+        0.85,
+        0.28,
+        0.22
+      ]
+    },
+    "amber": {
+      "type": "lambert",
+      "color": [
+        0.95,
+        0.62,
+        0.15
+      ]
+    },
+    "mint": {
+      "type": "lambert",
+      "color": [
+        0.35,
+        0.75,
+        0.5
+      ]
+    },
+    "skyb": {
+      "type": "lambert",
+      "color": [
+        0.3,
+        0.55,
+        0.85
+      ]
+    },
+    "lilac": {
+      "type": "lambert",
+      "color": [
+        0.6,
+        0.45,
+        0.8
+      ]
+    },
+    "glass": {
+      "type": "dielectric",
+      "ior": 1.5
+    },
+    "silver0": {
+      "type": "metal",
+      "color": [
+        0.95,
+        0.95,
+        0.96
+      ],
+      "roughness": 0.0
+    },
+    "gold1": {
+      "type": "metal",
+      "color": [
+        1.0,
+        0.78,
+        0.34
+      ],
+      "roughness": 0.1
+    },
+    "copper2": {
+      "type": "metal",
+      "color": [
+        0.95,
+        0.54,
+        0.38
+      ],
+      "roughness": 0.25
+    },
+    "steel3": {
+      "type": "metal",
+      "color": [
+        0.75,
+        0.78,
+        0.82
+      ],
+      "roughness": 0.45
+    },
+    "sun": {
+      "type": "emissive",
+      "color": [
+        1.0,
+        0.92,
+        0.78
+      ],
+      "intensity": 42.0
+    },
+    "arch2": {
+      "type": "lambert",
+      "color": [
+        0.35,
+        0.75,
+        0.5
+      ]
+    }
+  },
+  "objects": [
+    {
+      "shape": "rect",
+      "material": "floor",
+      "transform": [
+        {
+          "scale": 24
+        }
+      ]
+    },
+    {
+      "shape": "cylinder",
+      "material": "arch",
+      "transform": [
+        {
+          "scale": [
+            0.95,
+            0.3,
+            0.95
+          ]
+        },
+        {
+          "rotate_z": 90
+        },
+        {
+          "rotate_y": 12
+        },
+        {
+          "translate": [
+            2.92,
+            0.42,
+            -1.08
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "cylinder",
+      "material": "arch2",
+      "transform": [
+        {
+          "scale": [
+            0.62,
+            0.24,
+            0.62
+          ]
+        },
+        {
+          "rotate_z": 90
+        },
+        {
+          "rotate_y": 25
+        },
+        {
+          "translate": [
+            1.33,
+            0.28,
+            -0.2
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "parabola",
+      "material": "bowl",
+      "material_back": "bowl",
+      "transform": [
+        {
+          "scale": 1.0
+        },
+        {
+          "translate": [
+            -0.55,
+            0.1,
+            0.85
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "skyb",
+      "transform": [
+        {
+          "scale": 0.26
+        },
+        {
+          "translate": [
+            -0.75,
+            0.42,
+            0.72
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "copper2",
+      "transform": [
+        {
+          "scale": 0.24
+        },
+        {
+          "translate": [
+            -0.32,
+            0.4,
+            0.95
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "lilac",
+      "transform": [
+        {
+          "scale": 0.22
+        },
+        {
+          "translate": [
+            -0.6,
+            0.6,
+            1.1
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "glass",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            4.5,
+            2.0,
+            -2.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "coral",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            3.75,
+            0.55,
+            -1.55
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "mint",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            3.42,
+            0.8,
+            -1.19
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "gold1",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            2.1,
+            0.32,
+            -0.62
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "amber",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            0.95,
+            0.58,
+            -0.03
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "silver0",
+      "transform": [
+        {
+          "scale": 0.3
+        },
+        {
+          "translate": [
+            0.15,
+            0.72,
+            0.55
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "steel3",
+      "transform": [
+        {
+          "scale": 0.34
+        },
+        {
+          "translate": [
+            -2.6,
+            0.34,
+            -2.6
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "glass",
+      "transform": [
+        {
+          "scale": 0.38
+        },
+        {
+          "translate": [
+            0.4,
+            0.38,
+            3.4
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "coral",
+      "transform": [
+        {
+          "scale": 0.24
+        },
+        {
+          "translate": [
+            4.6,
+            0.24,
+            -2.4
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "mint",
+      "transform": [
+        {
+          "scale": 0.2
+        },
+        {
+          "translate": [
+            -1.2,
+            0.2,
+            -3.0
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "disk",
+      "material": "coral",
+      "transform": [
+        {
+          "scale": 0.55
+        },
+        {
+          "translate": [
+            0.0,
+            0.012,
+            -3.6
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "disk",
+      "material": "skyb",
+      "transform": [
+        {
+          "scale": 0.48
+        },
+        {
+          "translate": [
+            5.6,
+            0.01,
+            -0.8
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "disk",
+      "material": "amber",
+      "transform": [
+        {
+          "scale": 0.42
+        },
+        {
+          "translate": [
+            -3.2,
+            0.011,
+            2.2
+          ]
+        }
+      ]
+    },
+    {
+      "shape": "sphere",
+      "material": "sun",
+      "transform": [
+        {
+          "scale": 5.0
+        },
+        {
+          "translate": [
+            -28,
+            34,
+            -22
+          ]
+        }
+      ]
+    }
+  ],
+  "lights": []
+}

@@ -31,7 +31,7 @@ if [ "$QUICK" = 1 ]; then
   DN_SCENE=smoke DN_REF_SPP=64 DN_TEST_SPP=4
 else
   OUT_MD="$ROOT/docs/BENCHMARKS.md"
-  FEATURE_SCENES=(01-obsidian-hall 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore)
+  FEATURE_SCENES=(01-marble-run 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore)
   DN_SCENE=09-ember-shore DN_REF_SPP=4096 DN_TEST_SPP=16
 fi
 DN_SIZE=1920x1080

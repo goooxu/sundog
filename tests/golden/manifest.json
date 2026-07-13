@@ -1,7 +1,7 @@
 {
   "scenes": [
     "smoke",
-    "01-obsidian-hall",
+    "01-marble-run",
     "02-cornell-lume",
     "04-parabolica"
   ],
@@ -12,7 +12,7 @@
     "seed": 7,
     "denoise": false
   },
-  "date": "2026-07-13T03:49:19+00:00",
+  "date": "2026-07-13T04:14:06+00:00",
   "probe": {
     "GPU": "NVIDIA GeForce RTX 5090",
     "Compute": "sm_120",
