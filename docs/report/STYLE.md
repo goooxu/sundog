@@ -64,6 +64,14 @@
 | 休眠 | sleeping | 动能长期低于阈值的刚体被冻结 |
 | 沉降 | settling | 模拟到全体刚体休眠 |
 | 定格 | freeze-frame | 模拟推进到 stop_time 即烘焙 |
+| 参与介质 | participating medium | 吸收/发射/散射光的介质 |
+| 辐射传输 | radiative transfer | 介质中辐亮度的演化方程 |
+| 吸收 / 发射 / 散射 | absorption / emission / scattering | 介质对光的三种作用 |
+| 透射率 | transmittance | T，穿过介质存活的比例 |
+| 比尔–朗伯定律 | Beer–Lambert | T = exp(−∫σ) |
+| 光线行进 | ray marching | 沿光线的固定步长数值求积 |
+| 值噪声 | value noise | 格点伪随机数的三线性插值 |
+| 分形布朗运动 | fractal Brownian motion / fBm | 多八度噪声叠加 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | |

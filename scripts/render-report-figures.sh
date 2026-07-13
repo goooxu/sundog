@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 10 comparison PNGs from the
+# sundog report figures — renders the 11 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
@@ -263,5 +263,38 @@ python3 "$COMPOSE" strip "$FIG/ch12-freeze-sequence.png" --label-size 20 \
   "$RAW/ch12-freeze-1.0.png|t = 1.0 s（画廊主图）" \
   "$RAW/ch12-freeze-1.4.png|t = 1.4 s" \
   "$RAW/ch12-freeze-settled.png|沉降静止 · 8.75 s"
+
+# --------------------------------------------------- ch13-noise-anatomy.png
+# Flame close-up at noise_scale 0 / 1.5 / 3: smooth teardrop profile -> mild
+# warp -> full licks. Temp scene generated inline (same recipe as ch04-nee).
+FLAME_TPL="/tmp/report-flame-ns"
+python3 - "$FLAME_TPL" <<'PY'
+import json, sys
+tpl = sys.argv[1]
+scene = {
+    "render": {"width": 480, "height": 640, "spp": 48, "max_depth": 4,
+               "seed": 7, "clamp": 0},
+    "camera": {"lookfrom": [0, 0.9, 3.2], "lookat": [0, 0.85, 0], "vfov": 36},
+    "background": {"type": "solid", "color": [0.01, 0.01, 0.015]},
+    "materials": {"ground": {"type": "lambert", "color": [0.25, 0.22, 0.2]}},
+    "objects": [{"shape": "rect", "material": "ground",
+                 "transform": [{"scale": 6}]}],
+    "lights": [],
+}
+for ns in (0.0, 1.5, 3.0):
+    scene["flames"] = [{"base": [0, 0.05, 0], "height": 1.6, "radius": 0.45,
+                        "intensity": 20, "sigma": 4, "noise_scale": ns,
+                        "seed": 1, "light_intensity": 12}]
+    path = f"{tpl}{ns}.json"
+    json.dump(scene, open(path, "w"))
+    print("wrote", path)
+PY
+for ns in 0.0 1.5 3.0; do
+  render "ch13-flame-ns$ns" "$FLAME_TPL$ns.json"
+done
+python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
+  "$RAW/ch13-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
+  "$RAW/ch13-flame-ns1.5.png|noise_scale 1.5" \
+  "$RAW/ch13-flame-ns3.0.png|noise_scale 3（默认）"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

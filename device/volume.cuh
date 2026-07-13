@@ -85,7 +85,8 @@ SD_HD void flameField(const FlameDesc& fl, float3 p, float& sigma, float3& emiss
   float rx = p.x - fl.base.x, rz = p.z - fl.base.z;
   float d = sqrtf(rx * rx + rz * rz) / fl.radius;
 
-  // Teardrop profile: widest near h≈0.29, tapering to the tip (normalized to 1).
+  // Teardrop profile: widest near h = 1/(1+2·1.55) ≈ 0.24, tapering to the
+  // tip; 3.2 normalizes the peak to ≈1.
   float prof = 3.2f * sqrtf(h) * powf(1.0f - h, 1.55f);
 
   // fbm-warped boundary; noise sampled in flame-local coords compressed in y

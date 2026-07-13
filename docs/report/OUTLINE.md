@@ -233,6 +233,25 @@
 
 ---
 
+## 13-volumes.md 体积渲染：程序化火焰
+
+**回答**：光穿过"会发光的空气"时发生了什么？没有解析解的积分怎么算？一团火的形状从哪来？
+
+小节：
+1. 从表面到介质——"表面之间免费旅行"假设的失效；参与介质三种事件（吸收/发射/散射）；sundog 取发射+吸收舍散射（光学薄近似），边界如实（烟雾不在此列、阴影线不穿介质）（对账 device/volume.cuh 头注释）
+2. 辐射传输——dL/dt = −σL + ε 逐项推导；Beer–Lambert 透射率；完整解与路径循环的两笔账拼接（对账 raygen 的 marchFlames 调用段（device/programs.cu））
+3. 光线行进——32 步固定求积、抖动起点化带状伪影为噪声（PCG 流→决定性）、包围圆柱解析剪枝"不穿火不付费"（对账 `clipFlameBounds()`）；07 实测引 BENCHMARKS、golden 全 inf 零扰动
+4. 程序化火焰场——hash→值噪声→fbm 三层构造；泪滴轮廓极值/归一化推导；y 压缩噪声扰边成火舌；heat 的 1/2/3 次幂发射梯度（对账 `hashU()/vnoise()/fbm3()/flameField()`）
+5. 照明与工程记账——体积发射无面积 pdf 不可 NEE；内嵌双点光近似（0.35H/0.70H、0.3R 软阴影、65/35 分摊）；能量轻微重复的如实定量讨论；决定性口径不破
+
+图：
+- `figures/ch13-radiative-transfer.svg`：介质微元账目 + 透射率衰减曲线
+- `figures/ch13-flame-field.svg`：泪滴轮廓/fbm 扰边/发射梯度三层解剖
+- `figures/ch13-noise-anatomy.png`：火焰特写三联（noise_scale 0/1.5/3）
+- 复用 `../gallery/07-campfire.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
 ## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
 **回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
@@ -264,6 +283,7 @@
 | ch06-primitives.png | 5 原语同框 | features.json 256spp |
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
 | ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
+| ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -284,7 +304,8 @@ ch04-mis-weights, ch05-microfacet, ch05-snell, ch06-ray-quadric,
 ch06-barycentric, ch06-parabola-focus, ch07-instancing,
 ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
 ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
-ch12-physics-pipeline, ch12-trs-bake, appendix-lambert-bias（共 25 张）
+ch12-physics-pipeline, ch12-trs-bake, ch13-radiative-transfer,
+ch13-flame-field, appendix-lambert-bias（共 27 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；
