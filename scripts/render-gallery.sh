@@ -5,8 +5,8 @@
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
 # (default /tmp/sundog-build/sundog). Callable from any cwd.
 #
-# Per-scene spp: 01/02/04 -> 512, 03 -> 256 (plus a 32 spp denoised vs 32 spp
-# raw comparison pair), 05 -> 128. Every render writes a .stats.json next to
+# Per-scene spp: see ENTRIES; 09 additionally renders a 16 spp denoised vs
+# raw comparison pair. Every render writes a .stats.json next to
 # the PNG. Scenes that do not exist yet are skipped with a warning.
 set -euo pipefail
 
@@ -18,7 +18,7 @@ SIZE="${GALLERY_SIZE:-1920x1080}"
 
 # scene:spp — main gallery list
 ENTRIES=(
-  "01-prism-court:512"
+  "01-obsidian-hall:512"
   "02-cornell-lume:512"
   "03-spot-atrium:256"
   "04-parabolica:512"
@@ -26,6 +26,7 @@ ENTRIES=(
   "06-spot-cascade:256"
   "07-campfire:512"
   "08-lakeside:512"
+  "09-ember-shore:512"
 )
 
 fail() { echo "render-gallery: FAIL: $*" >&2; exit 1; }
@@ -58,10 +59,11 @@ for entry in "${ENTRIES[@]}"; do
   else
     render "$name" "$scene" "$spp" --no-denoise
   fi
-  if [ "$name" = "03-spot-atrium" ]; then
-    # low-spp denoiser comparison pair
-    render "03-spot-atrium-spp32-denoised" "$scene" 32 --denoise
-    render "03-spot-atrium-spp32-raw"      "$scene" 32 --no-denoise
+  if [ "$name" = "09-ember-shore" ]; then
+    # low-spp denoiser comparison pair: flame volume + water + soft shadows
+    # are all heavy noise sources at 16 spp
+    render "09-ember-shore-spp16-denoised" "$scene" 16 --denoise
+    render "09-ember-shore-spp16-raw"      "$scene" 16 --no-denoise
   fi
 done
 
@@ -74,19 +76,17 @@ import json, sys, datetime, os
 gallery, out_md, *stems = sys.argv[1:]
 
 DESC = {
-    "01-prism-court":
-        "黄昏渐变天空下的棱镜庭院：玻璃立方、抛光镜面与四档粗糙度的金属球，"
-        "考验折射、多次镜面反弹与 GGX 高光。",
+    "01-obsidian-hall":
+        "曜石陈列馆：黑镜面地板上的圆柱展台弧线，粗糙度阶梯金属球与玻璃球"
+        "列展，两盏抛物面聚光灯打出光池，冷白灯带侧光拉出长影，一件立式"
+        "镜环收进整个展厅——纯 quadric（零三角形），五种解析图元全部到场。",
     "02-cornell-lume":
         "Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗糙度钢球，"
         "NEE+MIS 在小光源下的收敛能力一目了然。",
     "03-spot-atrium":
         "网格地板中庭里的三只 Spot 卡通奶牛（原生纹理 / 金 / 玻璃，各 5,856 三角形），"
         "硬件三角形求交、OBJ UV 纹理与平滑法线。",
-    "03-spot-atrium-spp32-denoised":
-        "同一场景仅 32 spp + OptiX AI 降噪（albedo/normal 引导）——低采样即可得到干净画面。",
-    "03-spot-atrium-spp32-raw":
-        "对照组：同样 32 spp、不降噪的原始蒙特卡洛噪点。",
+
     "04-parabolica":
         "夜景抛物面聚光：金色抛物碟（背面材质成像）把发光灯珠聚成一道光束"
         "扫过暗色地面，展示 parabola 自定义求交与双面材质语义。",
@@ -109,6 +109,15 @@ DESC = {
         "黄昏湖畔：water 材质三件套——ior 1.33 电介质界面、fbm 波纹法线"
         "（倒影破碎与落日波光）、Beer–Lambert 水体吸收（深水偏蓝绿）。"
         "岸边奶牛的倒影被缓涌揉碎，太阳波光路径直铺到镜头前。",
+    "09-ember-shore":
+        "余烬湖岸：夜色水边的篝火——体积火焰的光经波纹水面反射，火光倒影"
+        "在浪里揉碎；火焰、水面与软阴影同框，是低采样噪声最重的场景，"
+        "也因此是 AI 降噪的对比载体。",
+    "09-ember-shore-spp16-denoised":
+        "同一场景仅 16 spp + OptiX AI 降噪（albedo/normal 引导）——体积火焰"
+        "与水面反射的重噪声被一次网络推理抹平。",
+    "09-ember-shore-spp16-raw":
+        "对照组：同样 16 spp、不降噪的原始蒙特卡洛噪点。",
 }
 
 lines = [

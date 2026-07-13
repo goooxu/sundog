@@ -6,7 +6,7 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 硬件三角形与大规模实例化、PhysX GPU 刚体装载、OptiX AI 降噪，固定种子时
 输出逐位可复现。
 
-![Prism Court](docs/gallery/01-prism-court.png)
+![Obsidian Hall](docs/gallery/01-obsidian-hall.png)
 
 | ![Cornell Lume](docs/gallery/02-cornell-lume.png) | ![Parabolica](docs/gallery/04-parabolica.png) |
 |:---:|:---:|
@@ -33,9 +33,9 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 **Lakeside** — `water` 材质三件套：ior 1.33 电介质界面、fbm 波纹法线
 （倒影破碎与落日波光路径）、Beer–Lambert 水体吸收（深水偏蓝绿）。
 
-| ![32 spp 原始](docs/gallery/03-spot-atrium-spp32-raw.png) | ![32 spp + AI 降噪](docs/gallery/03-spot-atrium-spp32-denoised.png) |
+| ![16 spp 原始](docs/gallery/09-ember-shore-spp16-raw.png) | ![16 spp + AI 降噪](docs/gallery/09-ember-shore-spp16-denoised.png) |
 |:---:|:---:|
-| 32 spp 原始蒙特卡洛 | 32 spp + **OptiX AI 降噪** |
+| 余烬湖岸 16 spp 原始蒙特卡洛（体积火焰 + 水面 = 重噪声） | 同样 16 spp + **OptiX AI 降噪** |
 
 全部成图与渲染统计见 [docs/GALLERY.md](docs/GALLERY.md)；GPU 性能与降噪基准见
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
@@ -112,7 +112,7 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 ## 场景格式
 
 见 [docs/SCENES.md](docs/SCENES.md)。示例场景在 `scenes/`（`smoke.json` 最小、
-`features.json` 全特性、`01…08` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU）。
+`features.json` 全特性、`01…09` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU）。
 
 ## 测试
 

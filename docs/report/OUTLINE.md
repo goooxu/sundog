@@ -194,7 +194,7 @@
 
 图：
 - `figures/ch10-stratified.svg`：64 个纯随机点 vs 8×8 分层点的空隙/成团对比
-- 复用 `../gallery/03-spot-atrium-spp32-raw.png` 与 `-denoised.png` 双联交叉引用
+- 复用 `../gallery/09-ember-shore-spp16-raw.png` 与 `-denoised.png` 双联交叉引用（体积火焰+水面的重噪声场景）
 - `figures/ch09-aov.png` 交叉引用（引导层）
 
 ---
@@ -205,7 +205,7 @@
 
 小节：
 1. 正确性验证金字塔——场景解析单测（渲染数学为 GPU 专属，由第 2–7 章逐公式对账 + golden/决定性钉住）、golden 图 PSNR≥45、sha256 决定性、compute-sanitizer
-2. 两层基准设计——特性层（八个画廊场景的渲染时间/吞吐/显存）与降噪层（低 spp + 降噪 vs 高 spp 参考的 PSNR）；计时口径（只计渲染循环，场景解析、加速结构构建与物理沉降不计入）
+2. 两层基准设计——特性层（九个画廊场景的渲染时间/吞吐/显存）与降噪层（低 spp + 降噪 vs 高 spp 参考的 PSNR）；计时口径（只计渲染循环，场景解析、加速结构构建与物理沉降不计入）
 3. 结果解读——吞吐从哪来（并行度、RT core、内存层次），引用 BENCHMARKS.md 实测表格；Mrays/s 的含义与用它还原平均路径结构
 4. 降噪的等效加速——16spp+降噪 ≈ 数千 spp 视觉质量（PSNR 表引 BENCHMARKS.md 降噪层）
 

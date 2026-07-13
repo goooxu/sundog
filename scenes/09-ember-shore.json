@@ -1,0 +1,58 @@
+{
+  "render": { "width": 1920, "height": 1080, "spp": 256, "max_depth": 10, "seed": 7, "clamp": 8 },
+  "camera": {
+    "lookfrom": [-4.5, 0.9, -2.5],
+    "lookat": [0.5, 0.8, 3.2],
+    "vfov": 42
+  },
+  "background": {
+    "type": "gradient",
+    "horizon": [0.045, 0.055, 0.085],
+    "zenith": [0.003, 0.005, 0.012]
+  },
+  "textures": {
+    "spotSkin": { "type": "image", "file": "textures/spot_texture.png", "srgb": true }
+  },
+  "materials": {
+    "water": { "type": "water", "absorb": [0.7, 0.14, 0.06], "wave_amp": 0.09, "wave_freq": 1.2 },
+    "shore": { "type": "lambert", "color": [0.28, 0.24, 0.19] },
+    "stone": { "type": "lambert", "color": [0.32, 0.31, 0.30] },
+    "log":   { "type": "lambert", "color": [0.23, 0.15, 0.09] },
+    "ember": { "type": "emissive", "color": [1.0, 0.22, 0.04], "intensity": 4.0 },
+    "spot_skin": { "type": "lambert", "texture": "spotSkin" }
+  },
+  "meshes": {
+    "spot": { "obj": "../assets/spot.obj", "normals": "smooth" }
+  },
+  "objects": [
+    { "shape": "rect", "material": "water", "transform": [ { "scale": 45 } ] },
+    { "shape": "rect", "material": "shore", "transform": [ { "scale": [40, 1, 60] }, { "translate": [0, 0.06, 62] } ] },
+
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.20 }, { "translate": [-0.35, 0.14, 2.85] } ] },
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.16 }, { "translate": [ 0.25, 0.12, 2.70] } ] },
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.19 }, { "translate": [ 1.05, 0.13, 2.90] } ] },
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.17 }, { "translate": [ 1.40, 0.12, 3.55] } ] },
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.21 }, { "translate": [ 0.95, 0.14, 4.15] } ] },
+    { "shape": "sphere", "material": "stone", "transform": [ { "scale": 0.18 }, { "translate": [-0.25, 0.13, 4.10] } ] },
+
+    { "shape": "cylinder", "material": "log", "transform": [ { "scale": [0.055, 0.40, 0.055] }, { "rotate_x": 35 }, { "rotate_y": 20 },  { "translate": [ 0.43, 0.40, 3.19] } ] },
+    { "shape": "cylinder", "material": "log", "transform": [ { "scale": [0.055, 0.40, 0.055] }, { "rotate_x": 35 }, { "rotate_y": 110 }, { "translate": [ 0.30, 0.40, 3.47] } ] },
+    { "shape": "cylinder", "material": "log", "transform": [ { "scale": [0.055, 0.40, 0.055] }, { "rotate_x": 35 }, { "rotate_y": 200 }, { "translate": [ 0.57, 0.40, 3.61] } ] },
+    { "shape": "cylinder", "material": "log", "transform": [ { "scale": [0.055, 0.40, 0.055] }, { "rotate_x": 35 }, { "rotate_y": 290 }, { "translate": [ 0.70, 0.40, 3.33] } ] },
+
+    { "shape": "sphere", "material": "ember", "nee": false, "transform": [ { "scale": 0.08 }, { "translate": [ 0.56, 0.13, 3.36] } ] },
+    { "shape": "sphere", "material": "ember", "nee": false, "transform": [ { "scale": 0.06 }, { "translate": [ 0.40, 0.12, 3.50] } ] },
+
+    { "shape": "mesh:spot", "material": "spot_skin", "transform": [ { "scale": 0.85 }, { "rotate_y": -35 }, { "translate": [-1.35, 0.687, 4.25] } ] },
+    { "shape": "mesh:spot", "material": "spot_skin", "transform": [ { "scale": 0.85 }, { "rotate_y": 45 },  { "translate": [ 2.30, 0.687, 4.05] } ] },
+    { "shape": "mesh:spot", "material": "spot_skin", "transform": [ { "scale": 0.85 }, { "rotate_y": 5 },   { "translate": [ 0.45, 0.687, 5.55] } ] }
+  ],
+  "lights": [
+    { "type": "distant", "direction": [0.4, -1.0, -0.3], "radiance": [0.008, 0.011, 0.020] }
+  ],
+  "flames": [
+    { "base": [0.5, 0.18, 3.4], "height": 1.5, "radius": 0.45,
+      "intensity": 22, "sigma": 4.5, "noise_scale": 3.0, "seed": 5,
+      "light_intensity": 36 }
+  ]
+}

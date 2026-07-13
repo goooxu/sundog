@@ -78,11 +78,11 @@ $`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。hos
 
 sundog 用 OptiX 内置降噪器（denoiser），流程在 `Denoiser`（src/denoise.cpp）：创建时声明 `guideAlbedo/guideNormal` 并选 `OPTIX_DENOISER_MODEL_KIND_HDR` 模型——HDR 即高动态范围（high dynamic range），指未经压缩的线性辐亮度值域，可以远超 $`[0,1]`$；每帧先 `optixDenoiserComputeIntensity` 在整幅 HDR 输入上算一个全局亮度尺度（`hdrIntensity`，把任意曝光的场景归一到网络训练时的量级），再 `optixDenoiserInvoke` 输出。所有输入输出都是 float4 线性辐亮度缓冲——降噪发生在**HDR 线性域、色调映射之前**（main.cpp 的顺序：渲染循环 → 降噪 → `writePng` 才做 exposure/gamma）。这与噪声的统计假设一致：辐亮度域里噪声零均值，若先做 clamp 和伽马这类非线性再降噪，均值就被扭曲了。
 
-| ![32 spp 原始](../gallery/03-spot-atrium-spp32-raw.png) | ![32 spp + 降噪](../gallery/03-spot-atrium-spp32-denoised.png) |
+| ![16 spp 原始](../gallery/09-ember-shore-spp16-raw.png) | ![16 spp + 降噪](../gallery/09-ember-shore-spp16-denoised.png) |
 |:---:|:---:|
-| 32 spp 原始蒙特卡洛 | 32 spp + OptiX AI 降噪 |
+| 16 spp 原始蒙特卡洛 | 16 spp + OptiX AI 降噪 |
 
-*图：同一场景 32 spp，降噪前后对比（复用画廊图）。量化数字见第 11 章：16 spp 从 26.17 dB 提到 42.99 dB。*
+*图：余烬湖岸（体积火焰 + 波纹水面，低采样噪声最重的场景）16 spp 降噪前后对比（复用画廊图）。量化数字见第 11 章：16 spp 从 26.17 dB 提到 42.99 dB。*
 
 代价也要说清楚。降噪是**有偏**的：网络会在细节与噪声难以区分时选择平滑，输出不再是渲染方程的一致估计量，spp 再高也不保证收敛到真值；其输出还依赖驱动内置模型的版本，不具备跨版本的比特级决定性。因此 golden 测试一律 `--no-denoise`（scripts/run-golden.sh），降噪只作为最终展示环节，不进入正确性基线。
 
