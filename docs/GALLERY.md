@@ -3,11 +3,11 @@
 由 `scripts/render-gallery.sh` 生成于 2026-07-13。
 正式图入库于 `docs/gallery/`（无损重压缩的 1080p PNG）；渲染原件在 `out/gallery/`（不入库）。
 
-## 01-prism-court
+## 01-obsidian-hall
 
-![01-prism-court](gallery/01-prism-court.png)
+![01-obsidian-hall](gallery/01-obsidian-hall.png)
 
-黄昏渐变天空下的棱镜庭院：玻璃立方、抛光镜面与四档粗糙度的金属球，考验折射、多次镜面反弹与 GGX 高光。
+曜石陈列馆：黑镜面地板上的圆柱展台弧线，粗糙度阶梯金属球与玻璃球列展，两盏抛物面聚光灯打出光池，冷白灯带侧光拉出长影，一件立式镜环收进整个展厅——纯 quadric（零三角形），五种解析图元全部到场。
 
 ## 02-cornell-lume
 
@@ -20,18 +20,6 @@ Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗
 ![03-spot-atrium](gallery/03-spot-atrium.png)
 
 网格地板中庭里的三只 Spot 卡通奶牛（原生纹理 / 金 / 玻璃，各 5,856 三角形），硬件三角形求交、OBJ UV 纹理与平滑法线。
-
-## 03-spot-atrium-spp32-denoised
-
-![03-spot-atrium-spp32-denoised](gallery/03-spot-atrium-spp32-denoised.png)
-
-同一场景仅 32 spp + OptiX AI 降噪（albedo/normal 引导）——低采样即可得到干净画面。
-
-## 03-spot-atrium-spp32-raw
-
-![03-spot-atrium-spp32-raw](gallery/03-spot-atrium-spp32-raw.png)
-
-对照组：同样 32 spp、不降噪的原始蒙特卡洛噪点。
 
 ## 04-parabolica
 
@@ -69,18 +57,37 @@ Cornell 盒变体：暖色小面积主灯加冷色低强度月光球，四档粗
 
 黄昏湖畔：water 材质三件套——ior 1.33 电介质界面、fbm 波纹法线（倒影破碎与落日波光）、Beer–Lambert 水体吸收（深水偏蓝绿）。岸边奶牛的倒影被缓涌揉碎，太阳波光路径直铺到镜头前。
 
+## 09-ember-shore
+
+![09-ember-shore](gallery/09-ember-shore.png)
+
+余烬湖岸：夜色水边的篝火——体积火焰的光经波纹水面反射，火光倒影在浪里揉碎；火焰、水面与软阴影同框，是低采样噪声最重的场景，也因此是 AI 降噪的对比载体。
+
+## 09-ember-shore-spp16-denoised
+
+![09-ember-shore-spp16-denoised](gallery/09-ember-shore-spp16-denoised.png)
+
+同一场景仅 16 spp + OptiX AI 降噪（albedo/normal 引导）——体积火焰与水面反射的重噪声被一次网络推理抹平。
+
+## 09-ember-shore-spp16-raw
+
+![09-ember-shore-spp16-raw](gallery/09-ember-shore-spp16-raw.png)
+
+对照组：同样 16 spp、不降噪的原始蒙特卡洛噪点。
+
 ## 渲染统计
 
 | 图像 | 分辨率 | spp | 降噪 | 渲染时间 (s) | Mrays/s | 峰值显存 (MB) |
 |---|---|---|---|---|---|---|
-| 01-prism-court | 1920x1080 | 512 | 否 | 0.74 | 4859 | 690 |
-| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.35 | 4934 | 690 |
-| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.23 | 6324 | 694 |
-| 03-spot-atrium-spp32-denoised | 1920x1080 | 32 | 是 | 0.03 | 6346 | 696 |
-| 03-spot-atrium-spp32-raw | 1920x1080 | 32 | 否 | 0.03 | 6338 | 694 |
-| 04-parabolica | 1920x1080 | 512 | 否 | 0.40 | 6195 | 694 |
-| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.19 | 3892 | 708 |
-| 06-spot-cascade | 1920x1080 | 256 | 否 | 0.53 | 4288 | 694 |
-| 06-spot-cascade-settled | 1920x1080 | 256 | 否 | 0.51 | 4362 | 694 |
-| 07-campfire | 1920x1080 | 512 | 否 | 0.39 | 6134 | 694 |
-| 08-lakeside | 1920x1080 | 512 | 否 | 0.24 | 7501 | 694 |
+| 01-obsidian-hall | 1920x1080 | 512 | 否 | 0.41 | 6514 | 690 |
+| 02-cornell-lume | 1920x1080 | 512 | 否 | 1.12 | 5958 | 690 |
+| 03-spot-atrium | 1920x1080 | 256 | 否 | 0.19 | 7337 | 694 |
+| 04-parabolica | 1920x1080 | 512 | 否 | 0.37 | 6834 | 694 |
+| 05-spot-swarm | 1920x1080 | 128 | 否 | 0.17 | 4304 | 708 |
+| 06-spot-cascade | 1920x1080 | 256 | 否 | 0.49 | 4684 | 694 |
+| 06-spot-cascade-settled | 1920x1080 | 256 | 否 | 0.49 | 4496 | 170 |
+| 07-campfire | 1920x1080 | 512 | 否 | 0.40 | 6006 | 694 |
+| 08-lakeside | 1920x1080 | 512 | 否 | 0.21 | 8584 | 694 |
+| 09-ember-shore | 1920x1080 | 512 | 否 | 0.25 | 7566 | 694 |
+| 09-ember-shore-spp16-denoised | 1920x1080 | 16 | 是 | 0.01 | 7516 | 696 |
+| 09-ember-shore-spp16-raw | 1920x1080 | 16 | 否 | 0.01 | 7446 | 694 |
