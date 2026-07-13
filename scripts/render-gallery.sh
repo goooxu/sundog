@@ -25,6 +25,7 @@ ENTRIES=(
   "05-spot-swarm:128"
   "06-spot-cascade:256"
   "07-campfire:512"
+  "08-lakeside:512"
 )
 
 fail() { echo "render-gallery: FAIL: $*" >&2; exit 1; }
@@ -104,6 +105,10 @@ DESC = {
         "篝火夜景：火焰是程序化的发射型参与介质（发射+吸收，raygen 内解析"
         "圆柱界定后光线行进积分），也是全场唯一主光源——照明由火焰内嵌的暖色"
         "软阴影点光经 NEE 完成。五只 Spot 围坐，微弱月光勾勒轮廓。",
+    "08-lakeside":
+        "黄昏湖畔：water 材质三件套——ior 1.33 电介质界面、fbm 波纹法线"
+        "（倒影破碎与落日波光）、Beer–Lambert 水体吸收（深水偏蓝绿）。"
+        "岸边奶牛的倒影被缓涌揉碎，太阳波光路径直铺到镜头前。",
 }
 
 lines = [
