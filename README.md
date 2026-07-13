@@ -41,8 +41,8 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
 
 > 📖 **技术报告**：[docs/report/](docs/report/index.md) ——面向无图形学背景读者的
-> 13 章 + 附录教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程、RT Core、
-> PhysX 物理装载与体积渲染，数学推导与源码逐一对账。
+> 14 章 + 附录教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程、RT Core、
+> PhysX 物理装载、体积渲染与水面材质，数学推导与源码逐一对账。
 
 ## 特性
 
@@ -145,6 +145,6 @@ assets/       网格资产（spot.obj，CC0，来源见 assets/LICENSES.md）
 tests/        场景解析单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
 docs/         SCENES.md、ARCHITECTURE.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图
-docs/report/  技术报告（13 章 + 附录 + figures/，见 report/index.md）
+docs/report/  技术报告（14 章 + 附录 + figures/，见 report/index.md）
 out/          渲染输出（不入库）
 ```

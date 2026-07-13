@@ -252,6 +252,25 @@
 
 ---
 
+## 14-water.md 水面：界面、波纹与水色
+
+**回答**：渲染里的"水"为什么没有任何新数学——它如何由第 5/6/13 章的三件事组合而成？波光路径从哪来？
+
+小节：
+1. 水面的三层拆解——界面 = ior 1.33 电介质（第 5 章"站在湖边"直觉闭环；对账 bsdfSample() 的 MT_WATER/MT_DIELECTRIC 共享分支（device/bsdf.cuh））、波纹 = 法线扰动、水体 = 介质吸收；三层独立可开关（配 anatomy 三联）
+2. 波纹：高度场与法线扰动——y=H(x,z) 梯度法线推导（回链第 6 章）、fbm 高度场中心差分（对账 waterNormal()（device/noise.cuh））、掠射角防黑边回退；波光路径成因（法线锥 → 沿视线拉长的镜面亮带，配示意图）
+3. 水色：介质吸收——Beer–Lambert 回链第 13 章、σ_r>σ_g>σ_b 波长偏心（红光半衰深度 ln2/0.45≈1.5 单位算给读者）；raygen 介质状态记账（透射切换/TIR 不切换/介质内 miss 大程长衰减，对账 mediumAbsorb 段（device/programs.cu））
+4. 工程记账与边界——嵌套介质不支持；水下 NEE 死区（回链附录陷阱 3）；实测引 BENCHMARKS（08：0.030 s / 7534 Mrays/s，全画廊最快的原因）；golden 101 dB 事件 = 第 11 章 45 dB 阈值设计的现场兑现
+5. 小结——三层组合的自然涌现；收束链接附录
+
+图：
+- `figures/ch14-water-layers.svg`：纵剖面三层解剖（Fresnel 分光/法线锥/深度色衰减）
+- `figures/ch14-glitter.svg`：波光路径成因（法线抖动锥 → 亮带）
+- `figures/ch14-anatomy.png`：三联（wave_amp 0 / 默认 / absorb 0）
+- 复用 `../gallery/08-lakeside.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
 ## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
 **回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
@@ -284,6 +303,7 @@
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
 | ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 | ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
+| ch14-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -305,7 +325,8 @@ ch06-barycentric, ch06-parabola-focus, ch07-instancing,
 ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
 ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
 ch12-physics-pipeline, ch12-trs-bake, ch13-radiative-transfer,
-ch13-flame-field, appendix-lambert-bias（共 27 张）
+ch13-flame-field, ch14-water-layers, ch14-glitter,
+appendix-lambert-bias（共 29 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；

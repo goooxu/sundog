@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="420" viewBox="0 0 940 420" font-family="sans-serif">
+  <defs>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrGy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/>
+    </marker>
+  </defs>
+  <rect width="940" height="420" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">波光路径（sun glitter）的成因</text>
+
+  <!-- sun low on the left -->
+  <circle cx="80" cy="150" r="34" fill="#F59E0B" fill-opacity="0.9"/>
+  <text x="80" y="105" text-anchor="middle" font-size="15" fill="#B45309">低角度太阳</text>
+
+  <!-- camera on the right -->
+  <g stroke="#334155" stroke-width="2" fill="#ffffff">
+    <rect x="836" y="118" width="52" height="34" rx="6"/>
+    <path d="M 836 128 L 812 120 L 812 150 L 836 142 Z" fill="#334155"/>
+  </g>
+  <text x="862" y="104" text-anchor="middle" font-size="15" fill="#334155">相机</text>
+
+  <!-- wavy water -->
+  <path d="M 40 300 C 90 292, 130 308, 180 300 C 230 292, 270 309, 320 300 C 370 292, 410 308, 460 300 C 510 292, 550 309, 600 300 C 650 292, 690 308, 740 300 C 790 292, 840 308, 900 300"
+        stroke="#0369A1" stroke-width="2.5" fill="none"/>
+
+  <!-- glitter band on the water: the set of points whose jittered normal
+       mirrors the sun into the camera -->
+  <rect x="380" y="292" width="220" height="16" rx="8" fill="#F59E0B" fill-opacity="0.35"/>
+  <text x="490" y="336" text-anchor="middle" font-size="15" fill="#B45309">亮带：法线恰好把太阳镜面反入相机的点集</text>
+
+  <!-- successful glitter paths -->
+  <g stroke="#F59E0B" stroke-width="2.2" fill="none">
+    <path d="M 108 164 L 420 298" marker-end="url(#arrO)"/>
+    <path d="M 420 298 L 838 140" marker-end="url(#arrO)"/>
+    <path d="M 110 172 L 545 297" marker-end="url(#arrO)" opacity="0.75"/>
+    <path d="M 545 297 L 840 148" marker-end="url(#arrO)" opacity="0.75"/>
+  </g>
+
+  <!-- failed reflections outside the band -->
+  <g stroke="#94A3B8" stroke-width="1.6" fill="none" opacity="0.8">
+    <path d="M 112 178 L 220 299" marker-end="url(#arrGy)"/>
+    <path d="M 220 299 L 300 210" marker-end="url(#arrGy)"/>
+    <path d="M 104 158 L 730 296" marker-end="url(#arrGy)"/>
+    <path d="M 730 296 L 780 200" marker-end="url(#arrGy)"/>
+  </g>
+  <text x="252" y="196" font-size="14" fill="#64748B">锥外法线：反去别处</text>
+
+  <!-- normal jitter cones on band points -->
+  <g stroke="#16A34A" stroke-width="1.2" stroke-dasharray="4 3" fill="none" opacity="0.8">
+    <path d="M 420 298 L 404 252"/>
+    <path d="M 420 298 L 442 252"/>
+    <path d="M 545 297 L 528 252"/>
+    <path d="M 545 297 L 566 252"/>
+  </g>
+
+  <text x="40" y="384" font-size="15" fill="#334155">静水只在一点成完整太阳镜像；波纹把法线撒进一个锥，锥越宽（wave_amp 越大）能"接上"太阳与相机的点越多，</text>
+  <text x="40" y="406" font-size="15" fill="#334155">亮带沿视线方向拉得越长——这就是 08 号场景里从落日直铺到镜头前的波光路径。</text>
+</svg>

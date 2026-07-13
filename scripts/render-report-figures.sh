@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 11 comparison PNGs from the
+# sundog report figures — renders the 12 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
@@ -296,5 +296,59 @@ python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
   "$RAW/ch13-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
   "$RAW/ch13-flame-ns1.5.png|noise_scale 1.5" \
   "$RAW/ch13-flame-ns3.0.png|noise_scale 3（默认）"
+
+# -------------------------------------------------------- ch14-anatomy.png
+# Water close-up (checker lake bed, sun sphere) in three variants: flat
+# mirror (wave_amp 0), default waves, no absorption. Temp scenes inline.
+WATER_TPL="/tmp/report-water"
+python3 - "$WATER_TPL" <<'PY'
+import json, sys
+tpl = sys.argv[1]
+base = {
+    "render": {"width": 640, "height": 360, "spp": 64, "max_depth": 10,
+               "seed": 7, "clamp": 10},
+    "camera": {"lookfrom": [0, 1.1, 9], "lookat": [0, 0.1, 0], "vfov": 40},
+    "background": {"type": "gradient", "horizon": [0.9, 0.45, 0.18],
+                   "zenith": [0.05, 0.10, 0.28]},
+    "textures": {"bed": {"type": "checker", "a": [0.65, 0.6, 0.5],
+                         "b": [0.35, 0.32, 0.28], "scale": [24, 24]}},
+    "materials": {
+        "bedmat": {"type": "lambert", "texture": "bed"},
+        "red": {"type": "lambert", "color": [0.7, 0.15, 0.1]},
+        "sun": {"type": "emissive", "color": [1.0, 0.55, 0.25], "intensity": 60},
+    },
+    "objects": [
+        {"shape": "rect", "material": "bedmat",
+         "transform": [{"scale": 22}, {"rotate_x": -6}, {"translate": [0, -1.2, 0]}]},
+        {"shape": "sphere", "material": "red",
+         "transform": [{"scale": 0.7}, {"translate": [2.4, 0.45, 0.5]}]},
+        {"shape": "sphere", "material": "sun",
+         "transform": [{"scale": 9}, {"translate": [-30, 6, -200]}]},
+    ],
+    "lights": [{"type": "distant", "direction": [0.3, -1.0, 0.5],
+                "radiance": [0.25, 0.18, 0.12]}],
+}
+variants = {
+    "flat":     {"type": "water", "absorb": [0.7, 0.14, 0.06], "wave_amp": 0.0},
+    "waves":    {"type": "water", "absorb": [0.7, 0.14, 0.06],
+                 "wave_amp": 0.09, "wave_freq": 1.2},
+    "noabsorb": {"type": "water", "absorb": [0, 0, 0],
+                 "wave_amp": 0.09, "wave_freq": 1.2},
+}
+for name, mat in variants.items():
+    s = dict(base)
+    s["materials"] = dict(base["materials"], water=mat)
+    s["objects"] = [{"shape": "rect", "material": "water",
+                     "transform": [{"scale": 22}]}] + base["objects"]
+    json.dump(s, open(f"{tpl}-{name}.json", "w"))
+    print("wrote", f"{tpl}-{name}.json")
+PY
+for v in flat waves noabsorb; do
+  render "ch14-water-$v" "$WATER_TPL-$v.json"
+done
+python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
+  "$RAW/ch14-water-flat.png|wave_amp 0（静水镜面）" \
+  "$RAW/ch14-water-waves.png|默认（波纹 + 波光）" \
+  "$RAW/ch14-water-noabsorb.png|absorb 0（无水色）"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

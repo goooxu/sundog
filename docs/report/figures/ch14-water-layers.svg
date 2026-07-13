@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="440" viewBox="0 0 940 440" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#16A34A"/>
+    </marker>
+    <linearGradient id="depth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7DD3FC" stop-opacity="0.25"/>
+      <stop offset="0.45" stop-color="#0E7490" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#083344" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <rect width="940" height="440" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">水面的三层拆解（纵剖面）</text>
+
+  <!-- water body -->
+  <rect x="40" y="200" width="860" height="180" fill="url(#depth)"/>
+  <!-- wavy surface -->
+  <path d="M 40 200 C 90 190, 130 210, 180 200 C 230 190, 270 212, 320 201 C 370 191, 410 209, 460 200 C 510 191, 550 211, 600 200 C 650 190, 690 210, 740 200 C 790 191, 840 209, 900 200"
+        stroke="#0369A1" stroke-width="2.5" fill="none"/>
+
+  <!-- incident / reflected / refracted at one point -->
+  <line x1="120" y1="80" x2="320" y2="201" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)"/>
+  <text x="96" y="72" font-size="15" fill="#334155">入射光</text>
+  <line x1="320" y1="201" x2="520" y2="84" stroke="#F59E0B" stroke-width="2.5" marker-end="url(#arrO)" stroke-dasharray="none"/>
+  <text x="470" y="72" font-size="15" fill="#B45309">反射 · 比例 R(θ)（Fresnel）</text>
+  <line x1="320" y1="201" x2="410" y2="372" stroke="#F59E0B" stroke-width="2.5" opacity="0.85" marker-end="url(#arrO)"/>
+  <text x="416" y="356" font-size="15" fill="#0E7490">折射 · 比例 1−R，向法线折弯（ior 1.33）</text>
+
+  <!-- wave normal cones at two points -->
+  <g stroke="#16A34A" stroke-width="2">
+    <line x1="600" y1="200" x2="588" y2="146" marker-end="url(#arrG)"/>
+    <line x1="740" y1="200" x2="756" y2="148" marker-end="url(#arrG)"/>
+  </g>
+  <g stroke="#16A34A" stroke-width="1" stroke-dasharray="4 3" fill="none" opacity="0.7">
+    <path d="M 600 200 L 572 150"/>
+    <path d="M 600 200 L 626 150"/>
+    <path d="M 740 200 L 714 152"/>
+    <path d="M 740 200 L 770 150"/>
+  </g>
+  <text x="600" y="132" font-size="15" fill="#16A34A">波纹：法线在锥内随位置抖动</text>
+
+  <!-- depth annotation -->
+  <text x="60" y="238" font-size="15" fill="#334155">水体：Beer–Lambert 衰减 T = exp(−σ·t)</text>
+  <text x="60" y="262" font-size="15" fill="#0E7490">σ_r &gt; σ_g &gt; σ_b：红先被吸收，越深越蓝绿、越暗</text>
+
+  <!-- layer callouts -->
+  <g font-size="15" fill="#334155">
+    <text x="40" y="416">① 界面 = 材质：与玻璃同一套 Fresnel/Snell/TIR（第 5 章）</text>
+    <text x="470" y="416">② 波纹 = 法线扰动（第 6/13 章）</text>
+    <text x="740" y="416">③ 水体 = 介质（第 13 章）</text>
+  </g>
+</svg>

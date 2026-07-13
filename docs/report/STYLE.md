@@ -72,6 +72,10 @@
 | 光线行进 | ray marching | 沿光线的固定步长数值求积 |
 | 值噪声 | value noise | 格点伪随机数的三线性插值 |
 | 分形布朗运动 | fractal Brownian motion / fBm | 多八度噪声叠加 |
+| 着色法线 | shading normal | 用于着色、可与几何法线不同 |
+| 高度场 | height field | y = H(x,z) 的隐函数曲面 |
+| 法线扰动 | normal perturbation | 只骗着色、不动几何的波纹手法 |
+| 波光路径 | sun glitter | 波面法线抖动拉出的镜面亮带 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | |
