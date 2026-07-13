@@ -28,6 +28,11 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 **Campfire** — 火焰是**程序化体积光源**（发射 + 吸收参与介质，光线行进积分），
 也是全场唯一主光源；照明由火焰内嵌的软阴影点光经 NEE 完成。
 
+![Lakeside](docs/gallery/08-lakeside.png)
+
+**Lakeside** — `water` 材质三件套：ior 1.33 电介质界面、fbm 波纹法线
+（倒影破碎与落日波光路径）、Beer–Lambert 水体吸收（深水偏蓝绿）。
+
 | ![32 spp 原始](docs/gallery/03-spot-atrium-spp32-raw.png) | ![32 spp + AI 降噪](docs/gallery/03-spot-atrium-spp32-denoised.png) |
 |:---:|:---:|
 | 32 spp 原始蒙特卡洛 | 32 spp + **OptiX AI 降噪** |
@@ -55,6 +60,8 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
   ——烘焙变换后再构建加速结构
 - **体积火焰**：程序化发射型参与介质（发射 + 吸收，raygen 解析界定 +
   光线行进），火焰内嵌软阴影点光经 NEE 照亮场景（`flames` 场景键）
+- **水面材质**：`water` = ior 1.33 电介质界面 + fbm 波纹法线 + Beer–Lambert
+  水体吸收（介质内路径按长度衰减）；水下点的 NEE 被折射界面遮挡是已知折衷
 - **降噪**：OptiX AI denoiser（HDR + albedo/normal 引导 AOV）
 - **决定性**：PCG32，固定 `--seed` 时同 GPU/驱动上逐位一致（golden 测试依赖此性质）
 - **统计**：`--stats` 输出 JSON（分段计时、光线数、Mrays/s、显存峰值）
@@ -105,7 +112,7 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 ## 场景格式
 
 见 [docs/SCENES.md](docs/SCENES.md)。示例场景在 `scenes/`（`smoke.json` 最小、
-`features.json` 全特性、`01…07` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU）。
+`features.json` 全特性、`01…08` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU）。
 
 ## 测试
 
