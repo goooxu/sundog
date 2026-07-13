@@ -22,7 +22,7 @@ struct BsdfSample {
 };
 
 SD_HD bool bsdfIsDelta(const MaterialDesc& m) {
-  if (m.kind == MT_DIELECTRIC) return true;
+  if (m.kind == MT_DIELECTRIC || m.kind == MT_WATER) return true;
   if (m.kind == MT_METAL) return m.roughness < 1e-3f;
   return false;
 }
@@ -149,6 +149,8 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
       return s;
     }
 
+    case MT_WATER:  // same smooth interface; waves arrive via n, absorption
+                    // is tracked by the caller (raygen medium state)
     case MT_DIELECTRIC: {
       s.isDelta = true;
       float3 refr;

@@ -11,7 +11,7 @@ namespace sd {
 
 enum GeomKind : int { GK_SPHERE = 0, GK_RECT, GK_DISK, GK_CYLINDER, GK_PARABOLA, GK_MESH, GK_COUNT };
 enum TexKind : int { TX_SOLID = 0, TX_IMAGE, TX_CHECKER, TX_GRID };
-enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE };
+enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE, MT_WATER };
 enum LightKind : int { LT_RECT = 0, LT_DISK, LT_SPHERE, LT_POINT, LT_DISTANT };
 enum BgKind : int { BG_SOLID = 0, BG_GRADIENT };
 
@@ -30,9 +30,12 @@ struct MaterialDesc {
   int texId;       // -1 -> use .color
   float3 color;
   float roughness; // metal (GGX alpha = roughness^2); <1e-3 -> delta mirror
-  float ior;       // dielectric
+  float ior;       // dielectric / water
   float intensity; // emissive scale
   int twoSided;    // emissive visible from both faces
+  float3 absorb;   // water: Beer-Lambert absorption per world unit inside
+  float waveAmp;   // water: wave-normal perturbation strength (0 = flat)
+  float waveFreq;  // water: wave frequency (world xz)
 };
 
 struct LightDesc {

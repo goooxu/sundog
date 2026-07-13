@@ -48,6 +48,7 @@ SD_HD float3 clamp3(float3 v, float lo, float hi) {
 SD_HD float3 min3(float3 a, float3 b) { return f3(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
 SD_HD float maxComp(float3 v) { return fmaxf(v.x, fmaxf(v.y, v.z)); }
 SD_HD float3 lerp3(float3 a, float3 b, float t) { return a + (b - a) * t; }
+SD_HD float3 exp3(float3 a) { return f3(expf(a.x), expf(a.y), expf(a.z)); }
 SD_HD float3 reflect(float3 v, float3 n) { return v - 2.0f * dot(v, n) * n; }
 
 // Snell refraction. v: unit incident (toward surface), n: unit normal against v.

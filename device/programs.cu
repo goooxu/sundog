@@ -11,6 +11,7 @@
 #include "texture_eval.cuh"
 #include "bsdf.cuh"
 #include "light_sample.cuh"
+#include "noise.cuh"
 #include "volume.cuh"
 
 using namespace sd;
@@ -255,10 +256,16 @@ extern "C" __global__ void __raygen__render() {
     float3 prevX = org;
     float3 o = org, d = dir;
     bool aovDone = false;
+    float3 mediumAbsorb = f3(0.0f);  // Beer-Lambert sigma of the medium the
+                                     // ray is inside (water); 0 = vacuum
 
     for (int depth = 0; depth < params.maxDepth; depth++) {
       HitInfo hit = traceRadiance(o, d);
       raysTraced++;
+
+      // ---- absorbing medium (inside water): Beer-Lambert over the segment ----
+      if (maxComp(mediumAbsorb) > 0.0f)
+        beta *= exp3(-mediumAbsorb * (hit.hit ? hit.t : 1e4f));
 
       // ---- emissive media (procedural flames) ----
       // March before the surface/background contribution: emission along the
@@ -292,6 +299,8 @@ extern "C" __global__ void __raygen__render() {
       float3 ns = hit.nOrBg;  // shading normal, toward incident side
       const MaterialDesc& mat = params.materials[hit.matId];
       float3 albedo = materialAlbedo(mat, params.textures, hit.u, hit.v);
+      if (mat.kind == MT_WATER && mat.waveAmp > 0.0f)
+        ns = waterNormal(x, ns, -d, mat.waveAmp, mat.waveFreq);
 
       if (!aovDone) {
         float3 nc = f3(dot(ns, cam.u), dot(ns, cam.v), dot(ns, cam.w));
@@ -347,6 +356,10 @@ extern "C" __global__ void __raygen__render() {
       // ---- BSDF sample ----
       BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface, rng);
       if (!bs.valid) break;
+      // Water transmission crosses the interface: entering sets the absorbing
+      // medium, exiting clears it (TIR is a reflection — no toggle).
+      if (mat.kind == MT_WATER && dot(bs.wi, ns) < 0.0f)
+        mediumAbsorb = hit.frontface ? mat.absorb : f3(0.0f);
       beta *= bs.weight;
       specularBounce = bs.isDelta;
       prevPdf = bs.isDelta ? 0.0f : bs.pdf;

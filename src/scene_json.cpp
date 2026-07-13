@@ -201,6 +201,7 @@ Scene loadScene(const std::string& path) {
     else if (kind == "metal") md.kind = MT_METAL;
     else if (kind == "dielectric") md.kind = MT_DIELECTRIC;
     else if (kind == "emissive") md.kind = MT_EMISSIVE;
+    else if (kind == "water") md.kind = MT_WATER;
     else fail("unknown material type '" + kind + "'");
     if (m.contains("color")) md.color = jf3(m["color"]);
     if (m.contains("texture")) md.texId = texId(m["texture"], name.c_str());
@@ -208,6 +209,19 @@ Scene loadScene(const std::string& path) {
     md.ior = m.value("ior", md.ior);
     md.intensity = m.value("intensity", md.intensity);
     md.twoSided = m.value("two_sided", false) ? 1 : 0;
+    if (md.kind == MT_WATER) {
+      // Smooth dielectric interface at 1.33 + fbm wave normals + Beer-Lambert
+      // absorption inside (red dies first -> depth shifts blue-green).
+      if (!m.contains("ior")) md.ior = 1.33f;
+      md.absorb = m.contains("absorb") ? jf3(m["absorb"]) : f3(0.45f, 0.08f, 0.035f);
+      md.waveAmp = m.value("wave_amp", 0.05f);
+      md.waveFreq = m.value("wave_freq", 2.0f);
+      if (md.waveAmp < 0.0f || md.waveFreq < 0.0f)
+        fail("water: wave_amp and wave_freq must be >= 0");
+      if (md.absorb.x < 0.0f || md.absorb.y < 0.0f || md.absorb.z < 0.0f)
+        fail("water: absorb components must be >= 0");
+      if (m.contains("color") == false) md.color = f3(1.0f);  // AOV guide only
+    }
     if (matIds.size() >= MAT_NONE) fail("too many materials");
     matIds[name] = (int)s.materials.size();
     s.materials.push_back(md);

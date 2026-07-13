@@ -491,6 +491,44 @@ static void testFlameParsing() {
                  "flame missing base");
 }
 
+static void testWaterMaterial() {
+  Scene s = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,2,8],"lookat":[0,0,0]},
+      "materials": {
+        "lake": { "type": "water" },
+        "pool": { "type": "water", "ior": 1.34, "absorb": [0.6, 0.1, 0.05],
+                  "wave_amp": 0.12, "wave_freq": 3.5 }
+      },
+      "objects":[
+        {"shape":"rect","material":"lake","transform":[{"scale":30}]},
+        {"shape":"rect","material":"pool","transform":[{"scale":5},{"translate":[0,-1,0]}]}
+      ] })",
+      "water materials");
+  const MaterialDesc& lake = s.materials[0];
+  CHECK(lake.kind == MT_WATER);
+  CHECK_NEAR(lake.ior, 1.33, 1e-6);          // water default, not glass 1.5
+  CHECK_NEAR(lake.absorb.x, 0.45, 1e-6);     // red absorbed fastest
+  CHECK(lake.absorb.x > lake.absorb.y && lake.absorb.y > lake.absorb.z);
+  CHECK_NEAR(lake.waveAmp, 0.05, 1e-6);
+  CHECK_NEAR(lake.waveFreq, 2.0, 1e-6);
+  CHECK_NEAR(lake.color.x, 1.0, 1e-6);       // AOV guide default
+  const MaterialDesc& pool = s.materials[1];
+  CHECK_NEAR(pool.ior, 1.34, 1e-6);
+  CHECK_NEAR(pool.absorb.y, 0.1, 1e-6);
+  CHECK_NEAR(pool.waveAmp, 0.12, 1e-6);
+  CHECK_NEAR(pool.waveFreq, 3.5, 1e-6);
+  CHECK(s.lights.empty());  // water is not emissive, registers no NEE light
+
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"w":{"type":"water","wave_amp":-0.1}},
+                     "objects":[{"shape":"rect","material":"w"}] })",
+                 "negative wave_amp");
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"w":{"type":"water","absorb":[-0.1,0,0]}},
+                     "objects":[{"shape":"rect","material":"w"}] })",
+                 "negative absorb component");
+}
+
 static void testMakeCamera() {
   CameraSettings cs;
   cs.lookfrom = f3(0, 0, 5);
@@ -518,6 +556,7 @@ int main() {
   testErrorPaths();
   testPhysicsParsing();
   testFlameParsing();
+  testWaterMaterial();
   testMakeCamera();
   TEST_DONE("test_scene_json");
 }
