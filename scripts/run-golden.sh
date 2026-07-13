@@ -18,7 +18,7 @@ IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 GOLDEN_DIR="$ROOT/tests/golden"
 
 WIDTH=256 HEIGHT=256 SPP=64 SEED=7 MIN_PSNR=45
-SCENES=(smoke 01-prism-court 02-cornell-lume 04-parabolica)
+SCENES=(smoke 01-obsidian-hall 02-cornell-lume 04-parabolica)
 
 fail() { echo "run-golden: FAIL: $*" >&2; exit 1; }
 [ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
