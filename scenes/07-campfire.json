@@ -1,5 +1,5 @@
 {
-  "render": { "width": 1920, "height": 1080, "spp": 256, "max_depth": 8, "seed": 7, "clamp": 8 },
+  "render": { "width": 1920, "height": 1080, "spp": 256, "max_depth": 8, "seed": 7, "exposure": 0.5, "clamp": 8 },
   "camera": {
     "lookfrom": [3.4, 1.35, 4.6],
     "lookat": [0.0, 0.75, 0.0],

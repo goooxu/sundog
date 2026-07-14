@@ -5,7 +5,8 @@
     "spp": 320,
     "max_depth": 24,
     "seed": 3,
-    "clamp": 30
+    "clamp": 30,
+    "exposure": 0.25
   },
   "camera": {
     "lookfrom": [
