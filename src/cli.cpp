@@ -21,6 +21,7 @@ options:
   --no-denoise        disable denoiser (overrides scene default)
   --clamp F           firefly clamp for indirect light (0 = off)
   --gamma F           output gamma (default 2.2)
+  --tonemap MODE      output tone mapping: aces (default) | clamp (linear)
   --physics-time F    freeze-frame: bake rigid bodies at sim time F seconds
                       instead of settling (0 = force settle-to-sleep)
   --stats FILE.json   write render statistics
@@ -56,6 +57,7 @@ CliOptions parseCli(int argc, char** argv) {
     else if (!strcmp(a, "--no-denoise")) o.denoise = 0;
     else if (!strcmp(a, "--clamp")) o.clampVal = (float)atof(need(i));
     else if (!strcmp(a, "--gamma")) o.gamma = (float)atof(need(i));
+    else if (!strcmp(a, "--tonemap")) o.tonemap = need(i);
     else if (!strcmp(a, "--physics-time")) {
       o.physicsTime = (float)atof(need(i));
       if (o.physicsTime < 0.0f) usageDie("--physics-time wants a value >= 0");

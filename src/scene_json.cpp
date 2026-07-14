@@ -91,6 +91,11 @@ Scene loadScene(const std::string& path) {
     s.render.seed = r.value("seed", s.render.seed);
     s.render.gamma = r.value("gamma", s.render.gamma);
     s.render.exposure = r.value("exposure", s.render.exposure);
+    if (r.contains("tonemap")) {
+      std::string tm = r["tonemap"].get<std::string>();
+      if (!tonemapFromString(tm, s.render.tonemap))
+        fail("render: unknown tonemap '" + tm + "' (expected \"aces\" or \"clamp\")");
+    }
   }
 
   if (j.contains("physics")) {

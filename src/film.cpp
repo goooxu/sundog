@@ -27,17 +27,18 @@ static std::vector<float4> downloadBuf(CUdeviceptr src, int w, int h) {
 }
 
 void Film::writePng(CUdeviceptr src, const std::string& path, float exposure,
-                    float gamma) const {
+                    float gamma, TonemapMode tonemap) const {
   std::vector<float4> hdr = downloadBuf(src, width_, height_);
   std::vector<unsigned char> rgba((size_t)width_ * height_ * 4);
   float scale = exp2f(exposure);
   float invGamma = 1.0f / gamma;
   for (size_t i = 0; i < hdr.size(); i++) {
-    float c[3] = {hdr[i].x, hdr[i].y, hdr[i].z};
-    for (int k = 0; k < 3; k++) {
-      float v = powf(clampf(c[k] * scale, 0.0f, 1.0f), invGamma);
-      rgba[4 * i + k] = (unsigned char)lroundf(v * 255.0f);
-    }
+    // exposure -> tone map -> gamma -> quantize (report ch01 walks the order)
+    float3 c = f3(hdr[i].x, hdr[i].y, hdr[i].z) * scale;
+    c = tonemap == TM_ACES ? acesFitted(c) : clamp3(c, 0.0f, 1.0f);
+    rgba[4 * i + 0] = (unsigned char)lroundf(powf(c.x, invGamma) * 255.0f);
+    rgba[4 * i + 1] = (unsigned char)lroundf(powf(c.y, invGamma) * 255.0f);
+    rgba[4 * i + 2] = (unsigned char)lroundf(powf(c.z, invGamma) * 255.0f);
     rgba[4 * i + 3] = 255;
   }
   if (!stbi_write_png(path.c_str(), width_, height_, 4, rgba.data(), width_ * 4)) {

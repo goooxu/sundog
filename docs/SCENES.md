@@ -99,9 +99,17 @@ uniform sphere sampling (comparison experiments only — leave it on).
 
 ## Render settings
 
-`width height spp max_depth seed clamp gamma exposure` — `width/height`,
-`spp`, `seed`, `clamp`, `gamma` also overridable from the CLI. `clamp` limits indirect per-sample contributions (firefly control,
-0 = off). Fixed `seed` gives bit-identical images on the same GPU/driver.
+`width height spp max_depth seed clamp gamma exposure tonemap` —
+`width/height`, `spp`, `seed`, `clamp`, `gamma`, `tonemap` also overridable
+from the CLI. `clamp` limits indirect per-sample contributions (firefly
+control, 0 = off). Fixed `seed` gives bit-identical images on the same
+GPU/driver.
+
+`tonemap` selects the output mapping: `"aces"` (default) runs the Hill
+ACES fit — highlights roll off along a filmic shoulder instead of clipping
+to white; `"clamp"` is the linear escape hatch (exposure → clamp[0,1] →
+gamma) for numeric experiments like the white-furnace test where the PNG
+must be a direct linear readout.
 
 ## Flames（体积火焰光源）
 

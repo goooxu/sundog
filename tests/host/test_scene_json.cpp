@@ -204,10 +204,24 @@ static void testErrorPaths() {
   // the minimal skeleton itself is valid (defaults fill the rest)
   Scene mini = expectLoadOk(kMinimalScene, "minimal scene");
   CHECK(mini.render.width == 1280 && mini.render.height == 720);  // defaults
+  CHECK(mini.render.tonemap == TM_ACES);  // ACES is the default output mapping
   CHECK(mini.objects.size() == 1 && mini.lights.empty());
+
+  Scene lin = expectLoadOk(R"({
+      "render": { "tonemap": "clamp" },
+      "camera": { "lookfrom": [0,1,5], "lookat": [0,0,0] },
+      "materials": { "m": { "type": "lambert" } },
+      "objects": [ { "shape": "sphere", "material": "m" } ] })",
+      "tonemap clamp escape hatch");
+  CHECK(lin.render.tonemap == TM_CLAMP);
 
   expectLoadFail("{ this is not json", "malformed JSON");
   expectLoadFail("", "empty file");
+  expectLoadFail(R"({ "render": { "tonemap": "reinhard" },
+                     "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}] })",
+                 "unknown tonemap");
   expectLoadFail(R"({ "materials": {"m":{"type":"lambert"}},
                      "objects":[{"shape":"sphere","material":"m"}] })",
                  "missing camera");

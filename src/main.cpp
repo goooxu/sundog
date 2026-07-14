@@ -50,6 +50,8 @@ int main(int argc, char** argv) {
     if (cli.denoise >= 0) scene.render.denoise = cli.denoise == 1;
     if (cli.clampVal >= 0.0f) scene.render.clampVal = cli.clampVal;
     if (cli.gamma > 0.0f) scene.render.gamma = cli.gamma;
+    if (!cli.tonemap.empty() && !tonemapFromString(cli.tonemap, scene.render.tonemap))
+      throw std::runtime_error("--tonemap: expected aces|clamp");
     const RenderSettings& rs = scene.render;
 
     TextureSet textureSet;
@@ -168,7 +170,7 @@ int main(int argc, char** argv) {
     }
 
     // ---- output ----
-    film.writePng(outputBuf, cli.out, rs.exposure, rs.gamma);
+    film.writePng(outputBuf, cli.out, rs.exposure, rs.gamma, rs.tonemap);
     if (!cli.aovAlbedoPath.empty()) film.writeAovPng(film.aovAlbedo(), cli.aovAlbedoPath, false);
     if (!cli.aovNormalPath.empty()) film.writeAovPng(film.aovNormal(), cli.aovNormalPath, true);
 

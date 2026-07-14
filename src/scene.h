@@ -3,6 +3,7 @@
 #define SUNDOG_SCENE_H
 
 #include "params.h"
+#include "tonemap.h"
 #include <string>
 #include <vector>
 
@@ -16,6 +17,7 @@ struct RenderSettings {
   unsigned seed = 7;
   float gamma = 2.2f;
   float exposure = 0.0f;  // EV
+  TonemapMode tonemap = TM_ACES;  // output mapping; TM_CLAMP = linear escape
   int chunk = 16;
   bool denoise = false;
 };

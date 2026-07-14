@@ -18,6 +18,7 @@ struct CliOptions {
   int denoise = -1;   // -1 unset, 0 off, 1 on
   float clampVal = -1.0f;
   float gamma = -1.0f;
+  std::string tonemap;  // empty = scene value wins ("aces" | "clamp")
   float physicsTime = -1.0f;  // >=0 overrides physics stop_time (0 = settle)
   bool probe = false;
   bool quiet = false;

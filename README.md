@@ -71,6 +71,8 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
   光线行进），火焰内嵌软阴影点光经 NEE 照亮场景（`flames` 场景键）
 - **水面材质**：`water` = ior 1.33 电介质界面 + fbm 波纹法线 + Beer–Lambert
   水体吸收（介质内路径按长度衰减）；水下点的 NEE 被折射界面遮挡是已知折衷
+- **ACES 色调映射**：Hill 拟合（RRT+ODT），默认对全部输出生效——高光沿肩部
+  渐进滚降而非硬截断为纯白（`tonemap:"clamp"` 保留线性退路供数值实验）
 - **降噪**：OptiX AI denoiser（HDR + albedo/normal 引导 AOV）
 - **决定性**：PCG32，固定 `--seed` 时同 GPU/驱动上逐位一致（golden 测试依赖此性质）
 - **统计**：`--stats` 输出 JSON（分段计时、光线数、Mrays/s、显存峰值）
@@ -110,6 +112,7 @@ sundog --probe
 --size WxH         分辨率
 --clamp F          间接光 firefly 钳制（0 = 关）
 --denoise / --no-denoise                 --gamma F      输出 gamma（默认 2.2）
+--tonemap MODE     输出色调映射：aces（默认）| clamp（线性截断）
 --physics-time F   刚体定格于模拟第 F 秒（0 = 强制沉降到静止）
 --stats FILE.json  渲染统计
 --aov-albedo / --aov-normal F.png        --probe        打印 GPU/驱动/OptiX 信息
