@@ -199,7 +199,9 @@ int main(int argc, char** argv) {
       st.totalMs = totalMs;
       st.raysTraced = rays;
       st.mraysPerSec = rays / renderMs / 1000.0;
-      st.peakVramMB = (freeBefore - freeAfter) >> 20;
+      // cudaMemGetInfo can report MORE free memory at exit than at start
+      // (driver pool churn); clamp instead of underflowing the unsigned diff.
+      st.peakVramMB = freeBefore > freeAfter ? (freeBefore - freeAfter) >> 20 : 0;
       st.numObjects = (int)scene.objects.size();
       st.numLights = (int)scene.lights.size();
       st.numMeshes = (int)scene.meshes.size();

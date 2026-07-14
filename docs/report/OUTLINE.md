@@ -7,7 +7,7 @@
 
 ## index.md（集成阶段编写）
 
-阅读指南（三条路径：只看原理 01-05 / 只看工程 08-11 / 全读）、章节导航表、
+阅读指南（三条路径：只看原理 01-05 / 只看工程 08-14 / 全读）、章节导航表、
 致谢与延伸阅读（PBRT、Ray Tracing in One Weekend、OptiX Programming Guide）。
 
 ---
