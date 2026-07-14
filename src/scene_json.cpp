@@ -136,6 +136,13 @@ Scene loadScene(const std::string& path) {
       s.bg.kind = BG_GRADIENT;
       s.bg.a = jf3(b.at("horizon"));
       s.bg.b = jf3(b.at("zenith"));
+    } else if (kind == "envmap") {
+      s.bg.kind = BG_ENVMAP;
+      s.env.file = b.at("file").get<std::string>();
+      s.env.rotateDeg = b.value("rotate", 0.0f);
+      s.env.intensity = b.value("intensity", 1.0f);
+      s.env.importance = b.value("importance", true);
+      if (s.env.intensity < 0.0f) fail("envmap: intensity must be >= 0");
     } else {
       fail("unknown background type '" + kind + "'");
     }

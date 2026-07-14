@@ -5,6 +5,7 @@
 #include "context.h"
 #include "cuda_check.h"
 #include "denoise.h"
+#include "env_light.h"
 #include "film.h"
 #include "mesh_obj.h"
 #include "physics.h"
@@ -53,6 +54,7 @@ int main(int argc, char** argv) {
 
     TextureSet textureSet;
     std::vector<TextureDesc> texDescs = textureSet.upload(scene);
+    EnvMap envMap;  // owns the env texture + CDFs for the render's lifetime
 
     std::vector<GpuMesh> meshes;
     size_t meshTriangles = 0;
@@ -121,6 +123,7 @@ int main(int argc, char** argv) {
     params.rayCounter = rayCounter.as<unsigned long long>();
     params.cam = makeCamera(scene.camera, rs.width, rs.height);
     params.bg = scene.bg;
+    if (scene.bg.kind == BG_ENVMAP) params.env = envMap.upload(scene);
     params.textures = texBuf.as<TextureDesc>();
     params.materials = matBuf.as<MaterialDesc>();
     params.lights = lightBuf.ptr ? lightBuf.as<LightDesc>() : nullptr;

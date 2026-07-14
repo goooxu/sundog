@@ -11,6 +11,7 @@
 #include "texture_eval.cuh"
 #include "bsdf.cuh"
 #include "light_sample.cuh"
+#include "env_light.cuh"
 #include "noise.cuh"
 #include "volume.cuh"
 
@@ -65,6 +66,7 @@ static __forceinline__ __device__ bool traceShadow(float3 o, float3 d, float tma
 // ---------------- background ----------------
 
 static __forceinline__ __device__ float3 evalBackground(float3 dir) {
+  if (params.bg.kind == BG_ENVMAP) return envEval(params.env, dir);
   if (params.bg.kind == BG_GRADIENT) {
     float t = 0.5f * (dir.y + 1.0f);
     return lerp3(params.bg.a, params.bg.b, t);
@@ -258,6 +260,11 @@ extern "C" __global__ void __raygen__render() {
     bool aovDone = false;
     float3 mediumAbsorb = f3(0.0f);  // Beer-Lambert sigma of the medium the
                                      // ray is inside (water); 0 = vacuum
+    // NEE strategy set: the explicit lights plus (with an envmap) the
+    // environment light. One uniform pick per vertex; the 1/nStrat selection
+    // probability folds into both sides of every MIS pair below.
+    const bool hasEnv = params.bg.kind == BG_ENVMAP;
+    const int nStrat = params.numLights + (hasEnv ? 1 : 0);
 
     for (int depth = 0; depth < params.maxDepth; depth++) {
       HitInfo hit = traceRadiance(o, d);
@@ -282,7 +289,15 @@ extern "C" __global__ void __raygen__render() {
       }
 
       if (!hit.hit) {
-        float3 c = beta * hit.nOrBg;
+        // With an envmap the escaped BSDF ray "hit" the environment light,
+        // which env-NEE also samples: weight the two like the emissive-hit
+        // branch below. solid/gradient backgrounds are not NEE targets (w=1).
+        float w = 1.0f;
+        if (hasEnv && !specularBounce) {
+          float pdfE = envPdfSolidAngle(params.env, d) / nStrat;
+          w = prevPdf / (prevPdf + pdfE);
+        }
+        float3 c = beta * hit.nOrBg * w;
         if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
         L += c;
         if (!aovDone) {
@@ -321,7 +336,7 @@ extern "C" __global__ void __raygen__render() {
           if (!specularBounce && hit.lightId >= 0 &&
               params.numLights > 0) {
             float pdfL = lightPdfSolidAngle(params.lights[hit.lightId], prevX, x) /
-                         params.numLights;
+                         nStrat;
             w = prevPdf / (prevPdf + pdfL);
           }
           float3 c = beta * Le * w;
@@ -332,14 +347,16 @@ extern "C" __global__ void __raygen__render() {
       }
 
       // ---- NEE ----
-      if (params.numLights > 0 && !bsdfIsDelta(mat)) {
-        int k = min((int)(rng.rnd() * params.numLights), params.numLights - 1);
-        LightSample ls = sampleLight(params.lights[k], x, rng, params.textures);
+      if (nStrat > 0 && !bsdfIsDelta(mat)) {
+        int k = min((int)(rng.rnd() * nStrat), nStrat - 1);
+        LightSample ls = (k < params.numLights)
+            ? sampleLight(params.lights[k], x, rng, params.textures)
+            : sampleEnv(params.env, rng);
         float cosS = ls.valid ? dot(ls.wi, ns) : 0.0f;
         if (ls.valid && cosS > 0.0f) {
           raysTraced++;
           if (traceShadow(offsetRay(x, ns), ls.wi, ls.dist * 0.999f)) {
-            float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / params.numLights;
+            float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / nStrat;
             float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
             float w = 1.0f;
             if (!ls.isDelta) {

@@ -496,6 +496,40 @@ static void testWaterMaterial() {
                  "negative absorb component");
 }
 
+static void testEnvmapBackground() {
+  // full positive path — parsing only records the descriptor (the .hdr is
+  // loaded at upload time, like image textures), so no asset is needed here
+  Scene s = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+      "background": {"type":"envmap","file":"../assets/sky.hdr",
+                     "rotate":90,"intensity":2.5,"importance":false},
+      "materials": {"m":{"type":"lambert"}},
+      "objects":[{"shape":"sphere","material":"m"}] })",
+      "envmap background");
+  CHECK(s.bg.kind == BG_ENVMAP);
+  CHECK(s.env.file == "../assets/sky.hdr");
+  CHECK_NEAR(s.env.rotateDeg, 90.0, 1e-6);
+  CHECK_NEAR(s.env.intensity, 2.5, 1e-6);
+  CHECK(s.env.importance == false);
+
+  // defaults: rotate 0, intensity 1, importance on
+  Scene d = expectLoadOk(R"({
+      "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+      "background": {"type":"envmap","file":"sky.hdr"},
+      "materials": {"m":{"type":"lambert"}},
+      "objects":[{"shape":"sphere","material":"m"}] })",
+      "envmap defaults");
+  CHECK_NEAR(d.env.rotateDeg, 0.0, 1e-6);
+  CHECK_NEAR(d.env.intensity, 1.0, 1e-6);
+  CHECK(d.env.importance == true);
+
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "background": {"type":"envmap"},
+                     "materials": {"m":{"type":"lambert"}},
+                     "objects":[{"shape":"sphere","material":"m"}] })",
+                 "envmap missing file");
+}
+
 static void testMakeCamera() {
   CameraSettings cs;
   cs.lookfrom = f3(0, 0, 5);
@@ -524,6 +558,7 @@ int main() {
   testPhysicsParsing();
   testFlameParsing();
   testWaterMaterial();
+  testEnvmapBackground();
   testMakeCamera();
   TEST_DONE("test_scene_json");
 }

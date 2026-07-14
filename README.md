@@ -54,6 +54,9 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 - **双面材质**：正/背面独立材质、`null` 穿透面、alpha cutout 镂空
 - **纹理**：solid / checker / grid / PNG 图像（sRGB）
 - **灯光**：point（带半径软阴影）、distant，以及 emissive rect/disk/sphere 区域光
+- **HDR 环境光照**：`background` 支持 equirect `.hdr` 环境贴图（`envmap`），
+  按亮度 × sinθ 预构建 2D CDF 做**环境光重要性采样**，与 NEE/MIS 全接驳——
+  一张带太阳的天空图即可点亮整个场景（`importance:false` 切均匀采样对照）
 - **物理装载**：场景 JSON 声明刚体初始条件（`physics` 块 + 逐对象 opt-in），
   加载时用 **PhysX 5 GPU 刚体**（`eENABLE_GPU_DYNAMICS` + GPU 宽相，在 RTX 上模拟）
   沉降到静止——或按 `stop_time`/`--physics-time` **锐利定格于运动中的任一瞬间**

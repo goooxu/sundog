@@ -13,7 +13,7 @@ enum GeomKind : int { GK_SPHERE = 0, GK_RECT, GK_DISK, GK_CYLINDER, GK_PARABOLA,
 enum TexKind : int { TX_SOLID = 0, TX_IMAGE, TX_CHECKER, TX_GRID };
 enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE, MT_WATER };
 enum LightKind : int { LT_RECT = 0, LT_DISK, LT_SPHERE, LT_POINT, LT_DISTANT };
-enum BgKind : int { BG_SOLID = 0, BG_GRADIENT };
+enum BgKind : int { BG_SOLID = 0, BG_GRADIENT, BG_ENVMAP };
 
 constexpr uint16_t MAT_NONE = 0xFFFF;  // pass-through face (no material)
 
@@ -58,6 +58,21 @@ struct BgDesc {
   float3 b;        // zenith
 };
 
+// HDR equirect environment light (bg.kind == BG_ENVMAP). The CDFs are a
+// PBRT-style piecewise-constant 2D distribution over the sin(theta)-weighted
+// luminance image, built host-side (src/env_light.cpp); pdf values are
+// reconstructed from CDF differences on device, so there is no separate
+// luminance table and no integral field.
+struct EnvDesc {
+  cudaTextureObject_t tex;  // float4 lat-long HDR (linear, element-type read)
+  float* margCdf;           // H+1 floats: row (v) marginal CDF, [0]=0, [H]=1
+  float* condCdf;           // H*(W+1) floats: per-row column (u) CDF
+  int width, height;        // HDR pixel resolution
+  float rotate;             // radians around +Y (world azimuth offset)
+  float intensity;          // radiance scale, applied at eval time
+  int importance;           // 0 = uniform-sphere NEE (comparison mode)
+};
+
 // Emissive participating medium (emission + absorption, no scattering):
 // an upright procedural flame bounded by the cylinder {|xz - base.xz| <= radius,
 // base.y <= y <= base.y + height}, ray-marched in raygen (device/volume.cuh).
@@ -97,6 +112,7 @@ struct LaunchParams {
 
   CameraData cam;
   BgDesc bg;
+  EnvDesc env;        // valid iff bg.kind == BG_ENVMAP
 
   TextureDesc* textures;
   MaterialDesc* materials;

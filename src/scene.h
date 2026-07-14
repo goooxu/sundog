@@ -33,6 +33,15 @@ struct SceneTexture {
   bool srgb = true;
 };
 
+// HDR environment map (bg.kind == BG_ENVMAP). Like image textures, parsing
+// only records the descriptor; loading happens at upload (src/env_light.cpp).
+struct SceneEnv {
+  std::string file;         // .hdr path, resolved against baseDir at upload
+  float rotateDeg = 0.0f;   // degrees around +Y
+  float intensity = 1.0f;
+  bool importance = true;   // false = uniform-sphere NEE (report comparison)
+};
+
 struct SceneMesh {
   std::string objFile;
   bool smoothNormals = true;
@@ -77,6 +86,7 @@ struct Scene {
   RenderSettings render;
   CameraSettings camera;
   BgDesc bg{BG_SOLID, {0, 0, 0}, {0, 0, 0}};
+  SceneEnv env;
   std::vector<SceneTexture> textures;
   std::vector<MaterialDesc> materials;
   std::vector<SceneMesh> meshes;

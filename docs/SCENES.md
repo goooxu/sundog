@@ -79,8 +79,23 @@ Area lights are *not* declared here — make an emissive object instead.
 
 ## Background
 
-`{ "type": "solid", "color": [r,g,b] }` or
-`{ "type": "gradient", "horizon": [r,g,b], "zenith": [r,g,b] }` (lerp on ray y).
+`{ "type": "solid", "color": [r,g,b] }`,
+`{ "type": "gradient", "horizon": [r,g,b], "zenith": [r,g,b] }` (lerp on ray y), or
+
+```json
+{ "type": "envmap", "file": "../assets/sky_4k.hdr",
+  "rotate": 0, "intensity": 1.0, "importance": true }
+```
+
+`envmap` turns an equirectangular Radiance `.hdr` panorama into an
+infinitely-distant light: missed rays look it up by direction, *and* it joins
+NEE+MIS as a first-class light — at load time a 2D CDF over
+luminance × sin θ is built so light sampling hits the brightest texels
+directly (a small sun stops being a noise disaster). `file` resolves relative
+to the scene file (gallery scenes use `../assets/*.hdr`, downloaded by
+`scripts/fetch-assets.sh`); `rotate` spins the map around +y (degrees);
+`intensity` is a scalar radiance gain; `importance: false` degrades NEE to
+uniform sphere sampling (comparison experiments only — leave it on).
 
 ## Render settings
 
