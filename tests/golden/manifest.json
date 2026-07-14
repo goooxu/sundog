@@ -3,7 +3,8 @@
     "smoke",
     "01-marble-run",
     "02-cornell-lume",
-    "04-parabolica"
+    "04-parabolica",
+    "10-suncatcher"
   ],
   "params": {
     "width": 256,
@@ -12,12 +13,12 @@
     "seed": 7,
     "denoise": false
   },
-  "date": "2026-07-14T09:24:24+00:00",
+  "date": "2026-07-14T10:34:15+00:00",
   "probe": {
-    "GPU": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "GPU": "NVIDIA GeForce RTX 5090",
     "Compute": "sm_120",
-    "VRAM": "97251 MB",
-    "CUDA driver": "13.2",
+    "VRAM": "32202 MB",
+    "CUDA driver": "13.4",
     "CUDA runtime": "13.0",
     "OptiX header": "9.1.0",
     "RT core": "4.0"

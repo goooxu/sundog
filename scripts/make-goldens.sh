@@ -16,7 +16,7 @@ SUNDOG="$SUNDOG_BUILD/sundog"
 GOLDEN_DIR="$ROOT/tests/golden"
 
 WIDTH=256 HEIGHT=256 SPP=64 SEED=7
-SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica)
+SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher)
 
 fail() { echo "make-goldens: FAIL: $*" >&2; exit 1; }
 [ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
