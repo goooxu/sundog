@@ -21,7 +21,7 @@ Options:
   --skip-render      reuse mc-convergence.json instead of rendering
   --build-dir DIR    sundog build dir (default $SUNDOG_BUILD or /tmp/sundog-build)
   --work-dir DIR     scratch dir for intermediate renders (default /tmp/report-charts)
-  --only LIST        comma list of charts: convergence,fresnel,env
+  --only LIST        comma list of charts: convergence,fresnel,env,aces
 """
 
 import argparse
@@ -257,6 +257,50 @@ def chart_fresnel():
 
 # ---------------------------------------------------------------- chart 3 ---
 
+ACES_IN = np.array([[0.59719, 0.35458, 0.04823],
+                    [0.07600, 0.90834, 0.01566],
+                    [0.02840, 0.13383, 0.83777]])
+ACES_OUT = np.array([[1.60475, -0.53108, -0.07367],
+                     [-0.10208, 1.10813, -0.00605],
+                     [-0.00327, -0.07276, 1.07602]])
+
+
+def aces_fitted_gray(x):
+    """Gray-axis ACES (Hill fit, matches src/tonemap.h) for an array of
+    scalar inputs; gray in -> gray out, so one channel tells the story."""
+    v = np.stack([x, x, x], axis=-1) @ ACES_IN.T
+    v = (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081)
+    v = v @ ACES_OUT.T
+    return np.clip(v[..., 0], 0.0, 1.0)
+
+
+def chart_aces():
+    x = np.geomspace(0.01, 30.0, 512)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.semilogx(x, np.minimum(x, 1.0), color=SECONDARY, lw=2.0, ls="--",
+                label="clamp: y = min(x, 1)")
+    ax.semilogx(x, aces_fitted_gray(x), color=PRIMARY, lw=2.2,
+                label="ACES (Hill fit)")
+    for gx, name in [(0.18, "0.18"), (1.0, "1.0")]:
+        gy = aces_fitted_gray(np.array([gx]))[0]
+        ax.plot([gx], [gy], "o", color=INK, ms=5)
+        ax.annotate(f"{name} -> {gy:.3f}", (gx, gy), textcoords="offset points",
+                    xytext=(8, -14), color=INK, fontsize=11)
+    ax.annotate("toe", (0.02, aces_fitted_gray(np.array([0.02]))[0]),
+                textcoords="offset points", xytext=(6, 8), color=INK_MUTED, fontsize=11)
+    ax.annotate("shoulder", (6.0, aces_fitted_gray(np.array([6.0]))[0]),
+                textcoords="offset points", xytext=(8, -16), color=INK_MUTED, fontsize=11)
+    ax.set_xlabel("linear input (log scale)")
+    ax.set_ylabel("encoded output (linear sRGB, before gamma)")
+    ax.set_title("Tone mapping: hard clamp vs ACES filmic S-curve")
+    ax.set_ylim(0, 1.05)
+    ax.grid(True, which="both")
+    ax.legend(loc="upper left")
+    save(fig, "ch01-aces-curve.png")
+
+
+# ---------------------------------------------------------------- chart 4 ---
+
 
 
 # ---------------------------------------------------------------- chart 3 ---
@@ -341,8 +385,8 @@ def main():
     ap.add_argument("--build-dir", type=Path,
                     default=Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")))
     ap.add_argument("--work-dir", type=Path, default=Path("/tmp/report-charts"))
-    ap.add_argument("--only", default="convergence,fresnel,env",
-                    help="comma list: convergence,fresnel,env")
+    ap.add_argument("--only", default="convergence,fresnel,env,aces",
+                    help="comma list: convergence,fresnel,env,aces")
     args = ap.parse_args()
     only = set(args.only.split(","))
 
@@ -362,6 +406,8 @@ def main():
         chart_fresnel()
     if "env" in only:
         chart_env()
+    if "aces" in only:
+        chart_aces()
 
 
 if __name__ == "__main__":

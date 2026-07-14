@@ -85,7 +85,9 @@
 | 边缘 / 条件分布 | marginal / conditional distribution | 2D 采样"先选行再选列"的分解 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
-| 色调映射 | tone mapping | |
+| 色调映射 | tone mapping | 出口映射：ACES Hill 拟合（RRT+ODT），第 1 章 |
+| ACES | Academy Color Encoding System | 电影工业色彩编码标准 |
+| 脚趾 / 肩部 | toe / shoulder | S 曲线的暗部轻压段 / 高光滚降段 |
 | 伽马校正 | gamma correction | |
 | 峰值信噪比 | PSNR | dB |
 

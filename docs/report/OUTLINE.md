@@ -17,17 +17,20 @@
 **回答**：数字图像是什么？渲染在计算什么？为什么沿"反方向"追光线？
 
 小节：
-1. 像素、RGB 与线性空间——显示器 gamma、为什么渲染在线性空间累积最后才 `pow(1/γ)`（对账 `Film::writePng()`（src/film.cpp）：exposure→clamp→gamma 顺序）
-2. 针孔相机模型——成像平面、视场角 vfov、从像素 (i,j) 构造光线 o+t·d（对账 `makeCamera()`（src/scene_json.cpp）：lowerLeft/horizontal/vertical 的几何含义）
-3. 薄透镜与景深——光圈半径、对焦距离（对账 raygen 中 lensRadius 采样）
-4. 光的可逆性：从眼睛出发反向追踪的合理性（Helmholtz 互易性直觉版）；一张图给出"渲染一帧 = 对每个像素解一个积分"的全书路线图
-5. sundog 的一帧流程速览（伪代码 10 行：循环 spp→构造光线→追踪→累积→tonemap）
+1. 像素、RGB 与线性空间——显示器 gamma、为什么渲染在线性空间累积、伽马留到最后
+2. 色调映射：把无界的辐亮度装进 8-bit——截断丢层次丢色相（火心数值例）；胶片 S 曲线（toe/shoulder）；ACES Hill 拟合公式与关键数值走读（0.18→0.106、1.0→0.619、渐近 1.0165）；管线顺序 曝光→ACES→gamma 的理由；tonemap:"clamp" 线性退路的用途（对账 `acesFitted()`（src/tonemap.h）与 `Film::writePng()`（src/film.cpp））
+3. 针孔相机模型——成像平面、视场角 vfov、从像素 (i,j) 构造光线 o+t·d（对账 `makeCamera()`（src/scene_json.cpp）：lowerLeft/horizontal/vertical 的几何含义）
+4. 薄透镜与景深——光圈半径、对焦距离（对账 raygen 中 lensRadius 采样）
+5. 光的可逆性：从眼睛出发反向追踪的合理性（Helmholtz 互易性直觉版）；一张图给出"渲染一帧 = 对每个像素解一个积分"的全书路线图
+6. sundog 的一帧流程速览（伪代码 10 行：循环 spp→构造光线→追踪→累积→tonemap）
 
 图：
 - `figures/ch01-pinhole-camera.svg`：针孔相机+成像平面+像素网格+一根光线
 - `figures/ch01-thin-lens.svg`：薄透镜、光圈、焦平面、弥散圈
 - `figures/ch01-spp-convergence.png`：同场景 1/4/16/64/256 spp 五联横条
-- `figures/ch01-gamma.png`：gamma 1.0 vs 2.2 双联
+- `figures/ch01-gamma.png`：gamma 1.0 vs 2.2 双联（tonemap:"clamp" 下渲染以隔离伽马）
+- `figures/ch01-tonemap.png`：截断 vs ACES 双联（07-campfire 火心）
+- `figures/ch01-aces-curve.png`：数据图——截断折线 vs ACES S 曲线
 
 ---
 
@@ -315,7 +318,8 @@
 | 文件 | 内容 | 生成要点 |
 |---|---|---|
 | ch01-spp-convergence.png | 五联横条 1/4/16/64/256 spp | 02-cornell-lume --size 480x270，PIL 横拼+每格左上角标 spp |
-| ch01-gamma.png | gamma 1.0 vs 2.2 双联 | smoke.json --gamma 1.0/2.2，PIL 竖缝拼接+标注 |
+| ch01-gamma.png | gamma 1.0 vs 2.2 双联 | smoke.json --tonemap clamp --gamma 1.0/2.2，PIL 竖缝拼接+标注 |
+| ch01-tonemap.png | 截断 vs ACES 双联 | 07-campfire 960x540/64spp，--tonemap clamp vs 默认，PIL 横拼 |
 | ch04-nee.png | NEE 开关双联 | 02-cornell-lume 64spp 原样 vs sed 生成 nee:false 变体场景 |
 | ch04-clamp.png | firefly 对比双联 | 04-parabolica --size 640x360 --spp 24，--clamp 0 vs 默认 |
 | ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
@@ -335,6 +339,7 @@
 | ch03-mc-convergence.png | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
 | ch05-fresnel-curves.png | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
 | ch15-env-luminance.png | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |
+| ch01-aces-curve.png | 截断折线 vs ACES S 曲线（对数横轴，标注 toe/肩/0.18/1.0） | 纯计算：gen-report-charts.py 复算 Hill 拟合 |
 
 风格：白底、单一强调色系（蓝 #2563EB 主色、灰网格线）、中文标签（若字体缺中文则英文标签）、300 dpi 导出后≤1600px 宽。
 

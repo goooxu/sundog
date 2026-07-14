@@ -164,14 +164,28 @@ python3 "$COMPOSE" strip "$FIG/ch01-spp-convergence.png" \
   "$RAW/ch01-spp256.png|256 spp"
 
 # ------------------------------------------------------------ ch01-gamma.png
-# smoke.json with gamma 1.0 vs 2.2 (default), side by side.
+# smoke.json with gamma 1.0 vs 2.2 (default), side by side. Rendered with
+# --tonemap clamp so gamma is the ONLY nonlinearity being compared (the
+# default ACES curve would contaminate the "linear" panel).
 render "ch01-gamma10" "$ROOT/scenes/smoke.json" \
-       --size 512x512 --spp 64 --gamma 1.0
+       --size 512x512 --spp 64 --gamma 1.0 --tonemap clamp
 render "ch01-gamma22" "$ROOT/scenes/smoke.json" \
-       --size 512x512 --spp 64 --gamma 2.2
+       --size 512x512 --spp 64 --gamma 2.2 --tonemap clamp
 python3 "$COMPOSE" strip "$FIG/ch01-gamma.png" --label-size 26 \
   "$RAW/ch01-gamma10.png|gamma 1.0" \
   "$RAW/ch01-gamma22.png|gamma 2.2（默认）"
+
+# ---------------------------------------------------------- ch01-tonemap.png
+# 07-campfire: clamp (highlights clip to white) vs ACES (filmic shoulder
+# keeps the fire core's orange gradient). The scene's strongest saturated
+# highlight in the gallery.
+render "ch01-tonemap-clamp" "$ROOT/scenes/07-campfire.json" \
+       --size 960x540 --spp 64 --tonemap clamp
+render "ch01-tonemap-aces" "$ROOT/scenes/07-campfire.json" \
+       --size 960x540 --spp 64
+python3 "$COMPOSE" strip "$FIG/ch01-tonemap.png" --label-size 26 \
+  "$RAW/ch01-tonemap-clamp.png|截断（tonemap:\"clamp\"）" \
+  "$RAW/ch01-tonemap-aces.png|ACES（默认）"
 
 # -------------------------------------------------------------- ch04-nee.png
 # 02-cornell-lume with NEE on (default) vs off: temp scene variant with
@@ -201,9 +215,10 @@ python3 "$COMPOSE" strip "$FIG/ch04-nee.png" --label-size 26 \
 
 # ------------------------------------------------------------ ch04-clamp.png
 # 04-parabolica at low spp: --clamp 0 (fireflies) vs --clamp 5.
-# NOTE: OUTLINE says "clamp 0 vs 默认", but the scene default (30) yields a
-# bit-identical 8-bit image at 24 spp — a firefly contribution clamped to 30
-# still saturates to display white (30/24 > 1 before tonemap). clamp 5 is the
+# NOTE: OUTLINE says "clamp 0 vs 默认", but the scene default (30) is not
+# visibly different from clamp 0 at 24 spp: measured 59 dB PSNR under ACES —
+# the shoulder flattens whatever survives above 1.0 (pre-ACES the two were
+# bit-identical: 30/24 > 1 clipped straight to white). clamp 5 remains the
 # smallest deviation that makes the intended firefly suppression visible.
 render "ch04-clamp-off" "$ROOT/scenes/04-parabolica.json" \
        --size 640x360 --spp 24 --clamp 0

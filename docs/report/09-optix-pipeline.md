@@ -22,7 +22,7 @@
 
 **⑥ 遍历、求交与着色**。设备侧每条光线由 RT Core 遍历 BVH：三角形硬件求交，解析图元回调 IS 程序，AH 对穿透面与 alpha 镂空行使否决权，CH/miss 收尾——但 sundog 的着色（BSDF、NEE、MIS、俄罗斯轮盘）**不在 CH 里**，而是全部收在 raygen 的路径循环中，CH 退化为把命中信息打包进 8 个 payload 寄存器。这是 sundog 与"在 CH 里递归着色"的教科书结构最大的差异，动机见 9.3 节。
 
-**⑦ 降噪与落盘**。渲染循环结束后，OptiX Denoiser 在线性 HDR 域、以 albedo/normal 为引导层做 AI 降噪（`Denoiser`（src/denoise.cpp），原理见[第 10 章](10-sampling-denoising.md)），最后 tonemap 写出 PNG（[第 1 章](01-images-and-rays.md)）。
+**⑦ 降噪与落盘**。渲染循环结束后，OptiX Denoiser 在线性 HDR 域、以 albedo/normal 为引导层做 AI 降噪（`Denoiser`（src/denoise.cpp），原理见[第 10 章](10-sampling-denoising.md)），最后 ACES tonemap 写出 PNG（[第 1 章](01-images-and-rays.md)）。
 
 七步与代码、章节的完整映射：
 

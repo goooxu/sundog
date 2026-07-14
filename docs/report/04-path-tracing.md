@@ -136,7 +136,7 @@ if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
 
 ![clamp 开关下的 firefly 对比](figures/ch04-clamp.png)
 
-*图：04-parabolica 24 spp。左：`--clamp 0`（关闭），镜面/折射路径产生大量 firefly；右：`--clamp 5`（刻意取小值使抑制在低 spp 下肉眼可见；该场景默认 clamp 30 在 8-bit 输出上与关闭无异），亮斑消失，间接高光略有压暗。*
+*图：04-parabolica 24 spp。左：`--clamp 0`（关闭），镜面/折射路径产生大量 firefly；右：`--clamp 5`（刻意取小值使抑制在低 spp 下肉眼可见；该场景默认 clamp 30 与关闭的实测差异在 59 dB 量级——ACES 肩部把残余的超亮贡献压得极扁，8-bit 上不可辨），亮斑消失，间接高光略有压暗。*
 
 ## 4.6 完整伪代码
 
