@@ -8,11 +8,9 @@ NVCC       := $(CUDA_HOME)/bin/nvcc
 BIN2C      := $(CUDA_HOME)/bin/bin2c
 CXX        ?= g++
 
-# IR: 0 = PTX (default), 1 = OptiX-IR.
-# nvcc 13.0 --optix-ir output is rejected by the R610 driver's OptiX loader
-# (empty COMPILE ERROR); PTX JITs fine and the final ISA is identical.
+# Device code ships as PTX (driver JIT): nvcc 13.0's --optix-ir output is
+# rejected by current drivers' OptiX loader — full story in the report, ch09.
 ARCH  ?= sm_120
-IR    ?= 0
 DEBUG ?= 0
 
 CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP \
@@ -29,15 +27,10 @@ LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) -ldl -lpthread \
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
              -Idevice -I$(OPTIX_HOME)/include
 
-ifeq ($(IR),1)
-  DEVFLAG := --optix-ir -arch=$(ARCH)
-  DEVEXT  := optixir
-else
-  DEVFLAG := -ptx -arch=compute_120
-  DEVEXT  := ptx
-endif
+DEVFLAG := -ptx -arch=compute_120
+DEVEXT  := ptx
 ifeq ($(DEBUG),1)
-  CXXFLAGS  := $(filter-out -O2,$(CXXFLAGS)) -O0 -DSUNDOG_DEBUG=1
+  CXXFLAGS  := $(filter-out -O2,$(CXXFLAGS)) -O0
   NVCCFLAGS := $(filter-out --use_fast_math,$(NVCCFLAGS)) -G
 endif
 
@@ -57,7 +50,7 @@ all: $(BUILD)/sundog
 $(BUILD) $(BUILD)/tests:
 	mkdir -p $@
 
-# device code -> OptiX-IR/PTX -> embedded C array
+# device code -> PTX -> embedded C array
 #
 # CUDA 13 nvcc appends a bare `ptxas` verification pass after emitting PTX.
 # OptiX device code calls extern intrinsics (_optix_*) that ptxas cannot
@@ -65,10 +58,6 @@ $(BUILD) $(BUILD)/tests:
 # valid for the OptiX loader. For the PTX path we tolerate the exit code and
 # verify completeness ourselves (all 8 program entry points + closing brace);
 # a real compile error leaves no/partial PTX and still fails the build.
-ifeq ($(IR),1)
-$(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
-	$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $<
-else
 $(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
 	@rm -f $@
 	-@$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $< 2> $(BUILD)/nvcc-ptx.log || true
@@ -80,7 +69,6 @@ $(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/
 	fi; \
 	grep -v 'ptxas.*_optix_\|ptxas fatal' $(BUILD)/nvcc-ptx.log | grep -v '^$$' | head -5 || true; \
 	echo "  [ptx] $@ OK ($$entries entries; nvcc ptxas-verify failure ignored)"
-endif
 
 $(BUILD)/embedded_module.c: $(BUILD)/programs.$(DEVEXT)
 	$(BIN2C) -c --padd 0 --type char --name g_sundog_module $< > $@

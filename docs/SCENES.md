@@ -34,7 +34,7 @@ bowl to aim its convex side away. Remember: `"material"` is the front face.
 - `cutout`: texture name; alpha < 0.5 makes holes (both faces).
 - `transform`: list applied top-down in object space — `[scale, rotate, translate]`
   means translate(rotate(scale(p))). Angles in degrees. Steps: `scale` (number
-  or [x,y,z]), `rotate_x/y/z`, `translate`, `matrix` (12 floats, row-major 3x4).
+  or [x,y,z]), `rotate_x/y/z`, `translate`.
   Non-uniform scale is fine (normals handled correctly).
 - `nee`: set `false` to keep an emissive object out of explicit light sampling
   (it then only contributes when a path hits it).
@@ -64,7 +64,7 @@ bowl to aim its convex side away. Remember: `"material"` is the front face.
 - `solid`: `color`
 - `checker`: `a`, `b`, `scale: [su, sv]`
 - `grid`: `a` (cell), `b` (line), `scale`, `width` (line width, cell fraction)
-- `image`: `file` (PNG etc., relative to the scene file), `srgb` (default true)
+- `image`: `file` (PNG etc., relative to the scene file), `srgb` (default true), bilinear filtering
 
 ## Lights (explicit delta lights)
 
@@ -84,8 +84,8 @@ Area lights are *not* declared here — make an emissive object instead.
 
 ## Render settings
 
-`width height spp max_depth seed clamp gamma exposure` — all overridable from
-the CLI. `clamp` limits indirect per-sample contributions (firefly control,
+`width height spp max_depth seed clamp gamma exposure` — `width/height`,
+`spp`, `seed`, `clamp`, `gamma` also overridable from the CLI. `clamp` limits indirect per-sample contributions (firefly control,
 0 = off). Fixed `seed` gives bit-identical images on the same GPU/driver.
 
 ## Flames（体积火焰光源）

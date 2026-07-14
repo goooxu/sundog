@@ -31,7 +31,6 @@ struct SceneTexture {
   TextureDesc desc{};       // desc.tex filled at upload time for TX_IMAGE
   std::string imageFile;    // TX_IMAGE source path (resolved)
   bool srgb = true;
-  bool nearest = false;     // point sampling (procedural-pattern images)
 };
 
 struct SceneMesh {

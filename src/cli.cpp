@@ -16,14 +16,11 @@ options:
   --out FILE.png      output image
   --spp N             samples per pixel
   --size WxH          resolution
-  --max-depth N       path depth limit
   --seed N            RNG seed (fixed seed => deterministic image)
-  --chunk N           samples per optixLaunch (default 16)
   --denoise           run the OptiX AI denoiser
   --no-denoise        disable denoiser (overrides scene default)
   --clamp F           firefly clamp for indirect light (0 = off)
   --gamma F           output gamma (default 2.2)
-  --exposure F        exposure in EV stops
   --physics-time F    freeze-frame: bake rigid bodies at sim time F seconds
                       instead of settling (0 = force settle-to-sleep)
   --stats FILE.json   write render statistics
@@ -54,14 +51,11 @@ CliOptions parseCli(int argc, char** argv) {
       const char* v = need(i);
       if (sscanf(v, "%dx%d", &o.width, &o.height) != 2) usageDie("--size wants WxH");
     }
-    else if (!strcmp(a, "--max-depth")) o.maxDepth = atoi(need(i));
     else if (!strcmp(a, "--seed")) o.seed = atol(need(i));
-    else if (!strcmp(a, "--chunk")) o.chunk = atoi(need(i));
     else if (!strcmp(a, "--denoise")) o.denoise = 1;
     else if (!strcmp(a, "--no-denoise")) o.denoise = 0;
     else if (!strcmp(a, "--clamp")) o.clampVal = (float)atof(need(i));
     else if (!strcmp(a, "--gamma")) o.gamma = (float)atof(need(i));
-    else if (!strcmp(a, "--exposure")) o.exposure = (float)atof(need(i));
     else if (!strcmp(a, "--physics-time")) {
       o.physicsTime = (float)atof(need(i));
       if (o.physicsTime < 0.0f) usageDie("--physics-time wants a value >= 0");

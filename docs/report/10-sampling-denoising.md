@@ -21,7 +21,7 @@ Pcg32 rng = Pcg32::init(((unsigned long long)pixel << 32) ^ (unsigned long long)
 
 由此可以给出**逐位决定性**的论证：
 
-- 每个样本的整条随机序列只由 $`(\text{pixel}, s, \text{seed})`$ 决定，与 launch 配置无关。spp 按 `--chunk` 分多次 launch 时，$`s`$ 是全局序号（`params.sampleOffset + si`），分块方式不影响任何一次采样；
+- 每个样本的整条随机序列只由 $`(\text{pixel}, s, \text{seed})`$ 决定，与 launch 配置无关。spp 分多次 launch 时，$`s`$ 是全局序号（`params.sampleOffset + si`），分块方式不影响任何一次采样；
 - 序列内的"维度分配"由程序顺序固定：先抖动、再光圈、再 NEE、再 BSDF、再轮盘，代码路径相同则消耗相同；
 - 累积不经过原子浮点加法：每像素每 launch 恰好一个线程，用递推均值 `accum += (L - accum)/(s+1)` 顺序更新，浮点运算顺序完全固定，与线程调度无关。
 
@@ -61,7 +61,7 @@ case TX_IMAGE:
 $`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。host 侧的上传流程在 `TextureSet::upload()`（src/textures.cpp）：stb_image 把 PNG 统一解码成 RGBA8，拷进 `cudaArray`，再创建纹理对象，几项配置各有含义——
 
 - **wrap 寻址**：两个方向都是 `cudaAddressModeWrap`，UV 超出 $`[0,1)`$ 时周期平铺，棋盘地板类场景直接复用一张小图；
-- **过滤**：默认 `cudaFilterModeLinear` 即双线性过滤（bilinear filtering），取周围 4 个纹素（texel）按距离加权混合，避免放大时的马赛克；场景可指定 `nearest` 换成点采样；
+- **过滤**：默认 `cudaFilterModeLinear` 即双线性过滤（bilinear filtering），取周围 4 个纹素（texel）按距离加权混合，避免放大时的马赛克；
 - **sRGB 硬件解码**：8 位美术资源几乎都存成 sRGB 编码（近似 $`\gamma=2.2`$ 的感知均匀编码），而[第 1 章·成像与光线](01-images-and-rays.md)说过一切光照运算必须在线性空间进行。置位 `td.sRGB` 后，纹理单元在取样时逐纹素硬件解码成线性浮点、**然后**才做双线性混合——顺序正确且零开销。若在渲染方程里直接拿 sRGB 值当反照率，所有中间调都会系统性偏暗。
 
 第四个通道 alpha 用于镂空：任意命中程序 `maskAnyhit()`（device/programs.cu）采样 cutout 纹理，$`\alpha<0.5`$ 就 `optixIgnoreIntersection()` 当作没打中（机制见第 9 章）。辐射光线与阴影光线走同一逻辑，所以镂空的影子也是镂空的。

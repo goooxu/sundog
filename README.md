@@ -88,8 +88,8 @@ source scripts/env-testbox.sh
 make -j16                        # 产出 $SUNDOG_BUILD/sundog
 ```
 
-可调项：`ARCH=sm_120`、`DEBUG=1`（`-O0 -G`）、`IR=1`（OptiX-IR，**当前不可用**，
-见 `docs/ARCHITECTURE.md` 的已知问题——默认走 PTX JIT）。
+可调项：`ARCH=sm_120`、`DEBUG=1`（`-O0 -G`）。设备代码走 PTX JIT——
+OptiX-IR 在目标驱动上不可用，来龙去脉见技术报告第 9 章 §9.6。
 
 ## CLI
 
@@ -98,11 +98,11 @@ sundog --scene FILE --out FILE.png [options]
 sundog --probe
 
 --spp N            每像素采样数          --seed N       固定种子 => 决定性输出
---size WxH         分辨率                --chunk N      每次 optixLaunch 的 spp（默认 16）
---max-depth N      路径深度上限          --clamp F      间接光 firefly 钳制（0 = 关）
+--size WxH         分辨率
+--clamp F          间接光 firefly 钳制（0 = 关）
 --denoise / --no-denoise                 --gamma F      输出 gamma（默认 2.2）
 --physics-time F   刚体定格于模拟第 F 秒（0 = 强制沉降到静止）
---stats FILE.json  渲染统计              --exposure F   曝光（EV）
+--stats FILE.json  渲染统计
 --aov-albedo / --aov-normal F.png        --probe        打印 GPU/驱动/OptiX 信息
 --quiet            关闭进度输出
 ```
@@ -130,7 +130,7 @@ scripts/make-goldens.sh     # 重新生成 tests/golden/（渲染器有意变更
 ## 基准与画廊
 
 ```bash
-scripts/run-benchmark.sh        # 两层基准（特性/降噪）-> docs/BENCHMARKS.md（--quick 自测流程）
+scripts/run-benchmark.sh        # 两层基准（特性/降噪）-> docs/BENCHMARKS.md
 scripts/render-gallery.sh       # 1080p 正式渲染 -> out/gallery/ + docs/GALLERY.md
 ```
 
@@ -144,7 +144,7 @@ scenes/       场景 JSON + 纹理
 assets/       网格资产（spot.obj，CC0，来源见 assets/LICENSES.md）
 tests/        场景解析单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
-docs/         SCENES.md、ARCHITECTURE.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图
+docs/         SCENES.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图
 docs/report/  技术报告（14 章 + 附录 + figures/，见 report/index.md）
 out/          渲染输出（不入库）
 ```

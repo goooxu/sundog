@@ -38,7 +38,7 @@ std::vector<TextureDesc> TextureSet::upload(Scene& scene) {
       cudaTextureDesc td{};
       td.addressMode[0] = cudaAddressModeWrap;
       td.addressMode[1] = cudaAddressModeWrap;
-      td.filterMode = st.nearest ? cudaFilterModePoint : cudaFilterModeLinear;
+      td.filterMode = cudaFilterModeLinear;
       td.readMode = cudaReadModeNormalizedFloat;
       td.normalizedCoords = 1;
       td.sRGB = st.srgb ? 1 : 0;

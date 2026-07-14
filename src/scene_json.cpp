@@ -59,10 +59,6 @@ static Affine parseTransform(const json& arr) {
       step = affineRotateY(it.value().get<float>() * d2r);
     } else if (k == "rotate_z") {
       step = affineRotateZ(it.value().get<float>() * d2r);
-    } else if (k == "matrix") {
-      const auto& v = it.value();
-      if (!v.is_array() || v.size() != 12) fail("matrix needs 12 floats (row-major 3x4)");
-      for (int i = 0; i < 12; i++) step.m[i] = v[i].get<float>();
     } else {
       fail("unknown transform step '" + k + "'");
     }
@@ -171,7 +167,6 @@ Scene loadScene(const std::string& path) {
         st.desc.kind = TX_IMAGE;
         st.imageFile = t.at("file").get<std::string>();
         st.srgb = t.value("srgb", true);
-        st.nearest = t.value("filter", "linear") == std::string("nearest");
       } else {
         fail("unknown texture type '" + kind + "'");
       }

@@ -172,7 +172,7 @@
 3. sundog 的 megakernel 决策——路径循环放 raygen、trace depth=1、CH 只打包命中信息（8 个 payload 寄存器布局表，对账 programs.cu 顶部注释与 `packHit()`）
 4. SBT——records、`sbtOffset = 2×instanceId`、radiance/shadow 两套 hitgroup、8 个 PG 变体矩阵（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））
 5. anyhit 的三件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用同一逻辑；DISABLE_ANYHIT 快速路径（对账 `maskAnyhit()` 与 accel.cpp 实例 flags）
-6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过（引 ARCHITECTURE.md）
+6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过
 
 图：
 - `figures/ch09-app-flow.svg`：七步生命周期泳道图（主机一次性准备 → 渲染循环 ⑤↔⑥ → 降噪落盘，框内标源文件，硬件/软件分色）

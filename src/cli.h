@@ -14,13 +14,10 @@ struct CliOptions {
   // -1 / NaN = "not set on the command line" (scene JSON value wins)
   int spp = -1;
   int width = -1, height = -1;
-  int maxDepth = -1;
   long seed = -1;
-  int chunk = -1;
   int denoise = -1;   // -1 unset, 0 off, 1 on
   float clampVal = -1.0f;
   float gamma = -1.0f;
-  float exposure = -1e30f;
   float physicsTime = -1.0f;  // >=0 overrides physics stop_time (0 = settle)
   bool probe = false;
   bool quiet = false;

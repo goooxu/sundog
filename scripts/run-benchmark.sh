@@ -12,9 +12,7 @@
 #                each against a 4096 spp reference (img_compare).
 # Missing scenes are skipped and noted in the report.
 #
-# usage: run-benchmark.sh [--quick]
-#   --quick  plumbing self-test: substitutes smoke.json + tiny spp everywhere
-#            and writes /tmp/sundog-bench-quick.md instead of docs/BENCHMARKS.md
+# usage: run-benchmark.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,18 +20,9 @@ SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
 SUNDOG="$SUNDOG_BUILD/sundog"
 IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 
-QUICK=0
-[ "${1:-}" = "--quick" ] && QUICK=1
-
-if [ "$QUICK" = 1 ]; then
-  OUT_MD=/tmp/sundog-bench-quick.md
-  FEATURE_SCENES=(smoke)
-  DN_SCENE=smoke DN_REF_SPP=64 DN_TEST_SPP=4
-else
-  OUT_MD="$ROOT/docs/BENCHMARKS.md"
-  FEATURE_SCENES=(01-marble-run 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore)
-  DN_SCENE=09-ember-shore DN_REF_SPP=4096 DN_TEST_SPP=16
-fi
+OUT_MD="$ROOT/docs/BENCHMARKS.md"
+FEATURE_SCENES=(01-marble-run 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore)
+DN_SCENE=09-ember-shore DN_REF_SPP=4096 DN_TEST_SPP=16
 DN_SIZE=1920x1080
 
 fail() { echo "run-benchmark: FAIL: $*" >&2; exit 1; }
@@ -109,7 +98,6 @@ mkdir -p "$(dirname "$OUT_MD")"
   echo "# sundog 基准"
   echo
   echo "由 \`scripts/run-benchmark.sh\` 生成于 $(date -Is)。GPU：$gpu_name。"
-  [ "$QUICK" = 1 ] && { echo; echo "> **--quick 自测模式**：数据仅验证脚本流程，无参考价值。"; }
   echo
   echo "## A. 特性层 — 画廊场景（1920x1080 / 64 spp / 不降噪）"
   echo

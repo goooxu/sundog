@@ -45,13 +45,10 @@ int main(int argc, char** argv) {
     Scene scene = loadScene(cli.scene);
     if (cli.spp > 0) scene.render.spp = cli.spp;
     if (cli.width > 0) { scene.render.width = cli.width; scene.render.height = cli.height; }
-    if (cli.maxDepth > 0) scene.render.maxDepth = cli.maxDepth;
     if (cli.seed >= 0) scene.render.seed = (unsigned)cli.seed;
-    if (cli.chunk > 0) scene.render.chunk = cli.chunk;
     if (cli.denoise >= 0) scene.render.denoise = cli.denoise == 1;
     if (cli.clampVal >= 0.0f) scene.render.clampVal = cli.clampVal;
     if (cli.gamma > 0.0f) scene.render.gamma = cli.gamma;
-    if (cli.exposure > -1e29f) scene.render.exposure = cli.exposure;
     const RenderSettings& rs = scene.render;
 
     TextureSet textureSet;

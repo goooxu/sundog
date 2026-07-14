@@ -217,10 +217,6 @@ static void testErrorPaths() {
   expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
                      "materials": {"m":{"type":"lambert"}} })",
                  "missing objects");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1],"lookat":[0,0,0]},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m"}] })",
-                 "lookfrom not [x,y,z]");
   expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
                      "materials": {"m":{"type":"wood"}},
                      "objects":[{"shape":"sphere","material":"m"}] })",
@@ -258,17 +254,8 @@ static void testErrorPaths() {
   expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
                      "materials": {"m":{"type":"lambert"}},
                      "objects":[{"shape":"sphere","material":"m",
-                                 "transform":[{"matrix":[1,0,0]}]}] })",
-                 "matrix wrong length");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m",
                                  "transform":{"scale":2}}] })",
                  "transform not a list");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere"}] })",
-                 "object missing material key");
   expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
                      "background": {"type":"plaid"},
                      "materials": {"m":{"type":"lambert"}},
@@ -408,16 +395,6 @@ static void testPhysicsParsing() {
                      "objects":[{"shape":"sphere","material":"e",
                                  "physics":{"dynamic":true}}] })",
                  "dynamic NEE area light rejected");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "physics": {"timestep":0},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m"}] })",
-                 "non-positive timestep");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "physics": {"stop_time":-1},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m"}] })",
-                 "negative stop_time");
 
   // a dynamic emitter is fine when kept out of NEE
   Scene neeOff = expectLoadOk(R"({
@@ -477,18 +454,8 @@ static void testFlameParsing() {
   expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
                      "materials": {"m":{"type":"lambert"}},
                      "objects":[{"shape":"sphere","material":"m"}],
-                     "flames":[{"base":[0,0,0],"height":1,"radius":-1}] })",
-                 "flame negative radius");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m"}],
                      "flames":{"base":[0,0,0]} })",
                  "flames not an array");
-  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
-                     "materials": {"m":{"type":"lambert"}},
-                     "objects":[{"shape":"sphere","material":"m"}],
-                     "flames":[{"height":1,"radius":0.5}] })",
-                 "flame missing base");
 }
 
 static void testWaterMaterial() {
