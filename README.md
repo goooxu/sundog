@@ -33,6 +33,12 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 **Lakeside** — `water` 材质三件套：ior 1.33 电介质界面、fbm 波纹法线
 （倒影破碎与落日波光路径）、Beer–Lambert 水体吸收（深水偏蓝绿）。
 
+![Suncatcher](docs/gallery/10-suncatcher.png)
+
+**Suncatcher** — 全场零显式灯，照明百分之百来自一张 4k HDR 晴日天空：
+**环境光重要性采样**（亮度 × sinθ 的 2D CDF）让 NEE 直接命中小而炽烈的太阳，
+硬影与天光软照明同源一张图片；粗糙度渐变的金属弧列把流云糊成高光阶梯。
+
 | ![16 spp 原始](docs/gallery/09-ember-shore-spp16-raw.png) | ![16 spp + AI 降噪](docs/gallery/09-ember-shore-spp16-denoised.png) |
 |:---:|:---:|
 | 余烬湖岸 16 spp 原始蒙特卡洛（体积火焰 + 水面 = 重噪声） | 同样 16 spp + **OptiX AI 降噪** |
