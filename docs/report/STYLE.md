@@ -76,6 +76,13 @@
 | 高度场 | height field | y = H(x,z) 的隐函数曲面 |
 | 法线扰动 | normal perturbation | 只骗着色、不动几何的波纹手法 |
 | 波光路径 | sun glitter | 波面法线抖动拉出的镜面亮带 |
+| 环境贴图 | environment map / envmap | 无穷远处包住场景的球面光源图像 |
+| 基于图像的照明 | image-based lighting / IBL | 用环境贴图充当光源 |
+| 等距柱状投影 | equirectangular | 经纬直展的方向↔像素映射 |
+| 高动态范围 | high dynamic range / HDR | 浮点辐亮度；Radiance .hdr 格式 |
+| 累积分布函数 | cumulative distribution function / CDF | 逆变换采样的查找表 |
+| 逆变换采样 | inverse transform sampling | 均匀随机数经 CDF⁻¹ 得目标分布 |
+| 边缘 / 条件分布 | marginal / conditional distribution | 2D 采样"先选行再选列"的分解 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | |

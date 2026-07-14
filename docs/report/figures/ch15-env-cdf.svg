@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+  </defs>
+  <rect width="940" height="500" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">两级 CDF：亮度图 → 先选行（边缘）→ 再选列（条件）</text>
+
+  <!-- ===== panel 1: luminance image ===== -->
+  <text x="150" y="72" text-anchor="middle" font-size="16" fill="#334155">① 亮度 × sinθ</text>
+  <rect x="40" y="86" width="220" height="150" stroke="#334155" stroke-width="2" fill="#EFF6FF"/>
+  <!-- sky gradient rows (lighter near horizon) -->
+  <rect x="40" y="86" width="220" height="30" fill="#93C5FD" fill-opacity="0.45"/>
+  <rect x="40" y="116" width="220" height="30" fill="#93C5FD" fill-opacity="0.60"/>
+  <rect x="40" y="146" width="220" height="30" fill="#BFDBFE" fill-opacity="0.75"/>
+  <rect x="40" y="176" width="220" height="30" fill="#E0E7EF" fill-opacity="0.8"/>
+  <rect x="40" y="206" width="220" height="30" fill="#CBD5E1" fill-opacity="0.5"/>
+  <!-- the sun texel -->
+  <rect x="150" y="120" width="12" height="10" fill="#F59E0B"/>
+  <circle cx="156" cy="125" r="11" fill="none" stroke="#B45309" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="176" y="118" font-size="14" fill="#B45309">太阳：几个纹素占掉大半能量</text>
+  <!-- sun row highlight -->
+  <rect x="40" y="120" width="220" height="10" fill="#F59E0B" fill-opacity="0.18"/>
+  <text x="150" y="260" text-anchor="middle" font-size="14" fill="#64748B">行 r*（含太阳）被高亮</text>
+
+  <!-- ===== panel 2: marginal CDF over rows ===== -->
+  <text x="480" y="72" text-anchor="middle" font-size="16" fill="#334155">② 行边缘 CDF：u₁ → 行</text>
+  <!-- axes -->
+  <line x1="370" y1="236" x2="600" y2="236" stroke="#334155" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="370" y1="236" x2="370" y2="90" stroke="#334155" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="600" y="256" text-anchor="end" font-size="13.5" fill="#64748B">行号 0…H−1</text>
+  <text x="362" y="96" text-anchor="end" font-size="13.5" fill="#64748B">1</text>
+  <text x="362" y="240" text-anchor="end" font-size="13.5" fill="#64748B">0</text>
+  <!-- CDF curve: slow rise, steep jump at sun row, slow to 1 -->
+  <path d="M 370,236 L 430,224 L 452,218 L 452,132 L 470,126 L 540,112 L 600,104"
+        fill="none" stroke="#2563EB" stroke-width="2.5"/>
+  <!-- u1 lookup -->
+  <line x1="370" y1="170" x2="452" y2="170" stroke="#16A34A" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <line x1="452" y1="170" x2="452" y2="236" stroke="#16A34A" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+  <text x="382" y="163" font-size="14" fill="#16A34A">u₁</text>
+  <text x="456" y="252" font-size="14" fill="#16A34A">r*（二分）</text>
+  <text x="500" y="170" font-size="13.5" fill="#B45309">陡峭段 = 太阳行：</text>
+  <text x="500" y="188" font-size="13.5" fill="#B45309">大段 u₁ 都落进它</text>
+
+  <!-- ===== panel 3: conditional CDF within the row ===== -->
+  <text x="790" y="72" text-anchor="middle" font-size="16" fill="#334155">③ 行内条件 CDF：u₂ → 列</text>
+  <line x1="680" y1="236" x2="910" y2="236" stroke="#334155" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="680" y1="236" x2="680" y2="90" stroke="#334155" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="910" y="256" text-anchor="end" font-size="13.5" fill="#64748B">列号 0…W−1</text>
+  <path d="M 680,236 L 740,228 L 774,222 L 774,120 L 800,114 L 870,106 L 910,102"
+        fill="none" stroke="#2563EB" stroke-width="2.5"/>
+  <line x1="680" y1="168" x2="774" y2="168" stroke="#16A34A" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <line x1="774" y1="168" x2="774" y2="236" stroke="#16A34A" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+  <text x="692" y="161" font-size="14" fill="#16A34A">u₂</text>
+  <text x="778" y="252" font-size="14" fill="#16A34A">c*（二分）</text>
+
+  <!-- ===== flow arrows between panels ===== -->
+  <line x1="268" y1="160" x2="360" y2="160" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="314" y="148" text-anchor="middle" font-size="13.5" fill="#64748B">逐行求和</text>
+  <line x1="608" y1="160" x2="670" y2="160" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="639" y="148" text-anchor="middle" font-size="13.5" fill="#64748B">取 r* 行</text>
+
+  <!-- ===== bottom: assembly ===== -->
+  <rect x="40" y="300" width="870" height="120" rx="8" stroke="#94A3B8" stroke-width="1.5" fill="#F8FAFC"/>
+  <text x="60" y="330" font-size="16" fill="#334155">拼回方向与密度（对账 sampleEnv()（device/env_light.cuh））：</text>
+  <text x="80" y="360" font-size="15.5" fill="#334155">v = (r* + dv)/H，u = (c* + du)/W　→　θ = πv，φ = 2πu − π + ρ　→　ω = (sinθcosφ, cosθ, sinθsinφ)</text>
+  <text x="80" y="392" font-size="15.5" fill="#334155">pdf_ω = Δm · Δc · W · H / (2π² · sinθ)　——　Δm、Δc 就是两条 CDF 在所选区间的高度差，采样与查询共用同一份差分</text>
+  <text x="470" y="452" text-anchor="middle" font-size="14.5" fill="#64748B">两个均匀随机数 (u₁,u₂) 经两次二分搜索，落点频率正比于纹素亮度×sinθ——亮的太阳被"按亮度"频繁选中，这就是逆变换采样（第 3 章）</text>
+</svg>

@@ -7,7 +7,7 @@
 
 ## index.md（集成阶段编写）
 
-阅读指南（三条路径：只看原理 01-05 / 只看工程 08-14 / 全读）、章节导航表、
+阅读指南（三条路径：只看原理 01-05 / 只看工程 08-15 / 全读）、章节导航表、
 致谢与延伸阅读（PBRT、Ray Tracing in One Weekend、OptiX Programming Guide）。
 
 ---
@@ -260,14 +260,34 @@
 1. 水面的三层拆解——界面 = ior 1.33 电介质（第 5 章"站在湖边"直觉闭环；对账 bsdfSample() 的 MT_WATER/MT_DIELECTRIC 共享分支（device/bsdf.cuh））、波纹 = 法线扰动、水体 = 介质吸收；三层独立可开关（配 anatomy 三联）
 2. 波纹：高度场与法线扰动——y=H(x,z) 梯度法线推导（回链第 6 章）、fbm 高度场中心差分（对账 waterNormal()（device/noise.cuh））、掠射角防黑边回退；波光路径成因（法线锥 → 沿视线拉长的镜面亮带，配示意图）
 3. 水色：介质吸收——Beer–Lambert 回链第 13 章、σ_r>σ_g>σ_b 波长偏心（红光半衰深度 ln2/0.45≈1.5 单位算给读者）；raygen 介质状态记账（透射切换/TIR 不切换/介质内 miss 大程长衰减，对账 mediumAbsorb 段（device/programs.cu））
-4. 工程记账与边界——嵌套介质不支持；水下 NEE 死区（回链附录陷阱 3）；实测引 BENCHMARKS（08：0.030 s / 7534 Mrays/s，全画廊最快的原因）；golden 101 dB 事件 = 第 11 章 45 dB 阈值设计的现场兑现
-5. 小结——三层组合的自然涌现；收束链接附录
+4. 工程记账与边界——嵌套介质不支持；水下 NEE 死区（回链附录陷阱 3）；实测引 BENCHMARKS（08：0.030 s / 7445 Mrays/s，全画廊最快的原因）；golden 101 dB 事件 = 第 11 章 45 dB 阈值设计的现场兑现
+5. 小结——三层组合的自然涌现；链式交棒第 15 章（环境光照）
 
 图：
 - `figures/ch14-water-layers.svg`：纵剖面三层解剖（Fresnel 分光/法线锥/深度色衰减）
 - `figures/ch14-glitter.svg`：波光路径成因（法线抖动锥 → 亮带）
 - `figures/ch14-anatomy.png`：三联（wave_amp 0 / 默认 / absorb 0）
 - 复用 `../gallery/08-lakeside.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
+## 15-envlight.md 环境光照：HDR 环境贴图与重要性采样
+
+**回答**：一张天空照片怎么变成可采样的光源？小而亮的太阳为什么是均匀采样的灾难、重要性采样的主场？
+
+小节：
+1. 从"背景"到"光源"——solid/gradient 只是 miss 时的着色，NEE 采不到它；无穷远球面光源的形式化：L_env 只依赖方向、渲染方程的边界项（对账 evalBackground() 的 BG_ENVMAP 分支（device/programs.cu））
+2. HDR 与 equirect 映射——太阳与天空差 4-5 个数量级、8-bit + sRGB 装不下；Radiance RGBE 共享指数格式一段（stbi_loadf 解码）；(u,v)↔(θ,φ) 双向映射、rotate = 方位角平移、两极拉伸畸变与面积元 sinθ dθdφ（对账 envDirToUv() / envEval()（device/env_light.cuh）与 EnvMap::upload()（src/env_light.cpp）的 float4 纹理路径）
+3. 把亮度变成概率——目标 pdf ∝ 亮度×sinθ（畸变补偿的由来）；行边缘 CDF + 行内条件 CDF 的两级构造；逆变换采样两次二分（回链第 3 章）；立体角 pdf 换元 p(ω) = p(u,v)/(2π² sinθ) 完整推导与白图自检 1/4π（对账 CDF 构建循环（src/env_light.cpp）与 sampleEnv() / envPdfSolidAngle()（device/env_light.cuh））
+4. 与 NEE/MIS 的接驳——环境光是一盏"方向域光源"：策略集 nStrat = numLights + hasEnv 均匀选一、选择概率折进两侧 pdf；BSDF 光线逃逸即"命中"环境光，miss 分支权重与第 4 章两式逐字互补；importance:false 的均匀球面对照（pdf=1/4π）；玻璃后的太阳焦散仍靠 BSDF 路径（回链附录陷阱 3）（对账 raygen 的 nStrat/miss 权重/NEE 分支（device/programs.cu））
+5. 工程记账与实测——CDF 构建耗时与显存增量（float4 4k 贴图 + 两级 CDF，stats 实测）；均匀 vs 重要性等 spp 对比的定量 PSNR；白炉测试（纯白环境+白球=常数）验证 MIS 无重复计数；决定性口径不破（无 env 场景 RNG 消耗逐位不变的设计约束）；限制如实声明（引 BENCHMARKS.md 10 行）
+
+图：
+- `figures/ch15-equirect-mapping.svg`：球面方向域↔矩形 (u,v)、两极拉伸、sinθ 因子
+- `figures/ch15-env-cdf.svg`：亮度图→行边缘 CDF→条件 CDF→两次逆变换查找（太阳行的尖峰画出来）
+- `figures/ch15-uniform-vs-importance.png`：四联条带（均匀/重要性 × 16/256 spp）
+- `figures/ch15-env-luminance.png`：数据图——envmap 缩略图 + 逐行边缘亮度曲线（log），能量集中在极小立体角的直观证据
+- 复用 `../gallery/10-suncatcher.png` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -304,6 +324,7 @@
 | ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 | ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
 | ch14-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
+| ch15-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -313,6 +334,7 @@
 |---|---|---|
 | ch03-mc-convergence.png | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
 | ch05-fresnel-curves.png | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
+| ch15-env-luminance.png | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |
 
 风格：白底、单一强调色系（蓝 #2563EB 主色、灰网格线）、中文标签（若字体缺中文则英文标签）、300 dpi 导出后≤1600px 宽。
 
@@ -326,7 +348,8 @@ ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
 ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
 ch12-physics-pipeline, ch12-trs-bake, ch13-radiative-transfer,
 ch13-flame-field, ch14-water-layers, ch14-glitter,
-appendix-lambert-bias（共 29 张）
+ch15-equirect-mapping, ch15-env-cdf,
+appendix-lambert-bias（共 31 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；

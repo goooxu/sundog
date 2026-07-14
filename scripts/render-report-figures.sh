@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 12 comparison PNGs from the
+# sundog report figures — renders the 13 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
@@ -350,5 +350,36 @@ python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
   "$RAW/ch14-water-flat.png|wave_amp 0（静水镜面）" \
   "$RAW/ch14-water-waves.png|默认（波纹 + 波光）" \
   "$RAW/ch14-water-noabsorb.png|absorb 0（无水色）"
+
+# --------------------------------------- ch15-uniform-vs-importance.png
+# 10-suncatcher with importance:false (uniform sphere NEE) vs default, at
+# 16 and 256 spp. The variant lives in /tmp, so relative asset paths are
+# rewritten to absolute ones first.
+UNI="/tmp/report-suncatcher-uniform.json"
+python3 - "$ROOT/scenes/10-suncatcher.json" "$UNI" <<'PY'
+import json, os, sys
+src, dst = sys.argv[1:]
+base = os.path.dirname(os.path.abspath(src))
+s = json.load(open(src))
+assert s["background"]["type"] == "envmap"
+s["background"]["importance"] = False
+s["background"]["file"] = os.path.normpath(os.path.join(base, s["background"]["file"]))
+for m in s.get("meshes", {}).values():
+    m["obj"] = os.path.normpath(os.path.join(base, m["obj"]))
+for t in s.get("textures", {}).values():
+    if "file" in t:
+        t["file"] = os.path.normpath(os.path.join(base, t["file"]))
+json.dump(s, open(dst, "w"))
+print("wrote", dst)
+PY
+for spp in 16 256; do
+  render "ch15-uni-$spp" "$UNI"                             --size 480x270 --spp "$spp"
+  render "ch15-imp-$spp" "$ROOT/scenes/10-suncatcher.json"  --size 480x270 --spp "$spp"
+done
+python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
+  "$RAW/ch15-uni-16.png|均匀采样 · 16 spp" \
+  "$RAW/ch15-imp-16.png|重要性采样 · 16 spp" \
+  "$RAW/ch15-uni-256.png|均匀采样 · 256 spp" \
+  "$RAW/ch15-imp-256.png|重要性采样 · 256 spp"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

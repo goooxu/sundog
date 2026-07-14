@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="470" viewBox="0 0 940 470" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563EB"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+  <rect width="940" height="470" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">等距柱状投影：方向球面 ↔ 矩形 (u,v)</text>
+
+  <!-- ===== left: direction sphere ===== -->
+  <circle cx="210" cy="240" r="130" stroke="#334155" stroke-width="2" fill="#2563EB" fill-opacity="0.06"/>
+  <!-- lat lines (ellipses) -->
+  <g stroke="#94A3B8" stroke-width="1" fill="none">
+    <ellipse cx="210" cy="175" rx="97.5" ry="24"/>
+    <ellipse cx="210" cy="240" rx="130" ry="32"/>
+    <ellipse cx="210" cy="305" rx="97.5" ry="24"/>
+    <path d="M 210,110 A 130,130 0 0 1 210,370" stroke-dasharray="4 3"/>
+    <ellipse cx="210" cy="240" rx="60" ry="130" stroke-dasharray="4 3"/>
+  </g>
+  <!-- poles -->
+  <text x="210" y="98" text-anchor="middle" font-size="15" fill="#334155">+Y 天顶（θ=0，v=0）</text>
+  <text x="210" y="394" text-anchor="middle" font-size="15" fill="#334155">−Y 天底（θ=π，v=1）</text>
+  <!-- direction omega -->
+  <line x1="210" y1="240" x2="313" y2="152" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrO)"/>
+  <text x="322" y="146" font-size="16" fill="#B45309">ω</text>
+  <!-- theta arc from up axis -->
+  <line x1="210" y1="240" x2="210" y2="118" stroke="#334155" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <path d="M 210,190 A 50,50 0 0 1 248,208" fill="none" stroke="#16A34A" stroke-width="2"/>
+  <text x="242" y="188" font-size="15" fill="#16A34A">θ = acos(ω·y)</text>
+  <!-- phi arc on equator -->
+  <path d="M 265,253 A 60,16 0 0 1 218,271" fill="none" stroke="#2563EB" stroke-width="2"/>
+  <text x="238" y="296" font-size="15" fill="#2563EB">φ = atan2(ω_z, ω_x)</text>
+
+  <!-- ===== middle: mapping arrows ===== -->
+  <line x1="380" y1="212" x2="520" y2="212" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="450" y="196" text-anchor="middle" font-size="15" fill="#334155">u = (φ − ρ + π)/2π</text>
+  <text x="450" y="238" text-anchor="middle" font-size="15" fill="#334155">v = θ/π</text>
+  <line x1="520" y1="268" x2="380" y2="268" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="450" y="292" text-anchor="middle" font-size="14" fill="#64748B">rotate ρ 只是 u 的平移</text>
+
+  <!-- ===== right: (u,v) rectangle ===== -->
+  <rect x="545" y="110" width="360" height="260" stroke="#334155" stroke-width="2" fill="#2563EB" fill-opacity="0.05"/>
+  <!-- grid: equal-angle rows -->
+  <g stroke="#94A3B8" stroke-width="1">
+    <line x1="545" y1="175" x2="905" y2="175"/>
+    <line x1="545" y1="240" x2="905" y2="240"/>
+    <line x1="545" y1="305" x2="905" y2="305"/>
+    <line x1="635" y1="110" x2="635" y2="370"/>
+    <line x1="725" y1="110" x2="725" y2="370"/>
+    <line x1="815" y1="110" x2="815" y2="370"/>
+  </g>
+  <text x="545" y="100" font-size="15" fill="#334155">u=0</text>
+  <text x="905" y="100" text-anchor="end" font-size="15" fill="#334155">u=1</text>
+  <text x="538" y="122" text-anchor="end" font-size="15" fill="#334155">v=0</text>
+  <text x="538" y="372" text-anchor="end" font-size="15" fill="#334155">v=1</text>
+  <!-- mapped point -->
+  <circle cx="770" cy="165" r="6" fill="#F59E0B"/>
+  <text x="782" y="160" font-size="15" fill="#B45309">(u,v)</text>
+  <!-- pole stretch shading -->
+  <rect x="545" y="110" width="360" height="22" fill="#F59E0B" fill-opacity="0.16"/>
+  <rect x="545" y="348" width="360" height="22" fill="#F59E0B" fill-opacity="0.16"/>
+  <text x="725" y="126" text-anchor="middle" font-size="13.5" fill="#B45309">整行 ← 极点附近一小簇方向（拉伸畸变）</text>
+  <text x="725" y="363" text-anchor="middle" font-size="13.5" fill="#B45309">同上：底行对应天底小帽</text>
+
+  <!-- ===== bottom: area element ===== -->
+  <text x="470" y="430" text-anchor="middle" font-size="16" fill="#334155">面积元：dω = sinθ · dθ · dφ = 2π² · sinθ · du · dv —— 靠近两极 sinθ→0，</text>
+  <text x="470" y="454" text-anchor="middle" font-size="16" fill="#334155">同样一格 (du,dv) 覆盖的立体角越小：这正是采样目标里 ×sinθ 权重的来源（§15.3）</text>
+</svg>

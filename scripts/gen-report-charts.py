@@ -21,7 +21,7 @@ Options:
   --skip-render      reuse mc-convergence.json instead of rendering
   --build-dir DIR    sundog build dir (default $SUNDOG_BUILD or /tmp/sundog-build)
   --work-dir DIR     scratch dir for intermediate renders (default /tmp/report-charts)
-  --only LIST        comma list of charts: convergence,fresnel
+  --only LIST        comma list of charts: convergence,fresnel,env
 """
 
 import argparse
@@ -45,6 +45,7 @@ FIG_DIR = ROOT / "docs" / "report" / "figures"
 SRC_DIR = FIG_DIR / "src"
 BENCHMARKS_MD = ROOT / "docs" / "BENCHMARKS.md"
 SCENE = ROOT / "scenes" / "02-cornell-lume.json"
+ENV_HDR = ROOT / "assets" / "kloofendal_48d_partly_cloudy_puresky_4k.hdr"
 
 # ---- report chart style (frozen: see docs/report/OUTLINE.md) ----------------
 PRIMARY = "#2563EB"   # accent blue
@@ -258,6 +259,80 @@ def chart_fresnel():
 
 
 
+# ---------------------------------------------------------------- chart 3 ---
+
+def read_hdr_rgbe(path):
+    """Minimal Radiance .hdr reader (new-style RLE), matching stb's
+    rgbe -> float mapping f = ldexp(1, e - 136). Returns float32 (H, W, 3)."""
+    with open(path, "rb") as f:
+        if not f.readline().startswith(b"#?"):
+            sys.exit(f"{path}: not a Radiance file")
+        while f.readline().strip():
+            pass  # header key=value lines until the blank separator
+        m = re.match(rb"-Y (\d+) \+X (\d+)", f.readline())
+        if not m:
+            sys.exit(f"{path}: unsupported resolution line")
+        h, w = int(m.group(1)), int(m.group(2))
+        img = np.empty((h, w, 4), np.uint8)
+        for y in range(h):
+            head = f.read(4)
+            if head[0] != 2 or head[1] != 2 or (head[2] << 8 | head[3]) != w:
+                sys.exit(f"{path}: expected new-style RLE scanline")
+            for c in range(4):
+                row = np.empty(w, np.uint8)
+                x = 0
+                while x < w:
+                    n = f.read(1)[0]
+                    if n > 128:  # run of one repeated byte
+                        row[x:x + n - 128] = f.read(1)[0]
+                        x += n - 128
+                    else:        # n literal bytes
+                        row[x:x + n] = np.frombuffer(f.read(n), np.uint8)
+                        x += n
+                img[y, :, c] = row
+    scale = np.ldexp(1.0, img[:, :, 3].astype(np.int32) - 136)
+    return (img[:, :, :3].astype(np.float32) * scale[:, :, None].astype(np.float32))
+
+
+def chart_env():
+    if not ENV_HDR.exists():
+        sys.exit(f"{ENV_HDR} missing — run scripts/fetch-assets.sh first")
+    rgb = read_hdr_rgbe(ENV_HDR)
+    h, w = rgb.shape[:2]
+    lum = 0.2126 * rgb[:, :, 0] + 0.7152 * rgb[:, :, 1] + 0.0722 * rgb[:, :, 2]
+    sin_t = np.sin(np.pi * (np.arange(h) + 0.5) / h)
+    marginal = (lum * sin_t[:, None]).sum(axis=1)
+
+    fig, (ax_img, ax) = plt.subplots(
+        2, 1, figsize=(FIGSIZE[0], 6.2),
+        gridspec_kw={"height_ratios": [1.0, 1.15], "hspace": 0.28})
+
+    # top: tonemapped thumbnail with the sun row marked
+    thumb = rgb[::4, ::4]
+    tm = np.power(thumb / (1.0 + thumb), 1 / 2.2)
+    ax_img.imshow(tm, extent=[0, w, h, 0], aspect="auto")
+    sun_row = int(np.argmax(marginal))
+    ax_img.axhline(sun_row, color=PRIMARY, lw=1.4, ls="--")
+    ax_img.set_title("kloofendal 4k equirect panorama (dashed = sun row)")
+    ax_img.set_xticks([]); ax_img.set_yticks([])
+
+    # bottom: per-row marginal luminance (the CDF's target function)
+    ax.semilogy(np.arange(h), marginal, color=PRIMARY, lw=1.2)
+    ax.axvline(sun_row, color=SECONDARY, lw=1.0, ls="--")
+    peak = marginal[sun_row]
+    med = float(np.median(marginal[marginal > 0]))
+    ax.annotate(f"sun row: {peak / med:,.0f}x the median row",
+                xy=(sun_row, peak), xytext=(sun_row + w * 0.03, peak * 0.55),
+                color=INK, fontsize=11,
+                arrowprops={"arrowstyle": "->", "color": INK_MUTED})
+    ax.set_xlabel("image row (0 = zenith, v = theta/pi)")
+    ax.set_ylabel("row marginal: luminance x sin(theta), log")
+    ax.set_title("Energy concentrates in a few rows - the 2D CDF's first level")
+    ax.grid(True, which="both", axis="y")
+    ax.set_xlim(0, h)
+    save(fig, "ch15-env-luminance.png")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -266,8 +341,8 @@ def main():
     ap.add_argument("--build-dir", type=Path,
                     default=Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")))
     ap.add_argument("--work-dir", type=Path, default=Path("/tmp/report-charts"))
-    ap.add_argument("--only", default="convergence,fresnel",
-                    help="comma list: convergence,fresnel")
+    ap.add_argument("--only", default="convergence,fresnel,env",
+                    help="comma list: convergence,fresnel,env")
     args = ap.parse_args()
     only = set(args.only.split(","))
 
@@ -285,6 +360,8 @@ def main():
         chart_convergence(data)
     if "fresnel" in only:
         chart_fresnel()
+    if "env" in only:
+        chart_env()
 
 
 if __name__ == "__main__":
