@@ -1,11 +1,13 @@
-// sundog host tests: src/scene_json.cpp loader — parses every scene in
-// scenes/, detailed assertions on smoke.json / features.json, error paths.
+// sundog host tests: src/scene_json.cpp loader — converts and parses every
+// Python scene in scenes/, detailed assertions on smoke.py / features.py,
+// error paths. Needs python3 on PATH (scene .py -> JSON IR conversion).
 // NOTE: uses relative path "scenes/", so run from the repo root (make does).
 #include "scene_json.cpp"  // reuse the implementation directly
 
 #include "check.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <glob.h>
 #include <string>
@@ -18,17 +20,42 @@ static bool hasSuffix(const std::string& s, const std::string& suf) {
   return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
 }
 
+// Emit a Python scene's JSON IR into scenes/ (same directory the runtime
+// scenelib.run() uses, so baseDir/asset-path semantics match) and load it.
+static Scene loadPyScene(const std::string& pyPath) {
+  static int idx = 0;
+  char tmp[256];
+  std::snprintf(tmp, sizeof(tmp), "scenes/.test-ir-%d-%d.json",
+                (int)getpid(), idx++);
+  std::string cmd = "python3 -B '" + pyPath + "' --emit-json '" + tmp + "'";
+  int rc = std::system(cmd.c_str());
+  CHECK_MSG(rc == 0, "scene script failed (rc=%d): %s", rc, pyPath.c_str());
+  try {
+    Scene s = loadScene(tmp);
+    unlink(tmp);
+    return s;
+  } catch (const std::exception& e) {
+    unlink(tmp);
+    std::fprintf(stderr, "loadScene on IR of %s threw: %s\n", pyPath.c_str(),
+                 e.what());
+    std::exit(1);
+  }
+}
+
 static void testAllScenesLoad() {
   glob_t g{};
-  int rc = glob("scenes/*.json", 0, nullptr, &g);
-  CHECK_MSG(rc == 0 && g.gl_pathc >= 2,
-            "no scenes/*.json found (rc=%d, count=%zu) — run from the repo root",
+  int rc = glob("scenes/*.py", 0, nullptr, &g);
+  CHECK_MSG(rc == 0 && g.gl_pathc >= 15,  // 14 scenes + scenelib.py
+            "no scenes/*.py found (rc=%d, count=%zu) — run from the repo root",
             rc, (size_t)g.gl_pathc);
   bool sawSmoke = false, sawFeatures = false;
+  size_t nScenes = 0;
   for (size_t i = 0; i < g.gl_pathc; i++) {
     std::string path = g.gl_pathv[i];
-    try {
-      Scene s = loadScene(path);
+    if (hasSuffix(path, "/scenelib.py")) continue;  // the library, not a scene
+    nScenes++;
+    {
+      Scene s = loadPyScene(path);
       CHECK_MSG(!s.objects.empty(), "%s: loaded but has no objects", path.c_str());
       CHECK_MSG(!s.materials.empty(), "%s: loaded but has no materials", path.c_str());
       CHECK_MSG(s.render.width > 0 && s.render.height > 0,
@@ -36,20 +63,18 @@ static void testAllScenesLoad() {
       std::printf("  loaded %s: %zu objects, %zu materials, %zu lights\n",
                   path.c_str(), s.objects.size(), s.materials.size(),
                   s.lights.size());
-    } catch (const std::exception& e) {
-      std::fprintf(stderr, "loadScene(%s) threw: %s\n", path.c_str(), e.what());
-      std::exit(1);
     }
-    if (hasSuffix(path, "/smoke.json")) sawSmoke = true;
-    if (hasSuffix(path, "/features.json")) sawFeatures = true;
+    if (hasSuffix(path, "/smoke.py")) sawSmoke = true;
+    if (hasSuffix(path, "/features.py")) sawFeatures = true;
   }
   globfree(&g);
-  CHECK_MSG(sawSmoke, "scenes/smoke.json not found");
-  CHECK_MSG(sawFeatures, "scenes/features.json not found");
+  CHECK_MSG(nScenes >= 14, "expected >= 14 scenes, saw %zu", nScenes);
+  CHECK_MSG(sawSmoke, "scenes/smoke.py not found");
+  CHECK_MSG(sawFeatures, "scenes/features.py not found");
 }
 
 static void testSmokeScene() {
-  Scene s = loadScene("scenes/smoke.json");
+  Scene s = loadPyScene("scenes/smoke.py");
   // render block
   CHECK(s.render.width == 256 && s.render.height == 256);
   CHECK(s.render.spp == 16);
@@ -98,7 +123,7 @@ static void testSmokeScene() {
 }
 
 static void testFeaturesScene() {
-  Scene s = loadScene("scenes/features.json");
+  Scene s = loadPyScene("scenes/features.py");
   CHECK_MSG(s.objects.size() == 7, "features objects: %zu", s.objects.size());
   CHECK(s.textures.size() == 1);
   CHECK_MSG(s.materials.size() == 6, "features materials: %zu", s.materials.size());

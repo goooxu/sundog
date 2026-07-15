@@ -7,7 +7,7 @@
 #
 # Checks:
 #   1. --probe runs and reports a GPU
-#   2. smoke.json renders at 64x64 / 4 spp and produces a PNG > 1 KB
+#   2. smoke.py renders at 64x64 / 4 spp and produces a PNG > 1 KB
 #   3. the --denoise variant also renders
 #   4. --stats writes parseable JSON
 # Any failure exits non-zero.
@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
 SUNDOG="$SUNDOG_BUILD/sundog"
-SCENE="$ROOT/scenes/smoke.json"
+SCENE="$ROOT/scenes/smoke.py"
 
 fail() { echo "run-smoke: FAIL: $*" >&2; exit 1; }
 
@@ -38,16 +38,16 @@ echo "== 1. probe =="
 "$SUNDOG" --probe | tee "$TMP/probe.txt"
 grep -q '^GPU:' "$TMP/probe.txt" || fail "--probe did not report a GPU"
 
-echo "== 2. render smoke.json 64x64 / 4 spp =="
-"$SUNDOG" --scene "$SCENE" --out "$TMP/smoke.png" --size 64x64 --spp 4 --quiet
+echo "== 2. render smoke.py 64x64 / 4 spp =="
+python3 "$SCENE" --out "$TMP/smoke.png" --size 64x64 --spp 4 --quiet
 check_png "$TMP/smoke.png"
 
 echo "== 3. denoise variant =="
-"$SUNDOG" --scene "$SCENE" --out "$TMP/smoke-dn.png" --size 64x64 --spp 4 --denoise --quiet
+python3 "$SCENE" --out "$TMP/smoke-dn.png" --size 64x64 --spp 4 --denoise --quiet
 check_png "$TMP/smoke-dn.png"
 
 echo "== 4. stats JSON =="
-"$SUNDOG" --scene "$SCENE" --out "$TMP/smoke-st.png" --size 64x64 --spp 4 --quiet \
+python3 "$SCENE" --out "$TMP/smoke-st.png" --size 64x64 --spp 4 --quiet \
           --stats "$TMP/smoke.stats.json"
 [ -f "$TMP/smoke.stats.json" ] || fail "missing stats json"
 python3 -c '

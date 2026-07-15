@@ -27,10 +27,10 @@ PROBE_TXT="$("$SUNDOG" --probe)"
 echo "$PROBE_TXT"
 
 for s in "${SCENES[@]}"; do
-  scene="$ROOT/scenes/$s.json"
+  scene="$ROOT/scenes/$s.py"
   [ -f "$scene" ] || fail "scene not found: $scene"
   echo "== golden: $s (${WIDTH}x${HEIGHT}, $SPP spp, seed $SEED) =="
-  "$SUNDOG" --scene "$scene" --out "$GOLDEN_DIR/$s.png" \
+  python3 "$scene" --out "$GOLDEN_DIR/$s.png" \
             --size "${WIDTH}x${HEIGHT}" --spp "$SPP" --seed "$SEED" \
             --no-denoise --quiet
   [ -s "$GOLDEN_DIR/$s.png" ] || fail "empty golden: $GOLDEN_DIR/$s.png"

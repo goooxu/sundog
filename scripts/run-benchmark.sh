@@ -50,14 +50,14 @@ psnr_of() { # psnr_of A B -> prints numeric PSNR (inf possible)
 echo "==== tier A: feature scenes (1920x1080 / 64 spp) ===="
 A_ROWS=()
 for scene in "${FEATURE_SCENES[@]}"; do
-  scene_json="$ROOT/scenes/$scene.json"
-  if [ ! -f "$scene_json" ]; then
-    NOTES+=("feature: 场景 \`$scene.json\` 不存在，已跳过。")
-    echo "  skip $scene (no scene json)"; continue
+  scene_file="$ROOT/scenes/$scene.py"
+  if [ ! -f "$scene_file" ]; then
+    NOTES+=("feature: 场景 \`$scene.py\` 不存在，已跳过。")
+    echo "  skip $scene (no scene file)"; continue
   fi
   echo "-- $scene"
   st="$TMP/feat-$scene.stats.json"
-  "$SUNDOG" --scene "$scene_json" --out "$TMP/feat-$scene.png" \
+  python3 "$scene_file" --out "$TMP/feat-$scene.png" \
             --size 1920x1080 --spp 64 --no-denoise --quiet --stats "$st"
   A_ROWS+=("| $scene | $(jget "$st" 'd["scene_stats"]["objects"]') \
 | $(jget "$st" 'd["scene_stats"]["mesh_triangles"]') \
@@ -70,19 +70,19 @@ done
 # =============================== tier B: denoise =============================
 echo "==== tier B: denoiser PSNR ($DN_SCENE, ref $DN_REF_SPP spp) ===="
 B_ROWS=()
-dn_json="$ROOT/scenes/$DN_SCENE.json"
-if [ ! -f "$dn_json" ]; then
-  NOTES+=("denoise: 场景 \`$DN_SCENE.json\` 不存在，整层跳过。")
-  echo "  skip (no scene json)"
+dn_file="$ROOT/scenes/$DN_SCENE.py"
+if [ ! -f "$dn_file" ]; then
+  NOTES+=("denoise: 场景 \`$DN_SCENE.py\` 不存在，整层跳过。")
+  echo "  skip (no scene file)"
 else
   echo "-- reference ($DN_REF_SPP spp)"
-  "$SUNDOG" --scene "$dn_json" --out "$TMP/dn-ref.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-ref.png" --size "$DN_SIZE" \
             --spp "$DN_REF_SPP" --no-denoise --quiet
   echo "-- noisy ($DN_TEST_SPP spp)"
-  "$SUNDOG" --scene "$dn_json" --out "$TMP/dn-raw.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-raw.png" --size "$DN_SIZE" \
             --spp "$DN_TEST_SPP" --no-denoise --quiet
   echo "-- denoised ($DN_TEST_SPP spp + --denoise)"
-  "$SUNDOG" --scene "$dn_json" --out "$TMP/dn-dn.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-dn.png" --size "$DN_SIZE" \
             --spp "$DN_TEST_SPP" --denoise --quiet
   B_ROWS+=("| 原始蒙特卡洛 | $DN_TEST_SPP | 否 | $(psnr_of "$TMP/dn-ref.png" "$TMP/dn-raw.png") |")
   B_ROWS+=("| OptiX AI 降噪 | $DN_TEST_SPP | 是 | $(psnr_of "$TMP/dn-ref.png" "$TMP/dn-dn.png") |")

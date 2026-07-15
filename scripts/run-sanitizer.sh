@@ -23,15 +23,20 @@ SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
 SUNDOG="$SUNDOG_BUILD/sundog"
 CUDA_HOME="${CUDA_HOME:-/tmp/cuda-13.0}"
 SANITIZER="$CUDA_HOME/bin/compute-sanitizer"
-SCENE="$ROOT/scenes/smoke.json"
+SCENE_PY="$ROOT/scenes/smoke.py"
 
 fail() { echo "run-sanitizer: FAIL: $*" >&2; exit 1; }
 [ -x "$SUNDOG" ]    || fail "binary not found: $SUNDOG"
 [ -x "$SANITIZER" ] || fail "compute-sanitizer not found: $SANITIZER"
-[ -f "$SCENE" ]     || fail "scene not found: $SCENE"
+[ -f "$SCENE_PY" ]  || fail "scene not found: $SCENE_PY"
 
 TMP="$(mktemp -d /tmp/sundog-sanitizer.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
+
+# Pre-emit the JSON IR so compute-sanitizer wraps the bare renderer process
+# (keeps python out of the instrumented process tree).
+SCENE="$TMP/smoke.json"
+python3 "$SCENE_PY" --emit-json "$SCENE" || fail "scene emit failed"
 
 echo "== compute-sanitizer --tool memcheck (smoke 64x64 / 4 spp) =="
 "$SANITIZER" --tool memcheck --error-exitcode 1 \

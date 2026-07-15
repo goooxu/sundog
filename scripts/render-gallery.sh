@@ -41,7 +41,7 @@ RENDERED=()  # image stems, in display order
 render() { # render STEM SCENE SPP EXTRA_ARGS...
   local stem="$1" scene="$2" spp="$3"; shift 3
   echo "== $stem ($SIZE, $spp spp) =="
-  "$SUNDOG" --scene "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
+  python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
             --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@"
   [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
   RENDERED+=("$stem")
@@ -49,9 +49,9 @@ render() { # render STEM SCENE SPP EXTRA_ARGS...
 
 for entry in "${ENTRIES[@]}"; do
   name="${entry%%:*}"; spp="${entry##*:}"
-  scene="$ROOT/scenes/$name.json"
+  scene="$ROOT/scenes/$name.py"
   if [ ! -f "$scene" ]; then
-    echo "render-gallery: WARNING: scene $name.json not found, skipping" >&2
+    echo "render-gallery: WARNING: scene $name.py not found, skipping" >&2
     continue
   fi
   if [ "$name" = "06-spot-cascade" ]; then

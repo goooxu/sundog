@@ -148,14 +148,17 @@ render() { # render RAW_STEM SCENE EXTRA_ARGS...
     return
   fi
   echo "== render $stem =="
-  "$SUNDOG" --scene "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@"
+  case "$scene" in
+    *.py) python3 "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@" ;;
+    *)    "$SUNDOG" --scene "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@" ;;
+  esac
   [ -s "$RAW/$stem.png" ] || fail "empty output: $stem"
 }
 
 # ------------------------------------------------ ch01-spp-convergence.png
 # 02-cornell-lume at 1/4/16/64/256 spp, 480x270 each, horizontal strip.
 for spp in 1 4 16 64 256; do
-  render "ch01-spp$spp" "$ROOT/scenes/02-cornell-lume.json" \
+  render "ch01-spp$spp" "$ROOT/scenes/02-cornell-lume.py" \
          --size 480x270 --spp "$spp"
 done
 python3 "$COMPOSE" strip "$FIG/ch01-spp-convergence.png" \
@@ -167,9 +170,9 @@ python3 "$COMPOSE" strip "$FIG/ch01-spp-convergence.png" \
 # smoke.json with gamma 1.0 vs 2.2 (default), side by side. Rendered with
 # --tonemap clamp so gamma is the ONLY nonlinearity being compared (the
 # default ACES curve would contaminate the "linear" panel).
-render "ch01-gamma10" "$ROOT/scenes/smoke.json" \
+render "ch01-gamma10" "$ROOT/scenes/smoke.py" \
        --size 512x512 --spp 64 --gamma 1.0 --tonemap clamp
-render "ch01-gamma22" "$ROOT/scenes/smoke.json" \
+render "ch01-gamma22" "$ROOT/scenes/smoke.py" \
        --size 512x512 --spp 64 --gamma 2.2 --tonemap clamp
 python3 "$COMPOSE" strip "$FIG/ch01-gamma.png" --label-size 26 \
   "$RAW/ch01-gamma10.png|gamma 1.0" \
@@ -179,9 +182,9 @@ python3 "$COMPOSE" strip "$FIG/ch01-gamma.png" --label-size 26 \
 # 07-campfire: clamp (highlights clip to white) vs ACES (filmic shoulder
 # keeps the fire core's orange gradient). The scene's strongest saturated
 # highlight in the gallery.
-render "ch01-tonemap-clamp" "$ROOT/scenes/07-campfire.json" \
+render "ch01-tonemap-clamp" "$ROOT/scenes/07-campfire.py" \
        --size 960x540 --spp 64 --tonemap clamp
-render "ch01-tonemap-aces" "$ROOT/scenes/07-campfire.json" \
+render "ch01-tonemap-aces" "$ROOT/scenes/07-campfire.py" \
        --size 960x540 --spp 64
 python3 "$COMPOSE" strip "$FIG/ch01-tonemap.png" --label-size 26 \
   "$RAW/ch01-tonemap-clamp.png|截断（tonemap:\"clamp\"）" \
@@ -191,10 +194,13 @@ python3 "$COMPOSE" strip "$FIG/ch01-tonemap.png" --label-size 26 \
 # 02-cornell-lume with NEE on (default) vs off: temp scene variant with
 # "nee": false on every emissive object. Original scene untouched.
 NEE_OFF="/tmp/cornell-lume-nee-off.json"
-python3 - "$ROOT/scenes/02-cornell-lume.json" "$NEE_OFF" <<'PY'
+python3 "$ROOT/scenes/02-cornell-lume.py" --emit-json /tmp/cornell-lume-base.json
+python3 - /tmp/cornell-lume-base.json "$NEE_OFF" <<'PY'
 import json, sys
 src, dst = sys.argv[1:]
 s = json.load(open(src))
+# (02-cornell-lume has no file assets, so the /tmp variant needs no
+# path rewriting)
 emissive = {k for k, m in s["materials"].items() if m.get("type") == "emissive"}
 n = 0
 for o in s["objects"]:
@@ -205,7 +211,7 @@ assert n, "no emissive objects found in " + src
 json.dump(s, open(dst, "w"), indent=2)
 print(f"wrote {dst} ({n} emitters set nee:false)")
 PY
-render "ch04-nee-on"  "$ROOT/scenes/02-cornell-lume.json" \
+render "ch04-nee-on"  "$ROOT/scenes/02-cornell-lume.py" \
        --size 960x540 --spp 64
 render "ch04-nee-off" "$NEE_OFF" \
        --size 960x540 --spp 64
@@ -220,9 +226,9 @@ python3 "$COMPOSE" strip "$FIG/ch04-nee.png" --label-size 26 \
 # the shoulder flattens whatever survives above 1.0 (pre-ACES the two were
 # bit-identical: 30/24 > 1 clipped straight to white). clamp 5 remains the
 # smallest deviation that makes the intended firefly suppression visible.
-render "ch04-clamp-off" "$ROOT/scenes/04-parabolica.json" \
+render "ch04-clamp-off" "$ROOT/scenes/04-parabolica.py" \
        --size 640x360 --spp 24 --clamp 0
-render "ch04-clamp-on" "$ROOT/scenes/04-parabolica.json" \
+render "ch04-clamp-on" "$ROOT/scenes/04-parabolica.py" \
        --size 640x360 --spp 24 --clamp 5
 python3 "$COMPOSE" strip "$FIG/ch04-clamp.png" --label-size 20 \
   "$RAW/ch04-clamp-off.png|clamp 0（关闭）· 24 spp" \
@@ -240,7 +246,7 @@ python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.png" \
 
 # ------------------------------------------------------- ch06-primitives.png
 # features.json: sphere / cylinder / parabola / disk / rect in one frame.
-render "ch06-primitives" "$ROOT/scenes/features.json" \
+render "ch06-primitives" "$ROOT/scenes/features.py" \
        --size 1280x800 --spp 256
 python3 "$COMPOSE" strip "$FIG/ch06-primitives.png" \
   "$RAW/ch06-primitives.png|"
@@ -252,7 +258,7 @@ if [ "$REUSE" = 1 ] && [ -s "$RAW/ch09-beauty.png" ] && \
   echo "== ch09-beauty/albedo/normal (reusing existing renders) =="
 else
   echo "== render ch09-beauty (+ albedo/normal AOVs) =="
-  "$SUNDOG" --scene "$ROOT/scenes/03-spot-atrium.json" \
+  "$SUNDOG" --scene "$ROOT/scenes/03-spot-atrium.py" \
             --out "$RAW/ch09-beauty.png" --size 800x450 --spp 64 \
             --aov-albedo "$RAW/ch09-albedo.png" \
             --aov-normal "$RAW/ch09-normal.png" --no-denoise --quiet
@@ -267,10 +273,10 @@ python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
 # 06-spot-cascade frozen at four instants plus the settled state: the same
 # initial conditions, different --physics-time. Small panels, modest spp.
 for t in 0.3 0.7 1.0 1.4; do
-  render "ch12-freeze-$t" "$ROOT/scenes/06-spot-cascade.json" \
+  render "ch12-freeze-$t" "$ROOT/scenes/06-spot-cascade.py" \
          --size 480x270 --spp 24 --physics-time "$t"
 done
-render "ch12-freeze-settled" "$ROOT/scenes/06-spot-cascade.json" \
+render "ch12-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
        --size 480x270 --spp 24
 python3 "$COMPOSE" strip "$FIG/ch12-freeze-sequence.png" --label-size 20 \
   "$RAW/ch12-freeze-0.3.png|t = 0.3 s" \
@@ -371,10 +377,10 @@ python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
 # 16 and 256 spp. The variant lives in /tmp, so relative asset paths are
 # rewritten to absolute ones first.
 UNI="/tmp/report-suncatcher-uniform.json"
-python3 - "$ROOT/scenes/10-suncatcher.json" "$UNI" <<'PY'
+python3 "$ROOT/scenes/10-suncatcher.py" --emit-json /tmp/report-suncatcher-base.json
+python3 - /tmp/report-suncatcher-base.json "$UNI" "$ROOT/scenes" <<'PY'
 import json, os, sys
-src, dst = sys.argv[1:]
-base = os.path.dirname(os.path.abspath(src))
+src, dst, base = sys.argv[1:]
 s = json.load(open(src))
 assert s["background"]["type"] == "envmap"
 s["background"]["importance"] = False
@@ -389,7 +395,7 @@ print("wrote", dst)
 PY
 for spp in 16 256; do
   render "ch15-uni-$spp" "$UNI"                             --size 480x270 --spp "$spp"
-  render "ch15-imp-$spp" "$ROOT/scenes/10-suncatcher.json"  --size 480x270 --spp "$spp"
+  render "ch15-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
 done
 python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
   "$RAW/ch15-uni-16.png|均匀采样 · 16 spp" \
@@ -400,9 +406,9 @@ python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
 # ---------------------------------------------- ch16-shadow-compare.png
 # 11-glasswork with legacy binary occlusion vs transparent shadows: the
 # tinted marbles cast solid dark blobs vs rose/gold/teal light pools.
-render "ch16-shadow-opq" "$ROOT/scenes/11-glasswork.json" \
+render "ch16-shadow-opq" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96 --opaque-shadows
-render "ch16-shadow-xpr" "$ROOT/scenes/11-glasswork.json" \
+render "ch16-shadow-xpr" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96
 python3 "$COMPOSE" strip "$FIG/ch16-shadow-compare.png" --label-size 26 \
   "$RAW/ch16-shadow-opq.png|布尔遮挡（--opaque-shadows）" \

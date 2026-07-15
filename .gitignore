@@ -10,3 +10,6 @@ build*/
 
 # per-render statistics
 *.stats.json
+
+# python bytecode (scenes/ scripts import scenelib)
+__pycache__/

@@ -7,7 +7,8 @@
 # For each golden scene, renders with the exact golden parameters
 # (256x256 / 64 spp / seed 7 / no denoise) into /tmp and compares with
 # $SUNDOG_BUILD/img_compare at a 45 dB PSNR threshold. Additionally renders
-# smoke.json twice and requires bit-identical PNGs (determinism check).
+# smoke.py twice and requires bit-identical PNGs (determinism check —
+# covers the .py -> JSON conversion layer too, it reruns every time).
 # Missing goldens => hint to run scripts/make-goldens.sh and exit 1.
 set -euo pipefail
 
@@ -34,7 +35,7 @@ TMP="$(mktemp -d /tmp/sundog-golden.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
 render() { # render SCENE OUT
-  "$SUNDOG" --scene "$ROOT/scenes/$1.json" --out "$2" \
+  python3 "$ROOT/scenes/$1.py" --out "$2" \
             --size "${WIDTH}x${HEIGHT}" --spp "$SPP" --seed "$SEED" \
             --no-denoise --quiet
 }
@@ -47,7 +48,7 @@ for s in "${SCENES[@]}"; do
     echo "run-golden: generate references first: scripts/make-goldens.sh" >&2
     exit 1
   fi
-  [ -f "$ROOT/scenes/$s.json" ] || fail "scene not found: $ROOT/scenes/$s.json"
+  [ -f "$ROOT/scenes/$s.py" ] || fail "scene not found: $ROOT/scenes/$s.py"
   render "$s" "$TMP/$s.png"
   printf '%-20s ' "$s"
   "$IMG_COMPARE" "$golden" "$TMP/$s.png" "$MIN_PSNR" \
