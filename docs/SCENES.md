@@ -1,10 +1,163 @@
 # sundog scene format
 
-Scenes are JSON with eight sections: `render`, `camera`, `background`,
-`textures`, `materials`, `meshes`, `objects`, `lights` — plus an optional
-ninth, `physics` (PhysX GPU rigid-body settling, see below).
+**A sundog scene is an executable Python program.** Every scene — the
+gallery scenes in `scenes/` and any scene you write — is a `.py` file that
+defines its content through the `scenelib` API and renders itself when run:
 
-## Canonical shapes (object space)
+```console
+$ python3 scenes/07-campfire.py                  # renders 07-campfire.png
+$ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
+```
+
+There is no separate scene *file format* to learn and no main program to
+drive: the scene chooses its own render settings and output name in code,
+and any backend flag given on the command line overrides it
+(`--spp/--size/--seed/--out/--denoise/--stats/--tonemap/--physics-time/...`).
+Under the hood `Scene.run()` serializes the scene to a JSON intermediate
+representation in a temp file beside the scene, hands it to the renderer
+backend (`$SUNDOG_BUILD/sundog`, default `/tmp/sundog-build/sundog`), and
+forwards your CLI arguments verbatim (see [wire format](#appendix-wire-format-internal)).
+
+## Quick start
+
+`scenes/smoke.py`, the minimal end-to-end scene:
+
+```python
+#!/usr/bin/env python3
+"""sundog scene smoke — minimal sanity-check scene."""
+
+from scenelib import Scene, scale, translate
+
+s = Scene()
+s.render(width=256, height=256, spp=16, max_depth=8, seed=7)
+s.camera(lookfrom=[0, 1.5, 5], lookat=[0, 0.7, 0], vfov=35)
+s.background_gradient(horizon=[1.0, 1.0, 1.0], zenith=[0.4, 0.6, 1.0])
+
+s.texture('floor', 'checker', a=[0.85, 0.85, 0.85], b=[0.15, 0.15, 0.15],
+          scale=[8, 8])
+s.lambert('ground', texture='floor')
+s.lambert('ball', color=[0.7, 0.3, 0.3])
+s.point_light(position=[3, 4, 2], intensity=[40, 40, 40], radius=0.4)
+
+s.add('rect', 'ground', scale(4))
+s.add('sphere', 'ball', scale(0.7), translate(0, 0.7, 0))
+
+if __name__ == "__main__":
+    s.run(out="smoke.png")
+```
+
+Preview the emitted scene without rendering:
+`python3 scenes/smoke.py --emit-json - | python3 -m json.tool`.
+
+Scene files import `scenelib` from their own directory (Python puts the
+script's directory on `sys.path`), so keep scenes inside `scenes/` — they
+run from any cwd.
+
+## Scene API
+
+Every optional argument defaults to the sentinel `OMIT`, meaning "don't
+write the key": the renderer's own default applies. Values you pass are
+emitted verbatim — scenelib never rewrites numbers. `None` is a real value
+only for `material`/`material_back` (pass-through, see below).
+
+### `s.render(...)`
+
+`width` (1280), `height` (720), `spp` (64), `max_depth` (16), `clamp` (50.0,
+indirect-light firefly clamp, 0 = off), `seed` (7), `gamma` (2.2),
+`exposure` (0.0, EV), `tonemap` (`"aces"`), `transparent_shadows` (true).
+
+Most are overridable from the command line at run time; fixed `seed` gives
+bit-identical images on the same GPU/driver.
+
+`tonemap` selects the output mapping: `"aces"` (default) runs the Hill
+ACES fit — highlights roll off along a filmic shoulder instead of clipping
+to white; `"clamp"` is the linear escape hatch (exposure → clamp[0,1] →
+gamma) for numeric experiments like the white-furnace test where the PNG
+must be a direct linear readout.
+
+`transparent_shadows` (default true) lets shadow rays transmit through
+glass/water with Fresnel + Beer–Lambert attenuation; `false` restores the
+legacy binary occlusion (`--opaque-shadows`, comparison figures only).
+
+### `s.camera(lookfrom, lookat, up, vfov, aperture, focus_dist)`
+
+`lookfrom`/`lookat` are required 3-vectors. `up` ([0,1,0]), `vfov` (40°,
+vertical), `aperture` (0 = pinhole; thin-lens otherwise), `focus_dist`
+(0 → distance to `lookat`).
+
+### Backgrounds
+
+- `s.background_solid(color)`
+- `s.background_gradient(horizon, zenith)` — lerp on ray y
+- `s.background_envmap(file, rotate, intensity, importance)`
+
+`background_envmap` turns an equirectangular Radiance `.hdr` panorama into
+an infinitely-distant light: missed rays look it up by direction, *and* it
+joins NEE+MIS as a first-class light — at load time a 2D CDF over
+luminance × sin θ is built so light sampling hits the brightest texels
+directly (a small sun stops being a noise disaster). `file` resolves
+relative to the scene file (gallery scenes use `../assets/*.hdr`, downloaded
+by `scripts/fetch-assets.sh`); `rotate` spins the map around +y (degrees);
+`intensity` is a scalar radiance gain; `importance=False` degrades NEE to
+uniform sphere sampling (comparison experiments only — leave it on).
+
+### Textures — `s.texture(name, type, **fields)`
+
+- `"solid"`: `color`
+- `"checker"`: `a`, `b`, `scale=[su, sv]` (default [8,8])
+- `"grid"`: `a` (cell), `b` (line), `scale`, `width` (line width, cell fraction)
+- `"image"`: `file` (PNG etc., relative to the scene file), `srgb` (default
+  true), bilinear filtering
+
+Returns the name, so `tex = s.texture("skin", "image", file=...)` and
+`s.lambert("cow", texture=tex)` compose.
+
+### Materials
+
+Typed helpers (each returns the material name):
+
+- `s.lambert(name, color | texture)`
+- `s.metal(name, color | texture, roughness)` — GGX, `color` is F0,
+  roughness 0 = mirror
+- `s.dielectric(name, ior, absorb)` — smooth glass; optional `absorb`
+  [r,g,b] is Beer–Lambert absorption inside the glass (tinted interiors and
+  tinted transparent shadows)
+- `s.water(name, ior, absorb, wave_amp, wave_freq)` — 光滑电介质界面
+  （`ior` 默认 **1.33**）+ 两件水特有的事——**fbm 波纹法线**（`wave_amp`
+  默认 0.05、`wave_freq` 默认 2.0；只扰动着色法线不位移；波场定义在世界
+  xz，水面按水平放置约定）与 **Beer–Lambert 水体吸收**（`absorb` 默认
+  `[0.45, 0.08, 0.035]`，红先被吃 → 深水偏蓝绿；折射入水后按介质内路径
+  长度衰减，直到再次穿出水面）。嵌套介质经介质栈与相对折射率支持（水中
+  玻璃、玻璃中气泡；几何须良构嵌套——真包含、不穿插）；水下着色点的 NEE
+  阴影线经菲涅尔 + Beer–Lambert 衰减穿过水面（超出 Snell 窗口的方向被
+  全内反射挡住），水下能收到直接光。
+- `s.emissive(name, color | texture, intensity, two_sided)` — `two_sided`
+  defaults to false (only the front face emits). Emissive `rect`/`disk`/
+  `sphere` objects are automatically sampled as area lights (unless
+  `nee=False`). Sphere/disk area lights require uniform scale. Textured
+  emissives are supported as NEE lights for `rect`/`disk`; a textured
+  emissive `sphere` must use `nee=False` (its uv frame is object-space and
+  cannot be light-sampled).
+
+The generic `s.material(name, type, **fields)` accepts any documented field
+and is what the typed helpers delegate to.
+
+### Meshes — `s.mesh(name, obj, normals)`
+
+Loads an OBJ (path relative to the scene file; `vt` texture coordinates are
+honored, smooth area-weighted normals by default — pass anything other than
+`"smooth"` for flat geometric normals). Returns `"mesh:name"`, ready to use
+as a shape.
+
+### Objects — `s.add(shape, material, *steps, ...)`
+
+```python
+s.add("rect", "gold", scale(2, 1, 2), rotate_x(90), translate(0, 2, 0),
+      material_back=None, cutout="gearTex", nee=False,
+      physics=rigid_body(density=250, velocity=[0, -2, 0]))
+```
+
+Canonical shapes (object space):
 
 | shape | definition | front face | UV |
 |---|---|---|---|
@@ -13,121 +166,49 @@ ninth, `physics` (PhysX GPU rigid-body settling, see below).
 | `disk` | XZ disk r<=1 at y=0 | +Y side | u: azimuth, v: radius |
 | `cylinder` | x^2+z^2=1, y in [-1,1], **open ends** | outside | u: azimuth, v: height |
 | `parabola` | y = (x^2+z^2)/2, r<=1 (focus at (0,0.5,0)) | **convex underside** | u: azimuth, v: radius |
-| `mesh:NAME` | triangles from `meshes.NAME` | winding side | OBJ `vt` per-vertex; barycentric fallback without `vt` |
+| `mesh:NAME` | triangles from `s.mesh(NAME, …)` | winding side | OBJ `vt` per-vertex; barycentric fallback without `vt` |
 
 To make a *concave* parabola reflector (dish), put the mirror on
-`material_back` (the bowl side) and set `material` to `null`… or rotate the
-bowl to aim its convex side away. Remember: `"material"` is the front face.
-
-## Objects
-
-```json
-{ "shape": "rect", "material": "gold", "material_back": null,
-  "cutout": "spotTex", "nee": true,
-  "transform": [ { "scale": [2,1,2] }, { "rotate_x": 90 }, { "translate": [0,2,0] } ] }
-```
+`material_back` (the bowl side) and set `material=None`… or rotate the
+bowl to aim its convex side away. Remember: `material` is the front face.
 
 - `material` (front face). `material_back`: omitted = same as front;
-  `null` = **pass-through** (both rays and shadows go straight through when
-  hitting that side). `material` may itself be `null`
-  when `material_back` is set (back-only surface).
+  `None` = **pass-through** (both rays and shadows go straight through when
+  hitting that side). `material` may itself be `None` when `material_back`
+  is set (back-only surface).
+- `*steps` — transform constructors, composed **top-down in object space**:
+  `scale(s)` / `scale(x, y, z)`, `rotate_x/y/z(degrees)`,
+  `translate(x, y, z)`. `scale, rotate, translate` order means
+  translate(rotate(scale(p))). Any sequence and repetition is allowed;
+  non-uniform scale is fine (normals handled correctly). No steps =
+  identity.
 - `cutout`: texture name; alpha < 0.5 makes holes (both faces).
-- `transform`: list applied top-down in object space — `[scale, rotate, translate]`
-  means translate(rotate(scale(p))). Angles in degrees. Steps: `scale` (number
-  or [x,y,z]), `rotate_x/y/z`, `translate`.
-  Non-uniform scale is fine (normals handled correctly).
-- `nee`: set `false` to keep an emissive object out of explicit light sampling
+- `nee=False` keeps an emissive object out of explicit light sampling
   (it then only contributes when a path hits it).
+- `physics`: see below.
 
-## Materials
+### Lights (explicit delta lights)
 
-- `lambert`: `color` or `texture`
-- `metal`: GGX, `color` (F0) or `texture`, `roughness` (0 = mirror)
-- `dielectric`: `ior` (smooth glass), optional `absorb` [r,g,b] — Beer–Lambert
-  absorption inside the glass (tinted interiors and tinted transparent shadows)
-- `water`: 光滑电介质界面（`ior` 默认 **1.33**）+ 两件水特有的事——
-  **fbm 波纹法线**（`wave_amp` 默认 0.05、`wave_freq` 默认 2.0；只扰动着色
-  法线不位移；波场定义在世界 xz，水面按水平放置约定）与 **Beer–Lambert
-  水体吸收**（`absorb` 默认 `[0.45, 0.08, 0.035]`，红先被吃 → 深水偏蓝绿；
-  折射入水后按介质内路径长度衰减，直到再次穿出水面）。嵌套介质经介质栈
-  与相对折射率支持（水中玻璃、玻璃中气泡；几何须良构嵌套——真包含、
-  不穿插）；水下着色点的 NEE 阴影线经菲涅尔 + Beer–Lambert 衰减穿过
-  水面（超出 Snell 窗口的方向被全内反射挡住），水下能收到直接光。
-- `emissive`: `color`/`texture`, `intensity`, `two_sided` (default false —
-  only the front face emits). Emissive `rect`/`disk`/`sphere` objects are
-  automatically sampled as area lights (unless `nee: false`). Sphere/disk
-  area lights require uniform scale. Textured emissives are supported as NEE
-  lights for `rect`/`disk`; a textured emissive `sphere` must use
-  `nee: false` (its uv frame is object-space and cannot be light-sampled).
-
-## Textures
-
-- `solid`: `color`
-- `checker`: `a`, `b`, `scale: [su, sv]`
-- `grid`: `a` (cell), `b` (line), `scale`, `width` (line width, cell fraction)
-- `image`: `file` (PNG etc., relative to the scene file), `srgb` (default true), bilinear filtering
-
-## Lights (explicit delta lights)
-
-```json
-{ "type": "point", "position": [x,y,z], "radius": 0.3, "intensity": [r,g,b] }
-{ "type": "distant", "direction": [x,y,z], "radiance": [r,g,b] }
+```python
+s.point_light(position=[x, y, z], intensity=[r, g, b], radius=0.3)
+s.distant_light(direction=[x, y, z], radiance=[r, g, b])
 ```
 
 `point` has a radius for soft shadows; `intensity` is radiant intensity
-(falls off with 1/d^2). `distant` is a parallel light.
-Area lights are *not* declared here — make an emissive object instead.
+(falls off with 1/d^2). `distant` is a parallel light. Area lights are
+*not* declared here — make an emissive object instead.
 
-## Background
+### `s.flame(...)`（体积火焰光源）
 
-`{ "type": "solid", "color": [r,g,b] }`,
-`{ "type": "gradient", "horizon": [r,g,b], "zenith": [r,g,b] }` (lerp on ray y), or
+程序化火焰——sundog 的第一类**参与介质**（发射 + 吸收，无散射）：raygen 在
+每段光线上与火焰的竖直包围圆柱解析求交，行进积分噪声塑形的发射场（黑→深红
+→橙→黄白梯度），并按透射率衰减其后的一切贡献。火焰因此"看得见"（含反射/
+折射里的像），也会遮挡（烟雾感吸收）。
 
-```json
-{ "type": "envmap", "file": "../assets/sky_4k.hdr",
-  "rotate": 0, "intensity": 1.0, "importance": true }
-```
-
-`envmap` turns an equirectangular Radiance `.hdr` panorama into an
-infinitely-distant light: missed rays look it up by direction, *and* it joins
-NEE+MIS as a first-class light — at load time a 2D CDF over
-luminance × sin θ is built so light sampling hits the brightest texels
-directly (a small sun stops being a noise disaster). `file` resolves relative
-to the scene file (gallery scenes use `../assets/*.hdr`, downloaded by
-`scripts/fetch-assets.sh`); `rotate` spins the map around +y (degrees);
-`intensity` is a scalar radiance gain; `importance: false` degrades NEE to
-uniform sphere sampling (comparison experiments only — leave it on).
-
-## Render settings
-
-`width height spp max_depth seed clamp gamma exposure tonemap
-transparent_shadows` — `width/height`, `spp`, `seed`, `clamp`, `gamma`,
-`tonemap`, `transparent_shadows` also overridable from the CLI.
-`transparent_shadows` (default true) lets shadow rays transmit through
-glass/water with Fresnel + Beer–Lambert attenuation; `false` restores the
-legacy binary occlusion (`--opaque-shadows`, comparison figures only). `clamp` limits indirect per-sample contributions (firefly
-control, 0 = off). Fixed `seed` gives bit-identical images on the same
-GPU/driver.
-
-`tonemap` selects the output mapping: `"aces"` (default) runs the Hill
-ACES fit — highlights roll off along a filmic shoulder instead of clipping
-to white; `"clamp"` is the linear escape hatch (exposure → clamp[0,1] →
-gamma) for numeric experiments like the white-furnace test where the PNG
-must be a direct linear readout.
-
-## Flames（体积火焰光源）
-
-顶层 `flames` 数组声明程序化火焰——sundog 的第一类**参与介质**（发射 +
-吸收，无散射）：raygen 在每段光线上与火焰的竖直包围圆柱解析求交，行进积分
-噪声塑形的发射场（黑→深红→橙→黄白梯度），并按透射率衰减其后的一切贡献。
-火焰因此"看得见"（含反射/折射里的像），也会遮挡（烟雾感吸收）。
-
-```json
-"flames": [
-  { "base": [0, 0.12, 0], "height": 1.7, "radius": 0.5,
-    "intensity": 22, "sigma": 4.5, "noise_scale": 3.0, "seed": 3,
-    "light_intensity": 40 }
-]
+```python
+s.flame(base=[0, 0.12, 0], height=1.7, radius=0.5,
+        intensity=22, sigma=4.5, noise_scale=3.0, seed=3,
+        light_intensity=40)
 ```
 
 - `base`/`height`/`radius`（必填）：火根位置、火高、包围圆柱半径（轴恒为 +y）
@@ -139,20 +220,19 @@ must be a direct linear readout.
   火焰立体角小、σ 小，量级可忽略，此为如实声明的工程近似
 - 限制：阴影线不穿越体积衰减（火焰是光学薄介质）；火焰不写 AOV 引导层
 
-## Physics（PhysX GPU 刚体沉降）
+### `s.physics(...)` + per-object opt-in（PhysX GPU 刚体沉降）
 
-带顶层 `physics` 块的场景在加载时先跑一遍 **PhysX 5 GPU** 刚体模拟
-（`eENABLE_GPU_DYNAMICS` + GPU 宽相，无 CPU 回退）：JSON 里的 `transform`
-是**初始位姿**，模拟到全部刚体休眠（或 `max_time` 超时）后，最终位姿被烘焙回
-每个对象的变换，之后照常构建加速结构与渲染。堆叠、倚靠、翻倒的形态因此不需要
-手工摆放——`scenes/06-spot-cascade.json`（由 `scripts/gen_drop.py` 生成）就是
-512 只 Spot 倾泻进房间的例子。
+调用了 `s.physics(...)` 的场景在加载时先跑一遍 **PhysX 5 GPU** 刚体模拟
+（`eENABLE_GPU_DYNAMICS` + GPU 宽相，无 CPU 回退）：对象的 transform 是
+**初始位姿**，模拟到全部刚体休眠（或 `max_time` 超时）后，最终位姿被烘焙回
+每个对象的变换，之后照常构建加速结构与渲染。堆叠、倚靠、翻倒的形态因此不
+需要手工摆放——`scenes/06-spot-cascade.py` 就是 512 只 Spot 倾泻进房间的
+例子。
 
-```json
-"physics": { "gravity": [0,-9.81,0], "timestep": 0.0041667, "max_time": 15.0,
-             "friction": 0.6, "restitution": 0.1,
-             "solver_iterations": [8, 2], "sleep_threshold": 0.05,
-             "stop_time": 0 }
+```python
+s.physics(gravity=[0, -9.81, 0], timestep=0.0041667, max_time=15.0,
+          friction=0.6, restitution=0.1, solver_iterations=[8, 2],
+          sleep_threshold=0.05, stop_time=0)
 ```
 
 `stop_time > 0` 是**锐利定格**模式：模拟恰好推进到该时刻（秒）就停下烘焙，
@@ -160,27 +240,70 @@ must be a direct linear readout.
 超时）。CLI `--physics-time F` 可覆盖场景值（`0` 强制回沉降模式）——画廊
 主图 06 就是同一场景在 `--physics-time 1.0` 下的定格，对照图则是沉降态。
 
-对象通过自己的 `physics` 键 **显式 opt-in**（没有该键的对象不参与碰撞）：
+对象通过 `physics=` 关键字 **显式 opt-in**（没有的对象不参与碰撞）：
 
-```json
-{ "shape": "rect",     "material": "floor",
-  "physics": { "thickness": 0.5, "friction": 0.8 }, ... }
-{ "shape": "mesh:spot", "material": "spot_skin",
-  "physics": { "dynamic": true, "density": 250,
-               "velocity": [0,-2,0], "angular_velocity": [1,0,-1] }, ... }
+```python
+s.add("rect", "floor", scale(12, 1, 12),
+      physics=static_body(thickness=0.5, friction=0.8))
+s.add("mesh:spot", "spot_skin", scale(0.5), translate(0, 3, 0),
+      physics=rigid_body(density=250, velocity=[0, -2, 0],
+                         angular_velocity=[1, 0, -1]))
 ```
 
-- `dynamic`（默认 false）：false = 静态碰撞体，true = 刚体。
-  `density`、`velocity`、`angular_velocity` 仅对刚体有意义；
-  `friction`/`restitution` 缺省继承全局值。
+- `static_body(thickness, friction, restitution)`：静态碰撞体。
+  `rigid_body(density, velocity, angular_velocity, friction, restitution)`：
+  刚体。`friction`/`restitution` 缺省继承全局值。
 - **形状支持**：`sphere`（静/动）、`mesh:*`（静/动，凸包近似——顶点上限 64 的
   convex hull，共享网格只烹制一次，实例用 `PxMeshScale` 缩放）、`rect`
   （**仅静态**：按正面 +Y 往背面挤出 `thickness`（默认 0.2）厚的实体板，
-  零厚度平面才不会被穿透）。`disk`/`cylinder`/`parabola` 不支持，解析期报错。
+  零厚度平面才不会被穿透）。`disk`/`cylinder`/`parabola` 不支持，emit 期
+  报错。
 - **变换约束**：参与对象的变换必须可分解为 平移·旋转·缩放（无剪切、无镜像）；
   刚体还要求**均匀缩放**。
-- **限制**：`dynamic: true` 不能用在自动注册为 NEE 面光源的发光对象上
-  （光源采样框架在解析期烘焙）——要么保持静态，要么 `nee: false`。
-- **决定性**：固定步长、固定迭代数、按场景顺序建 actor；同一 GPU/驱动上
-  跑间可复现（与渲染的决定性同一口径），跨机器不承诺。模拟耗时计入
+- **限制**：`rigid_body` 不能用在自动注册为 NEE 面光源的发光对象上
+  （光源采样框架在解析期烘焙）——要么保持静态，要么 `nee=False`。
+- **决定性**：固定步长、固定迭代数、按 `s.add` 顺序建 actor；同一 GPU/驱动
+  上跑间可复现（与渲染的决定性同一口径），跨机器不承诺。模拟耗时计入
   `--stats` 的 `timings_ms.physics`，不影响 `render` 口径。
+
+## Validation & errors
+
+`scenelib` mirrors every hard constraint of the renderer's loader and
+reports it at emit time with the scene-file line that registered the
+offending item:
+
+```
+SceneError: objects[17] (12-molten-oracle.py:196): disk area light requires uniform XZ scale
+```
+
+Checked: shape/texture/material/tonemap enums, unknown field names (typo
+guard), references to unregistered materials/textures/meshes, double-null
+faces, area-light uniform-scale rules, the textured-emissive-sphere
+`nee=False` rule, physics shape/dynamic constraints, and numeric domains
+(flame/envmap/absorb/wave parameters).
+
+## Determinism & reproducibility
+
+- scenelib itself never draws randomness or timestamps; the JSON IR is a
+  pure function of the API calls (`--emit-json` twice → identical bytes).
+- Scenes that use random layout own their seed: call `random.seed(N)` before
+  the first draw (see `scenes/05-spot-swarm.py`). This layout seed is
+  independent of `render(seed=…)`, the renderer's sampling seed.
+- Object order is `s.add` call order — it is the scene order the renderer
+  and PhysX see, so keep it stable.
+
+## Asset paths
+
+`texture(file=…)`, `background_envmap(file=…)` and `mesh(obj=…)` paths
+resolve relative to **the scene file's own directory** (not the cwd) —
+gallery scenes use `textures/…` and `../assets/…`. Absolute paths pass
+through unchanged.
+
+## Appendix: wire format (internal)
+
+`Scene.run()` and `--emit-json` produce a compact JSON document (the
+renderer backend's native input, parsed by `src/scene_json.cpp`). It is an
+internal contract between scenelib and the backend — not a user-facing
+format, and its schema may change with the renderer. Tooling that needs raw
+scene data (tests, report figures) uses `--emit-json` rather than writing
+JSON by hand.

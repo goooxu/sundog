@@ -21,5 +21,5 @@
 - **Terms:** **CC0 1.0 Universal** — public domain; no attribution required.
 - **获取方式:** `scripts/fetch-assets.sh`（HDR 不入库，按需重新下载；直链
   `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kloofendal_48d_partly_cloudy_puresky_4k.hdr`）。
-- **Use in this project:** `scenes/10-suncatcher.json` 的环境光照（IBL），
+- **Use in this project:** `scenes/10-suncatcher.py` 的环境光照（IBL），
   技术报告第 15 章的重要性采样演示。

@@ -9,7 +9,7 @@
 - **点**用 `applyPoint()`：乘 $`A`$ 再加 $`t_M`$；
 - **向量**（方向、切向）用 `applyVector()`：只乘 $`A`$——方向没有"位置"，平移对它没有意义。
 
-复合用 `mul(a, b)`，语义是 $`a \circ b`$——先作用 $`b`$、再作用 $`a`$。场景 JSON 里的 transform 是一个步骤列表，例如 05 号场景里一头奶牛：
+复合用 `mul(a, b)`，语义是 $`a \circ b`$——先作用 $`b`$、再作用 $`a`$。场景里的 transform 是一个步骤列表（Python 端 `scale()/rotate_*()/translate()` 构造，IR 形态如下），例如 05 号场景里一头奶牛：
 
 ```json
 [{ "scale": 0.85 }, { "rotate_y": 319.21 }, { "translate": [-29.145, 0.812, -29.54] }]
@@ -62,7 +62,7 @@ o' + t\,d' = M^{-1}(o + t\,d)
 
 sundog 的做法（src/accel.cpp）：对场景**用到的**每种解析图元各建一个规范 GAS（`buildQuadricGas()`——内容只是一个物体空间包围盒，求交走上一章的 intersection 程序），每个 OBJ 网格建一个三角形 GAS（`buildTriangleGas()`）。场景里的每个物体只是"GAS 引用 + 变换 + 材质"的三元组，`buildIas()` 为它填一条 OptixInstance：变换矩阵直接从 `Affine` 按字节拷贝 12 个 float（两者行布局刻意一致），traversableHandle 指向共享的 GAS，sbtOffset 取 $`2\times`$ 实例号——用于在着色器绑定表（SBT）中找到各自的材质记录，乘 2 是因为 radiance/shadow 两套 hitgroup（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）。
 
-规模效果最直观的是 05 号场景：32768 头 Spot 奶牛全部引用同一份 5856 个三角形的网格 GAS（scenes/05-spot-swarm.json；docs/BENCHMARKS.md 计 32770 个实例，含两块面光矩形）。等效三角形约 $`32768 \times 5856 \approx 1.9`$ 亿，而显存里三角形只存一份——摆放的开销是每头牛一条 80 字节的实例记录（OptixInstance），而不是 5856 个三角形的拷贝。
+规模效果最直观的是 05 号场景：32768 头 Spot 奶牛全部引用同一份 5856 个三角形的网格 GAS（scenes/05-spot-swarm.py；docs/BENCHMARKS.md 计 32770 个实例，含两块面光矩形）。等效三角形约 $`32768 \times 5856 \approx 1.9`$ 亿，而显存里三角形只存一份——摆放的开销是每头牛一条 80 字节的实例记录（OptixInstance），而不是 5856 个三角形的拷贝。
 
 ![一份 GAS，多个实例](figures/ch07-instancing.svg)
 *图：一份单位几何的 GAS 被三个实例矩阵引用，在世界中呈现三种不同摆放。*

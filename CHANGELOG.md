@@ -10,6 +10,36 @@
 
 （暂无）
 
+## [0.10.0] - 2026-07-15 — 场景即程序：Python 场景定义
+
+### 新增
+
+- **scenelib**（`scenes/scenelib.py`）：Python 场景定义库——场景是可执行
+  程序，直接运行即渲染（`python3 scenes/07-campfire.py`），输出名由代码内
+  `s.run(out=…)` 指定，命令行参数原样透传覆盖场景内建设置；
+  `--emit-json PATH|-` 只发中间表示不渲染（测试/工具逃生舱）
+- OMIT 哨兵透传（可选参数不设置就不落键）、任意序 transform 构造器、
+  镜像装载器全部硬校验并报场景文件行号、决定性契约（库内零随机零时间戳）
+- `tests/test_scenelib.py`：57 项 Python 侧单测挂进 make check
+
+### 变更
+
+- **全部 14 个场景（12 画廊 + smoke + features）迁为自执行 .py**，等价性
+  逐字段验证（对象级 deep-diff），golden 6 场景不重生成 PSNR 全 inf、
+  smoke 决定性 sha 与历史逐位一致——渲染零扰动；JSON 降级为渲染时落在
+  场景同目录的临时中间表示，不再入库、不再是用户格式（C++ 后端零改动）
+- 三个场景生成器（gen_swarm/gen_drop/gen_oracle）被同名场景 .py 吸收；
+  测试与画廊/基准/报告图版脚本全部改为直接执行场景文件；
+  [SCENES.md](docs/SCENES.md) 重写为 scenelib API 参考
+- host-tests 运行新增 python3 依赖（场景经 --emit-json 装载）
+
+### 修复
+
+- 06 号场景的 ACES 曝光补偿（exposure 0.25）当年只手术进了 JSON、
+  生成器未同步——迁移 parity 闸门抓出并对齐
+
+（主要提交 f2e6e0b · 44f1a63 · 9d7c564 · c6e23fb）
+
 ## [0.9.0] - 2026-07-15 — 封面场景
 
 ### 新增

@@ -125,7 +125,7 @@
 - `figures/ch06-ray-quadric.svg`：射线穿球的两根 t、判别式几何含义
 - `figures/ch06-barycentric.svg`：三角形重心坐标与属性插值
 - `figures/ch06-parabola-focus.svg`：抛物面反射平行光过焦点（与 04 场景互证）
-- `figures/ch06-primitives.png`：features.json 渲染（5 种原语同框）
+- `figures/ch06-primitives.png`：features.py 渲染（5 种原语同框）
 
 ---
 
@@ -338,12 +338,12 @@
 | 文件 | 内容 | 生成要点 |
 |---|---|---|
 | ch01-spp-convergence.png | 五联横条 1/4/16/64/256 spp | 02-cornell-lume --size 480x270，PIL 横拼+每格左上角标 spp |
-| ch01-gamma.png | gamma 1.0 vs 2.2 双联 | smoke.json --tonemap clamp --gamma 1.0/2.2，PIL 竖缝拼接+标注 |
+| ch01-gamma.png | gamma 1.0 vs 2.2 双联 | smoke.py --tonemap clamp --gamma 1.0/2.2，PIL 竖缝拼接+标注 |
 | ch01-tonemap.png | 截断 vs ACES 双联 | 07-campfire 960x540/64spp，--tonemap clamp vs 默认，PIL 横拼 |
 | ch04-nee.png | NEE 开关双联 | 02-cornell-lume 64spp 原样 vs sed 生成 nee:false 变体场景 |
 | ch04-clamp.png | firefly 对比双联 | 04-parabolica --size 640x360 --spp 24，--clamp 0 vs 默认 |
 | ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
-| ch06-primitives.png | 5 原语同框 | features.json 256spp |
+| ch06-primitives.png | 5 原语同框 | features.py 256spp |
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
 | ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 | ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
