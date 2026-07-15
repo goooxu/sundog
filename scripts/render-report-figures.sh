@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 13 comparison PNGs from the
+# sundog report figures — renders the 15 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
@@ -396,5 +396,55 @@ python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
   "$RAW/ch15-imp-16.png|重要性采样 · 16 spp" \
   "$RAW/ch15-uni-256.png|均匀采样 · 256 spp" \
   "$RAW/ch15-imp-256.png|重要性采样 · 256 spp"
+
+# ---------------------------------------------- ch16-shadow-compare.png
+# 11-glasswork with legacy binary occlusion vs transparent shadows: the
+# tinted marbles cast solid dark blobs vs rose/gold/teal light pools.
+render "ch16-shadow-opq" "$ROOT/scenes/11-glasswork.json" \
+       --size 960x540 --spp 96 --opaque-shadows
+render "ch16-shadow-xpr" "$ROOT/scenes/11-glasswork.json" \
+       --size 960x540 --spp 96
+python3 "$COMPOSE" strip "$FIG/ch16-shadow-compare.png" --label-size 26 \
+  "$RAW/ch16-shadow-opq.png|布尔遮挡（--opaque-shadows）" \
+  "$RAW/ch16-shadow-xpr.png|透明阴影（默认）"
+
+# ------------------------------------------------ ch16-snell-window.png
+# Underwater camera looking straight up: the sky compresses into Snell's
+# window (half-angle asin(1/1.33) ~ 48.6 deg); outside it, total internal
+# reflection mirrors the lake floor. Temp scene in /tmp (absolute asset path).
+SNELL="/tmp/report-snell-window.json"
+python3 - "$ROOT" "$SNELL" <<'PY'
+import json, os, sys
+root, dst = sys.argv[1:]
+hdr = os.path.join(root, "assets", "kloofendal_48d_partly_cloudy_puresky_4k.hdr")
+s = {
+    "render": {"width": 960, "height": 540, "spp": 128, "max_depth": 12,
+               "seed": 7, "clamp": 10},
+    # camera 2 units below a calm water surface, looking straight up
+    "camera": {"lookfrom": [0, -2.0, 0], "lookat": [0, 0, 0.001],
+               "up": [0, 0, 1], "vfov": 85},
+    "background": {"type": "envmap", "file": hdr, "rotate": 180},
+    "textures": {"bed": {"type": "checker", "a": [0.5, 0.42, 0.3],
+                         "b": [0.28, 0.24, 0.18], "scale": [16, 16]}},
+    "materials": {
+        "water": {"type": "water", "wave_amp": 0.0, "absorb": [0.2, 0.05, 0.02]},
+        "floor": {"type": "lambert", "texture": "bed"},
+        "coral": {"type": "lambert", "color": [0.85, 0.35, 0.25]},
+    },
+    "objects": [
+        {"shape": "rect", "material": "water", "transform": [{"scale": 40}]},
+        {"shape": "rect", "material": "floor",
+         "transform": [{"scale": 40}, {"translate": [0, -4, 0]}]},
+        {"shape": "sphere", "material": "coral",
+         "transform": [{"scale": 0.6}, {"translate": [1.5, -3.4, 1.2]}]},
+    ],
+    "lights": [],
+}
+json.dump(s, open(dst, "w"))
+print("wrote", dst)
+PY
+render "ch16-snell" "$SNELL" --size 960x540 --spp 128
+python3 "$COMPOSE" strip "$FIG/ch16-snell-window.png" --label-size 22 \
+  "$RAW/ch16-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

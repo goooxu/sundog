@@ -47,8 +47,9 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
 
 > 📖 **技术报告**：[docs/report/](docs/report/index.md) ——面向无图形学背景读者的
-> 15 章 + 附录教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程、RT Core、
-> PhysX 物理装载、体积渲染、水面材质与 HDR 环境光照，数学推导与源码逐一对账。
+> 16 章 + 附录教程式报告，从渲染方程与蒙特卡洛讲到 OptiX 工程、RT Core、
+> PhysX 物理装载、体积渲染、水面材质、HDR 环境光照与透明阴影/嵌套介质，
+> 数学推导与源码逐一对账。
 
 ## 特性
 
@@ -70,7 +71,12 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 - **体积火焰**：程序化发射型参与介质（发射 + 吸收，raygen 解析界定 +
   光线行进），火焰内嵌软阴影点光经 NEE 照亮场景（`flames` 场景键）
 - **水面材质**：`water` = ior 1.33 电介质界面 + fbm 波纹法线 + Beer–Lambert
-  水体吸收（介质内路径按长度衰减）；水下点的 NEE 被折射界面遮挡是已知折衷
+  水体吸收（介质内路径按长度衰减）
+- **透明阴影**：阴影线沿直线透射玻璃/水——逐界面菲涅尔 + 介质段
+  Beer–Lambert（有色玻璃投有色亮影、水下点收到直接光、Snell 窗口自然
+  涌现）；`--opaque-shadows` 保留旧布尔遮挡供对照
+- **嵌套介质**：介质栈 + 相对折射率——水中玻璃按 η=1.5/1.33 折射、
+  玻璃中气泡按 1.33/1.0，`dielectric` 可带 `absorb`（良构嵌套假设）
 - **ACES 色调映射**：Hill 拟合（RRT+ODT），默认对全部输出生效——高光沿肩部
   渐进滚降而非硬截断为纯白（`tonemap:"clamp"` 保留线性退路供数值实验）
 - **降噪**：OptiX AI denoiser（HDR + albedo/normal 引导 AOV）
@@ -112,6 +118,7 @@ sundog --probe
 --size WxH         分辨率
 --clamp F          间接光 firefly 钳制（0 = 关）
 --denoise / --no-denoise                 --gamma F      输出 gamma（默认 2.2）
+--opaque-shadows   旧式布尔阴影遮挡（对照实验用）
 --tonemap MODE     输出色调映射：aces（默认）| clamp（线性截断）
 --physics-time F   刚体定格于模拟第 F 秒（0 = 强制沉降到静止）
 --stats FILE.json  渲染统计
@@ -158,6 +165,6 @@ assets/       网格资产（spot.obj，CC0，来源见 assets/LICENSES.md）
 tests/        场景解析单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
 docs/         SCENES.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图
-docs/report/  技术报告（15 章 + 附录 + figures/，见 report/index.md）
+docs/report/  技术报告（16 章 + 附录 + figures/，见 report/index.md）
 out/          渲染输出（不入库）
 ```

@@ -7,7 +7,7 @@
 
 ## index.md（集成阶段编写）
 
-阅读指南（三条路径：只看原理 01-05 / 只看工程 08-15 / 全读）、章节导航表、
+阅读指南（三条路径：只看原理 01-05 / 只看工程 08-16 / 全读）、章节导航表、
 致谢与延伸阅读（PBRT、Ray Tracing in One Weekend、OptiX Programming Guide）。
 
 ---
@@ -99,7 +99,7 @@
 2. 微表面理论——宏观粗糙=微镜面统计；D（GGX：α²/(π((n·h)²(α²-1)+1)²)）、G/G1（Smith，含 Λ 式）、完整 f_r = DGF/(4cosθ_i cosθ_o)（对账 `ggxD/ggxLambda/ggxG`）
 3. VNDF 采样——为什么按可见法线采样、pdf = G1·D/(4cosθ_o)、权重化简为 F·G/G1（对账 `ggxSampleVndf/ggxPdf`，含 roughness<1e-3 退化 delta 镜面）
 4. 菲涅尔——电介质精确式与 Schlick 近似 F0+(1-F0)(1-cosθ)⁵；金属的"F0 即颜色"；曲线图对照
-5. 折射——Snell 定律、η 按面选取、TIR 条件、出射侧余弦（对账 `refract()`（device/math.cuh）与 MT_DIELECTRIC 分支，特别是 `cosine = frontface ? -dot(rayDir,n) : -dot(refr,n)` 的原因——错用密介质侧余弦正是附录陷阱清单的第一条）
+5. 折射——Snell 定律、η 按面且按介质栈选取（etaExt，第 16 章）、TIR 条件、出射侧余弦（对账 `refract()`（device/math.cuh）与 MT_DIELECTRIC 分支，特别是"低折射率侧余弦"的选择——错用密介质侧余弦正是附录陷阱清单的第一条）
 6. 双面材质与穿透面语义（front/back、MAT_NONE）
 
 图：
@@ -174,7 +174,7 @@
 2. OptiX 程序模型——raygen/IS/AH/CH/miss 五种程序各管什么、一次 trace 的调用时序
 3. sundog 的 megakernel 决策——路径循环放 raygen、trace depth=1、CH 只打包命中信息（8 个 payload 寄存器布局表，对账 programs.cu 顶部注释与 `packHit()`）
 4. SBT——records、`sbtOffset = 2×instanceId`、radiance/shadow 两套 hitgroup、8 个 PG 变体矩阵（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））
-5. anyhit 的三件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用同一逻辑；DISABLE_ANYHIT 快速路径（对账 `maskAnyhit()` 与 accel.cpp 实例 flags）
+5. anyhit 的四件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用、透明阴影透射率累积（第 16 章）；DISABLE_ANYHIT 快速路径的三态判据（对账 `maskAnyhit()`/`shadowAnyhit()` 与 accel.cpp 实例 flags）
 6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过
 
 图：
@@ -263,7 +263,7 @@
 1. 水面的三层拆解——界面 = ior 1.33 电介质（第 5 章"站在湖边"直觉闭环；对账 bsdfSample() 的 MT_WATER/MT_DIELECTRIC 共享分支（device/bsdf.cuh））、波纹 = 法线扰动、水体 = 介质吸收；三层独立可开关（配 anatomy 三联）
 2. 波纹：高度场与法线扰动——y=H(x,z) 梯度法线推导（回链第 6 章）、fbm 高度场中心差分（对账 waterNormal()（device/noise.cuh））、掠射角防黑边回退；波光路径成因（法线锥 → 沿视线拉长的镜面亮带，配示意图）
 3. 水色：介质吸收——Beer–Lambert 回链第 13 章、σ_r>σ_g>σ_b 波长偏心（红光半衰深度 ln2/0.45≈1.5 单位算给读者）；raygen 介质状态记账（透射切换/TIR 不切换/介质内 miss 大程长衰减，对账 mediumAbsorb 段（device/programs.cu））
-4. 工程记账与边界——嵌套介质不支持；水下 NEE 死区（回链附录陷阱 3）；实测引 BENCHMARKS（08：0.031 s / 7217 Mrays/s，全画廊最快的原因）；golden 101 dB 事件 = 第 11 章 45 dB 阈值设计的现场兑现
+4. 工程记账与边界——初稿两条限制（嵌套介质、水下 NEE 死区）均被第 16 章解除，仅保留决定性声明；实测引 BENCHMARKS（08：0.031 s / 7217 Mrays/s，全画廊最快的原因）；golden 101 dB 事件 = 第 11 章 45 dB 阈值设计的现场兑现
 5. 小结——三层组合的自然涌现；链式交棒第 15 章（环境光照）
 
 图：
@@ -282,7 +282,7 @@
 1. 从"背景"到"光源"——solid/gradient 只是 miss 时的着色，NEE 采不到它；无穷远球面光源的形式化：L_env 只依赖方向、渲染方程的边界项（对账 evalBackground() 的 BG_ENVMAP 分支（device/programs.cu））
 2. HDR 与 equirect 映射——太阳与天空差 4-5 个数量级、8-bit + sRGB 装不下；Radiance RGBE 共享指数格式一段（stbi_loadf 解码）；(u,v)↔(θ,φ) 双向映射、rotate = 方位角平移、两极拉伸畸变与面积元 sinθ dθdφ（对账 envDirToUv() / envEval()（device/env_light.cuh）与 EnvMap::upload()（src/env_light.cpp）的 float4 纹理路径）
 3. 把亮度变成概率——目标 pdf ∝ 亮度×sinθ（畸变补偿的由来）；行边缘 CDF + 行内条件 CDF 的两级构造；逆变换采样两次二分（回链第 3 章）；立体角 pdf 换元 p(ω) = p(u,v)/(2π² sinθ) 完整推导与白图自检 1/4π（对账 CDF 构建循环（src/env_light.cpp）与 sampleEnv() / envPdfSolidAngle()（device/env_light.cuh））
-4. 与 NEE/MIS 的接驳——环境光是一盏"方向域光源"：策略集 nStrat = numLights + hasEnv 均匀选一、选择概率折进两侧 pdf；BSDF 光线逃逸即"命中"环境光，miss 分支权重与第 4 章两式逐字互补；importance:false 的均匀球面对照（pdf=1/4π）；玻璃后的太阳焦散仍靠 BSDF 路径（回链附录陷阱 3）（对账 raygen 的 nStrat/miss 权重/NEE 分支（device/programs.cu））
+4. 与 NEE/MIS 的接驳——环境光是一盏"方向域光源"：策略集 nStrat = numLights + hasEnv 均匀选一、选择概率折进两侧 pdf；BSDF 光线逃逸即"命中"环境光，miss 分支权重与第 4 章两式逐字互补；importance:false 的均匀球面对照（pdf=1/4π）；玻璃后的直射透光由第 16 章透明阴影修复、聚焦焦散仍靠 BSDF 路径（对账 raygen 的 nStrat/miss 权重/NEE 分支（device/programs.cu））
 5. 工程记账与实测——CDF 构建耗时与显存增量（float4 4k 贴图 + 两级 CDF，stats 实测）；均匀 vs 重要性等 spp 对比的定量 PSNR；白炉测试（纯白环境+白球=常数）验证 MIS 无重复计数；决定性口径不破（无 env 场景 RNG 消耗逐位不变的设计约束）；限制如实声明（引 BENCHMARKS.md 10 行）
 
 图：
@@ -294,6 +294,26 @@
 
 ---
 
+## 16-transparent-media.md 透明阴影与嵌套介质
+
+**回答**：玻璃为什么曾投出实心黑影、水下为什么曾一片死寂？把"布尔遮挡"升级成"直线透射率"要付出什么、买回什么？水里的玻璃怎么算对？
+
+小节：
+1. 布尔阴影的两宗罪——玻璃黑影（回链附录陷阱 3 的旧折衷）与水下 NEE 死区（回链 14 章旧边界）；根因三件套：DISABLE_ANYHIT 实例旗标 + TERMINATE_ON_FIRST_HIT + 只放行穿透面的 anyhit
+2. 直线透射近似——逐界面菲涅尔（eta/f0/余弦约定回链第 5 章；backface TIR 判全遮挡 = Snell 窗口自然涌现，半角 asin(1/1.33)≈48.8°）；符号距离法 Beer–Lambert：Σ(出射 σt) − Σ(入射 σt) 的序无关性证明与"起点在介质内"的自然覆盖（对账 shadowAnyhit()（device/programs.cu））
+3. OptiX 落地——shadow payload 从 1 bit 到 5 寄存器（p0 可见性 + p1 菲涅尔连乘 + p2-4 逐通道符号光学深度）；统一 shadow anyhit 与实例三态分流（opaque/masked/transmissive）；REQUIRE_SINGLE_ANYHIT_CALL 从性能项升级为正确性前提（对账 traceShadow()（device/programs.cu）、buildSbt()（src/pipeline.cpp）、buildIas()（src/accel.cpp））
+4. 嵌套介质栈与相对 IOR——单变量为什么算错水中玻璃；LIFO 栈的进出与溢出退化；η = n_外/n_内 的按栈选取、Schlick 余弦泛化为"低折射率侧"；玻璃球⊃水球⊃气泡的走读（对账 raygen 介质栈段与 bsdfSample() 的 etaExt（device/bsdf.cuh））
+5. 偏差与记账——四项文档化近似（不折弯：焦散仍靠 BSDF；界面对真空；平面法线；嵌套区间双重衰减）；实测：05 号 4096 玻璃牛的 anyhit 代价（约 11% 吞吐）、smoke/02/04 三场景逐字节不变、tier B 降噪 PSNR 逐位不变；体积火焰阴影仍不衰减（与表面透射两回事，回链 13 章）；决定性（零随机数消耗）
+
+图：
+- `figures/ch16-shadow-transmit.svg`：阴影线穿介质的符号距离记账解剖（入/出成对、起点在水中的不成对情形）
+- `figures/ch16-medium-stack.svg`：介质栈进出与相对 IOR（玻璃⊃水⊃气泡三层走读）
+- `figures/ch16-shadow-compare.png`：11-glasswork 透明阴影开/关双联（--opaque-shadows）
+- `figures/ch16-snell-window.png`：水下仰视临时场景——Snell 窗口内是天空、窗外是全内反射的水底
+- 复用 `../gallery/11-glasswork.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
 ## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
 **回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
@@ -301,7 +321,7 @@
 条目：
 1. 折射率之比用错方向——恒用 η=1/ior 时判别式恒正、玻璃永远不发生 TIR 的证明；Schlick 用密介质侧余弦会严重低估反射（临界角处 F 应连续趋于 1）；sundog 按面选 η、用低折射率侧余弦（第 5 章）
 2. 采样分布与权重不匹配——"n + 球内均匀点"≠ cosine 分布，却按完美重要性采样加权→系统性偏差；sundog 用 Malley 方法精确余弦采样
-3. 阴影线把透射材质当不透明——玻璃背后影子全黑；常见工程折衷的取舍讨论：sundog 同样如此，靠面光 + BSDF 折射路径 + MIS 兜底玻璃后方与焦散
+3. 阴影线把透射材质当不透明——玻璃背后影子全黑；朴素实现的常见近似，sundog 以直线透射率修复直接光一半（第 16 章），聚焦焦散仍靠 BSDF 路径
 4. 低质量 BVH 切分——随机选轴的中位数切分：兄弟盒重叠大、遍历质量差且不可复现
 5. 求交时现算变换三角函数——逐轴旋转每条光线现算 sin/cos，本可在加载时预乘成 3×4 仿射一次到位；sundog 的 Affine 复合 + OptiX 实例变换
 6. 终止与随机数的三个坑——无 RR 的深递归纯浪费且硬截断有偏；全屏共享分层抖动使像素间噪声相关；random_device 播种毁掉"同输入同输出"的回归能力
@@ -329,6 +349,8 @@
 | ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
 | ch14-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
 | ch15-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
+| ch16-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
+| ch16-snell-window.png | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -354,7 +376,8 @@ ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
 ch12-physics-pipeline, ch12-trs-bake, ch13-radiative-transfer,
 ch13-flame-field, ch14-water-layers, ch14-glitter,
 ch15-equirect-mapping, ch15-env-cdf,
-appendix-lambert-bias（共 31 张）
+ch16-shadow-transmit, ch16-medium-stack,
+appendix-lambert-bias（共 33 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；

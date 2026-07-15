@@ -83,6 +83,10 @@
 | 累积分布函数 | cumulative distribution function / CDF | 逆变换采样的查找表 |
 | 逆变换采样 | inverse transform sampling | 均匀随机数经 CDF⁻¹ 得目标分布 |
 | 边缘 / 条件分布 | marginal / conditional distribution | 2D 采样"先选行再选列"的分解 |
+| 透明阴影 | transparent shadows | 阴影线沿直线累积透射率而非布尔遮挡 |
+| 斯涅尔窗口 | Snell's window | 水下仰望时天空被压进的临界角圆锥 |
+| 介质栈 | medium stack | 嵌套介质的 LIFO 记账（进 push 出 pop） |
+| 光学深度 | optical depth | τ = ∫σ dt，透射率 e^−τ 的指数 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | 出口映射：ACES Hill 拟合（RRT+ODT），第 1 章 |

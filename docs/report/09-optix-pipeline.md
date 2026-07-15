@@ -72,7 +72,7 @@ payload 是 trace 调用者与 CH/miss 之间的寄存器通道，sundog 固定 
 | p5–p6 | 纹理坐标 u、v |
 | p7 | matId（低 16 位）\|（lightId + 1）<< 16 |
 
-两处打包很值得玩味：miss 时 p2–p4 **复用**法线寄存器直接携带背景色，raygen 拿来就当辐亮度用，省一次分支后的二次求值；p7 把材质号与灯号（`lightId + 1`，0 表示"不是 NEE 灯"）挤进一个寄存器，raygen 全程不需要读 SBT 数据。阴影光线更简单，只用 1 个寄存器：`traceShadow()` 以 `TERMINATE_ON_FIRST_HIT | DISABLE_CLOSESTHIT` 发射，`__miss__shadow` 把 payload 置 1 表示"可见"——被任何不可忽略的表面挡住时 miss 不会执行，payload 保持 0。属性寄存器（attribute）则是 IS 与 AH/CH 之间的通道：`numAttributeValues = 5`，quadric 的 IS 经它交出法线（3）加 UV（2）；三角形用内建重心坐标，不占这 5 个。
+两处打包很值得玩味：miss 时 p2–p4 **复用**法线寄存器直接携带背景色，raygen 拿来就当辐亮度用，省一次分支后的二次求值；p7 把材质号与灯号（`lightId + 1`，0 表示"不是 NEE 灯"）挤进一个寄存器，raygen 全程不需要读 SBT 数据。阴影光线用 5 个寄存器：`traceShadow()` 以 `TERMINATE_ON_FIRST_HIT | DISABLE_CLOSESTHIT` 发射，p0 由 `__miss__shadow` 置 1 表示"到达光源"——被不透明表面挡住时 miss 不会执行、p0 保持 0；p1–p4 携带沿线累积的透射率（逐界面菲涅尔连乘 + 逐通道符号光学深度，玻璃/水的透明阴影，见[第 16 章](16-transparent-media.md)）。属性寄存器（attribute）则是 IS 与 AH/CH 之间的通道：`numAttributeValues = 5`，quadric 的 IS 经它交出法线（3）加 UV（2）；三角形用内建重心坐标，不占这 5 个。
 
 ## 9.4 SBT：光线如何找到"它的程序"
 
@@ -111,15 +111,15 @@ raygen ×1 | miss ×2（radiance, shadow）| hitgroup ×(2×对象数)
 | T_SHD_OPQ | — | — | — |
 | T_SHD_MSK | — | — | `__anyhit__mask_tri` |
 
-注意两点：shadow 变体一律没有 CH（trace 侧还叠加了 `DISABLE_CLOSESTHIT` 双保险）；"三角形 + shadow + 不透明"三个槽位全空——硬件求交加首命中即终止已经足够，"被挡住"完全由 miss **没有**被调用来表达。
+注意两点：shadow 变体一律没有 CH（trace 侧还叠加了 `DISABLE_CLOSESTHIT` 双保险）；"三角形 + shadow + 不透明"三个槽位全空——硬件求交加首命中即终止已经足够，"被挡住"完全由 miss **没有**被调用来表达。非不透明物体的 shadow 槽则挂统一的 `__anyhit__shadow[_tri]`：除穿透面与镂空外，还对玻璃/水累积透射率（第 16 章）。
 
 ![SBT 内存布局](figures/ch09-sbt.svg)
 
 *图：SBT 布局——raygen、两条 miss、每实例两条 hitgroup 记录；索引 = 2×instanceId + rayType。*
 
-## 9.5 anyhit 的三件事与 DISABLE_ANYHIT 快速路径
+## 9.5 anyhit 的四件事与 DISABLE_ANYHIT 快速路径
 
-sundog 的 AH 只有一段共享逻辑 `maskAnyhit()`（device/programs.cu），干三件事：
+sundog 的 AH 有两段逻辑：radiance 变体上的 `maskAnyhit()`（device/programs.cu）与 shadow 变体上的 `shadowAnyhit()`，共干四件事。前者：
 
 ```cpp
 int matId = sp.frontface ? rec->matFront : rec->matBack;
@@ -130,9 +130,9 @@ if (rec->cutoutTexId >= 0) {
 }
 ```
 
-**其一，穿透面**：双面材质语义（见[第 5 章·材质与 BSDF](05-materials.md)）允许某一侧无材质（`MAT_NONE`），光线从这一侧打来时命中被忽略、直接穿过——这也是第 6 章 quadric 求交"两个根都上报"的原因：第一个交点被忽略后，第二个交点还在候选队列里。**其二，alpha 镂空**：有镂空纹理的物体按 UV 采样 alpha，小于 0.5 的部位视为空洞。**其三，阴影线复用**：同一段逻辑同时挂在 radiance 与 shadow 两套变体上，所以阴影光线也正确地穿过穿透面与镂空孔。玻璃则不在此列——把透明材质一律当作阴影遮挡是路径追踪器的常见工程折衷，sundog 也如此（见[附录](appendix-pitfalls.md)）。GAS 构建时的 `OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL`（src/accel.cpp）保证 AH 对同一命中恰好调用一次，纹理采样不会被重复执行。
+**其一，穿透面**：双面材质语义（见[第 5 章·材质与 BSDF](05-materials.md)）允许某一侧无材质（`MAT_NONE`），光线从这一侧打来时命中被忽略、直接穿过——这也是第 6 章 quadric 求交"两个根都上报"的原因：第一个交点被忽略后，第二个交点还在候选队列里。**其二，alpha 镂空**：有镂空纹理的物体按 UV 采样 alpha，小于 0.5 的部位视为空洞。**其三，阴影线复用**：`shadowAnyhit()` 以同样的规则放行穿透面与镂空孔，所以光与影的穿透行为一致。**其四，透明阴影**：阴影线命中玻璃/水时，`shadowAnyhit()` 不再接受命中，而是把菲涅尔透过与 Beer–Lambert 光学深度累积进 payload 后 `optixIgnoreIntersection()` 续跑（机制与偏差分析见[第 16 章·透明阴影与嵌套介质](16-transparent-media.md)）。GAS 构建时的 `OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL`（src/accel.cpp）保证 AH 对同一命中恰好调用一次——对第四件事这不再只是省一次纹理采样的性能项，而是**正确性前提**：重复调用会双计一次穿越。
 
-AH 每次都要从硬件遍历回到 SM，是有代价的（第 8 章）。因此 `buildIas()` 做了静态分流：`matFront/matBack` 均非 `MAT_NONE` 且无镂空纹理的对象，实例标志设为 `OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT`，SBT 里也选 opaque 变体——这类对象（场景中的绝大多数）的命中处理零 AH 开销；其余对象才走 masked 变体。
+AH 每次都要从硬件遍历回到 SM，是有代价的（第 8 章）。因此 `buildIas()` 做了静态分流：`matFront/matBack` 均非 `MAT_NONE`、无镂空纹理**且非透射材质**（玻璃/水）的对象，实例标志设为 `OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT`，SBT 里也选 opaque 变体——这类对象（场景中的绝大多数）的命中处理零 AH 开销；其余对象走 masked/透射变体（透射物体只有 shadow 槽带 AH，radiance 槽仍是 opaque）。
 
 ## 9.6 主机侧：一帧的编排
 

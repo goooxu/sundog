@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="520" viewBox="0 0 940 520" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+  <rect width="940" height="520" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">介质栈与相对折射率：玻璃 ⊃ 水 ⊃ 气泡</text>
+
+  <!-- nested spheres -->
+  <circle cx="250" cy="240" r="150" stroke="#334155" stroke-width="2" fill="#94A3B8" fill-opacity="0.10"/>
+  <circle cx="250" cy="240" r="105" stroke="#2563EB" stroke-width="2" fill="#2563EB" fill-opacity="0.12"/>
+  <circle cx="285" cy="215" r="42" stroke="#64748B" stroke-width="1.6" stroke-dasharray="5 4" fill="#ffffff" fill-opacity="0.7"/>
+  <text x="250" y="80" text-anchor="middle" font-size="15" fill="#334155">玻璃 n=1.5</text>
+  <text x="205" y="330" text-anchor="middle" font-size="15" fill="#2563EB">水 n=1.33</text>
+  <text x="285" y="212" text-anchor="middle" font-size="14" fill="#64748B">气泡</text>
+  <text x="285" y="229" text-anchor="middle" font-size="14" fill="#64748B">n=1.0</text>
+
+  <!-- ray through -->
+  <line x1="40" y1="180" x2="130" y2="205" stroke="#F59E0B" stroke-width="3"/>
+  <line x1="130" y1="205" x2="175" y2="222" stroke="#F59E0B" stroke-width="3"/>
+  <line x1="175" y1="222" x2="250" y2="238" stroke="#F59E0B" stroke-width="3"/>
+  <line x1="250" y1="238" x2="322" y2="243" stroke="#F59E0B" stroke-width="3"/>
+  <line x1="322" y1="243" x2="368" y2="260" stroke="#F59E0B" stroke-width="3"/>
+  <line x1="368" y1="260" x2="452" y2="300" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrO)"/>
+  <!-- crossing labels -->
+  <circle cx="130" cy="205" r="5" fill="#16A34A"/>
+  <text x="118" y="192" text-anchor="end" font-size="13.5" fill="#16A34A">① 入玻璃 η=1/1.5</text>
+  <circle cx="175" cy="222" r="5" fill="#16A34A"/>
+  <text x="163" y="252" text-anchor="end" font-size="13.5" fill="#16A34A">② 入水 η=1.5/1.33</text>
+  <circle cx="250" cy="238" r="5" fill="#16A34A"/>
+  <text x="242" y="266" text-anchor="end" font-size="13.5" fill="#16A34A">③ 入泡 η=1.33/1.0</text>
+  <circle cx="322" cy="243" r="5" fill="#B45309"/>
+  <text x="330" y="230" font-size="13.5" fill="#B45309">④ 出泡 η=1.0/1.33</text>
+  <circle cx="368" cy="260" r="5" fill="#B45309"/>
+  <text x="376" y="250" font-size="13.5" fill="#B45309">⑤ 出水 η=1.33/1.5</text>
+  <circle cx="452" cy="300" r="5" fill="#B45309"/>
+  <text x="452" y="326" font-size="13.5" fill="#B45309">⑥ 出玻璃 η=1.5/1.0</text>
+
+  <!-- ===== stack evolution ===== -->
+  <text x="560" y="80" font-size="16" fill="#334155">介质栈随穿越演化（LIFO）：</text>
+  <g font-size="14" fill="#334155">
+    <!-- column headers as step boxes -->
+    <text x="560" y="112">起点（真空）</text>
+    <rect x="760" y="96" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="113" text-anchor="middle" fill="#64748B">[ ]</text>
+
+    <text x="560" y="152">① push 玻璃</text>
+    <rect x="760" y="136" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="153" text-anchor="middle">[玻璃]</text>
+
+    <text x="560" y="192">② push 水</text>
+    <rect x="760" y="176" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="193" text-anchor="middle">[玻璃, 水]</text>
+
+    <text x="560" y="232">③ push 气泡</text>
+    <rect x="760" y="216" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="233" text-anchor="middle">[玻璃, 水, 泡]</text>
+
+    <text x="560" y="272">④ pop（出泡）</text>
+    <rect x="760" y="256" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="273" text-anchor="middle">[玻璃, 水]</text>
+
+    <text x="560" y="312">⑤ pop（出水）</text>
+    <rect x="760" y="296" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="313" text-anchor="middle">[玻璃]</text>
+
+    <text x="560" y="352">⑥ pop（出玻璃）</text>
+    <rect x="760" y="336" width="150" height="24" rx="4" stroke="#94A3B8" fill="#F8FAFC"/>
+    <text x="835" y="353" text-anchor="middle" fill="#64748B">[ ]</text>
+  </g>
+
+  <!-- ===== rules box ===== -->
+  <rect x="60" y="400" width="820" height="96" rx="8" stroke="#94A3B8" stroke-width="1.5" fill="#F8FAFC"/>
+  <text x="80" y="428" font-size="15" fill="#334155">规则（对账 raygen 介质栈段（device/programs.cu）与 bsdfSample() 的 etaExt（device/bsdf.cuh））：</text>
+  <text x="100" y="452" font-size="14.5" fill="#334155">· 透射进入 → push {σ, n}；透射退出 → pop；全内反射是反射，不动栈</text>
+  <text x="100" y="472" font-size="14.5" fill="#334155">· 相对折射率 η = n_入射侧 / n_透射侧：进入时 n_外 取栈顶，退出时取弹栈后的新栈顶（空栈 = 真空 1.0）</text>
+  <text x="100" y="492" font-size="14.5" fill="#334155">· 段衰减用栈顶 σ；几何须良构嵌套（真包含、不穿插），溢出容量时计数继续、写入丢弃，深嵌套退出不错位</text>
+</svg>

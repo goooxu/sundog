@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="500" viewBox="0 0 940 500" font-family="sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+  <rect width="940" height="500" fill="#ffffff"/>
+  <text x="20" y="32" font-size="20" font-weight="bold" fill="#334155">透明阴影：沿阴影线的符号距离记账</text>
+
+  <!-- ===== case 1: glass sphere between point and light ===== -->
+  <text x="60" y="72" font-size="16" fill="#334155">情形一：着色点与光源之间隔着玻璃球（入/出成对）</text>
+  <!-- shadow ray -->
+  <line x1="70" y1="140" x2="880" y2="140" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrO)"/>
+  <circle cx="70" cy="140" r="5" fill="#334155"/>
+  <text x="52" y="168" font-size="15" fill="#334155">着色点 x</text>
+  <text x="836" y="122" font-size="15" fill="#B45309">→ 光源</text>
+  <!-- glass sphere -->
+  <circle cx="420" cy="140" r="85" stroke="#2563EB" stroke-width="2" fill="#2563EB" fill-opacity="0.10"/>
+  <text x="420" y="252" text-anchor="middle" font-size="14.5" fill="#2563EB">玻璃 σ_g（介质段长 t₂−t₁）</text>
+  <!-- crossings -->
+  <g stroke="#334155" stroke-width="1.6">
+    <line x1="335" y1="128" x2="335" y2="152"/>
+    <line x1="505" y1="128" x2="505" y2="152"/>
+  </g>
+  <text x="335" y="118" text-anchor="middle" font-size="14.5" fill="#16A34A">入射 t₁：累加 −σ_g·t₁</text>
+  <text x="505" y="180" text-anchor="middle" font-size="14.5" fill="#16A34A">出射 t₂：累加 +σ_g·t₂</text>
+  <!-- fresnel notes -->
+  <text x="335" y="96" text-anchor="middle" font-size="13.5" fill="#64748B">×(1−F₁)</text>
+  <text x="505" y="200" text-anchor="middle" font-size="13.5" fill="#64748B">×(1−F₂)</text>
+
+  <!-- ===== case 2: origin under water ===== -->
+  <text x="60" y="300" font-size="16" fill="#334155">情形二：着色点在水里（只有出射，不成对——净和恰为水中段长）</text>
+  <!-- water region -->
+  <rect x="70" y="330" width="330" height="60" fill="#2563EB" fill-opacity="0.10" stroke="#2563EB" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="90" y="412" font-size="14.5" fill="#2563EB">水 σ_w</text>
+  <!-- ray -->
+  <line x1="90" y1="360" x2="880" y2="360" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrO)"/>
+  <circle cx="90" cy="360" r="5" fill="#334155"/>
+  <text x="76" y="386" font-size="15" fill="#334155">湖底 x</text>
+  <line x1="400" y1="348" x2="400" y2="372" stroke="#334155" stroke-width="1.6"/>
+  <text x="400" y="338" text-anchor="middle" font-size="14.5" fill="#16A34A">出水 t₁：累加 +σ_w·t₁（无匹配入射）</text>
+  <text x="640" y="384" font-size="14.5" fill="#64748B">水面外真空段：不再累积</text>
+  <text x="836" y="342" font-size="15" fill="#B45309">→ 天空</text>
+
+  <!-- ===== formula box ===== -->
+  <rect x="60" y="428" width="820" height="56" rx="8" stroke="#94A3B8" stroke-width="1.5" fill="#F8FAFC"/>
+  <text x="470" y="452" text-anchor="middle" font-size="15.5" fill="#334155">τ = Σ(出射 σ·t) − Σ(入射 σ·t)　——　加法交换律使无序 anyhit 的累积顺序无关紧要；</text>
+  <text x="470" y="474" text-anchor="middle" font-size="15.5" fill="#334155">Tr = Π(1−Fᵢ) · e^−max(0, τ)　（对账 shadowAnyhit() 与 traceShadow()（device/programs.cu））</text>
+</svg>

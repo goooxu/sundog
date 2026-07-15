@@ -43,15 +43,16 @@ bowl to aim its convex side away. Remember: `"material"` is the front face.
 
 - `lambert`: `color` or `texture`
 - `metal`: GGX, `color` (F0) or `texture`, `roughness` (0 = mirror)
-- `dielectric`: `ior` (smooth glass)
+- `dielectric`: `ior` (smooth glass), optional `absorb` [r,g,b] — Beer–Lambert
+  absorption inside the glass (tinted interiors and tinted transparent shadows)
 - `water`: 光滑电介质界面（`ior` 默认 **1.33**）+ 两件水特有的事——
   **fbm 波纹法线**（`wave_amp` 默认 0.05、`wave_freq` 默认 2.0；只扰动着色
   法线不位移；波场定义在世界 xz，水面按水平放置约定）与 **Beer–Lambert
   水体吸收**（`absorb` 默认 `[0.45, 0.08, 0.035]`，红先被吃 → 深水偏蓝绿；
-  折射入水后按介质内路径长度衰减，直到再次穿出水面）。限制：嵌套介质不
-  支持（水里再放玻璃按真空算）；水下着色点的 NEE 阴影线会被折射界面遮挡
-  （与"透射材质挡阴影线"同一工程折衷，见附录陷阱 3）——水下照明只来自
-  穿出水面的 BSDF 路径，深水底部会偏暗。
+  折射入水后按介质内路径长度衰减，直到再次穿出水面）。嵌套介质经介质栈
+  与相对折射率支持（水中玻璃、玻璃中气泡；几何须良构嵌套——真包含、
+  不穿插）；水下着色点的 NEE 阴影线经菲涅尔 + Beer–Lambert 衰减穿过
+  水面（超出 Snell 窗口的方向被全内反射挡住），水下能收到直接光。
 - `emissive`: `color`/`texture`, `intensity`, `two_sided` (default false —
   only the front face emits). Emissive `rect`/`disk`/`sphere` objects are
   automatically sampled as area lights (unless `nee: false`). Sphere/disk
@@ -99,9 +100,12 @@ uniform sphere sampling (comparison experiments only — leave it on).
 
 ## Render settings
 
-`width height spp max_depth seed clamp gamma exposure tonemap` —
-`width/height`, `spp`, `seed`, `clamp`, `gamma`, `tonemap` also overridable
-from the CLI. `clamp` limits indirect per-sample contributions (firefly
+`width height spp max_depth seed clamp gamma exposure tonemap
+transparent_shadows` — `width/height`, `spp`, `seed`, `clamp`, `gamma`,
+`tonemap`, `transparent_shadows` also overridable from the CLI.
+`transparent_shadows` (default true) lets shadow rays transmit through
+glass/water with Fresnel + Beer–Lambert attenuation; `false` restores the
+legacy binary occlusion (`--opaque-shadows`, comparison figures only). `clamp` limits indirect per-sample contributions (firefly
 control, 0 = off). Fixed `seed` gives bit-identical images on the same
 GPU/driver.
 
