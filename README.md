@@ -134,7 +134,7 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 ```bash
 make host-tests        # 场景解析/加载单测（编译需 CUDA/OptiX 头，运行无需 GPU）
 make smoke             # scripts/run-smoke.sh：probe + 小渲染 + denoise + stats 校验
-make golden            # scripts/run-golden.sh：4 场景 PSNR≥45 对比 golden + 决定性检查
+make golden            # scripts/run-golden.sh：6 场景 PSNR≥45 对比 golden + 决定性检查
 make check             # 以上全部
 scripts/run-sanitizer.sh    # compute-sanitizer memcheck + initcheck
 scripts/make-goldens.sh     # 重新生成 tests/golden/（渲染器有意变更后）
