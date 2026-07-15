@@ -91,6 +91,8 @@ Scene loadScene(const std::string& path) {
     s.render.seed = r.value("seed", s.render.seed);
     s.render.gamma = r.value("gamma", s.render.gamma);
     s.render.exposure = r.value("exposure", s.render.exposure);
+    s.render.transparentShadows =
+        r.value("transparent_shadows", s.render.transparentShadows);
     if (r.contains("tonemap")) {
       std::string tm = r["tonemap"].get<std::string>();
       if (!tonemapFromString(tm, s.render.tonemap))
@@ -228,6 +230,13 @@ Scene loadScene(const std::string& path) {
       if (md.absorb.x < 0.0f || md.absorb.y < 0.0f || md.absorb.z < 0.0f)
         fail("water: absorb components must be >= 0");
       if (m.contains("color") == false) md.color = f3(1.0f);  // AOV guide only
+    }
+    if (md.kind == MT_DIELECTRIC && m.contains("absorb")) {
+      // Beer-Lambert absorption inside the glass (tinted transparent shadows
+      // and interiors); vacuum-clear when absent.
+      md.absorb = jf3(m["absorb"]);
+      if (md.absorb.x < 0.0f || md.absorb.y < 0.0f || md.absorb.z < 0.0f)
+        fail("dielectric: absorb components must be >= 0");
     }
     if (matIds.size() >= MAT_NONE) fail("too many materials");
     matIds[name] = (int)s.materials.size();

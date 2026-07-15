@@ -18,6 +18,7 @@ struct RenderSettings {
   float gamma = 2.2f;
   float exposure = 0.0f;  // EV
   TonemapMode tonemap = TM_ACES;  // output mapping; TM_CLAMP = linear escape
+  bool transparentShadows = true;  // false = legacy binary shadow occlusion
   int chunk = 16;
   bool denoise = false;
 };
@@ -98,6 +99,17 @@ struct Scene {
   PhysicsSettings physics;
   std::string baseDir;  // for resolving relative asset paths
 };
+
+// A face whose material transmits shadow rays (glass/water). Shared by the
+// SBT routing (pipeline.cpp) and instance-flag selection (accel.cpp) so the
+// two classifications can never drift apart.
+inline bool materialTransmissive(const Scene& s, uint16_t m) {
+  return m != MAT_NONE && (s.materials[m].kind == MT_DIELECTRIC ||
+                           s.materials[m].kind == MT_WATER);
+}
+inline bool objectTransmissive(const Scene& s, const SceneObject& o) {
+  return materialTransmissive(s, o.matFront) || materialTransmissive(s, o.matBack);
+}
 
 // scene_json.cpp
 Scene loadScene(const std::string& path);

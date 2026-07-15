@@ -19,6 +19,7 @@ options:
   --seed N            RNG seed (fixed seed => deterministic image)
   --denoise           run the OptiX AI denoiser
   --no-denoise        disable denoiser (overrides scene default)
+  --opaque-shadows    legacy binary shadow occlusion (report comparisons)
   --clamp F           firefly clamp for indirect light (0 = off)
   --gamma F           output gamma (default 2.2)
   --tonemap MODE      output tone mapping: aces (default) | clamp (linear)
@@ -55,6 +56,7 @@ CliOptions parseCli(int argc, char** argv) {
     else if (!strcmp(a, "--seed")) o.seed = atol(need(i));
     else if (!strcmp(a, "--denoise")) o.denoise = 1;
     else if (!strcmp(a, "--no-denoise")) o.denoise = 0;
+    else if (!strcmp(a, "--opaque-shadows")) o.transparentShadows = 0;
     else if (!strcmp(a, "--clamp")) o.clampVal = (float)atof(need(i));
     else if (!strcmp(a, "--gamma")) o.gamma = (float)atof(need(i));
     else if (!strcmp(a, "--tonemap")) o.tonemap = need(i);

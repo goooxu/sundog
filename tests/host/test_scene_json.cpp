@@ -205,7 +205,31 @@ static void testErrorPaths() {
   Scene mini = expectLoadOk(kMinimalScene, "minimal scene");
   CHECK(mini.render.width == 1280 && mini.render.height == 720);  // defaults
   CHECK(mini.render.tonemap == TM_ACES);  // ACES is the default output mapping
+  CHECK(mini.render.transparentShadows == true);  // transmissive shadows on
   CHECK(mini.objects.size() == 1 && mini.lights.empty());
+
+  Scene opq = expectLoadOk(R"({
+      "render": { "transparent_shadows": false },
+      "camera": { "lookfrom": [0,1,5], "lookat": [0,0,0] },
+      "materials": { "m": { "type": "lambert" } },
+      "objects": [ { "shape": "sphere", "material": "m" } ] })",
+      "legacy opaque shadows opt-out");
+  CHECK(opq.render.transparentShadows == false);
+
+  // dielectric absorb: tinted glass parses; vacuum-clear default; negative fails
+  Scene tinted = expectLoadOk(R"({
+      "camera": { "lookfrom": [0,1,5], "lookat": [0,0,0] },
+      "materials": { "g": { "type": "dielectric", "absorb": [0.4, 0.05, 0.02] },
+                     "p": { "type": "dielectric" } },
+      "objects": [ { "shape": "sphere", "material": "g" },
+                   { "shape": "sphere", "material": "p" } ] })",
+      "tinted dielectric");
+  CHECK_NEAR(tinted.materials[0].absorb.x, 0.4, 1e-6);
+  CHECK_NEAR(tinted.materials[1].absorb.x, 0.0, 0.0);  // plain glass stays clear
+  expectLoadFail(R"({ "camera": {"lookfrom":[0,1,5],"lookat":[0,0,0]},
+                     "materials": {"g":{"type":"dielectric","absorb":[-0.1,0,0]}},
+                     "objects":[{"shape":"sphere","material":"g"}] })",
+                 "dielectric negative absorb");
 
   Scene lin = expectLoadOk(R"({
       "render": { "tonemap": "clamp" },

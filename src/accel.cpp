@@ -51,6 +51,10 @@ Gas buildQuadricGas(OptixDeviceContext ctx, int geomKind) {
   CudaBuffer aabbBuf;
   aabbBuf.upload(std::vector<OptixAabb>{aabb});
 
+  // REQUIRE_SINGLE_ANYHIT_CALL is a CORRECTNESS requirement, not a tuning
+  // knob: the shadow anyhit (device/programs.cu) accumulates Fresnel and
+  // Beer-Lambert terms into the payload, and a duplicated anyhit invocation
+  // would double-count a crossing.
   static const unsigned flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
   OptixBuildInput input{};
   input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
@@ -63,6 +67,10 @@ Gas buildQuadricGas(OptixDeviceContext ctx, int geomKind) {
 }
 
 Gas buildTriangleGas(OptixDeviceContext ctx, const GpuMesh& mesh) {
+  // REQUIRE_SINGLE_ANYHIT_CALL is a CORRECTNESS requirement, not a tuning
+  // knob: the shadow anyhit (device/programs.cu) accumulates Fresnel and
+  // Beer-Lambert terms into the payload, and a duplicated anyhit invocation
+  // would double-count a crossing.
   static const unsigned flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
   OptixBuildInput input{};
   input.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
@@ -91,8 +99,12 @@ Gas buildIas(OptixDeviceContext ctx, const Scene& scene,
     inst.instanceId = (unsigned)i;
     inst.sbtOffset = (unsigned)(2 * i);
     inst.visibilityMask = 0xFF;
+    // Anyhit stays enabled for masked objects (pass-through/cutout) and for
+    // transmissive ones (glass/water shadow transmittance); everything else
+    // keeps the hardware opaque fast path for both ray types.
     bool masked = o.matFront == MAT_NONE || o.matBack == MAT_NONE || o.cutoutTexId >= 0;
-    inst.flags = masked ? OPTIX_INSTANCE_FLAG_NONE : OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT;
+    bool anyhit = masked || objectTransmissive(scene, o);
+    inst.flags = anyhit ? OPTIX_INSTANCE_FLAG_NONE : OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT;
     inst.traversableHandle = o.geomKind == GK_MESH ? meshGas[o.meshId].handle
                                                    : quadricGas[o.geomKind].handle;
   }

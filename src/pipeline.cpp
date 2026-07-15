@@ -11,8 +11,10 @@ extern "C" const unsigned long g_sundog_module_size;
 namespace sd {
 
 enum HitGroupKind {
-  HG_Q_RAD_OPQ = 0, HG_Q_RAD_MSK, HG_Q_SHD_OPQ, HG_Q_SHD_MSK,
-  HG_T_RAD_OPQ, HG_T_RAD_MSK, HG_T_SHD_OPQ, HG_T_SHD_MSK,
+  // XPR shadow variants carry the unified shadow anyhit: pass-through +
+  // cutout masking plus transparent-shadow accumulation for glass/water.
+  HG_Q_RAD_OPQ = 0, HG_Q_RAD_MSK, HG_Q_SHD_OPQ, HG_Q_SHD_XPR,
+  HG_T_RAD_OPQ, HG_T_RAD_MSK, HG_T_SHD_OPQ, HG_T_SHD_XPR,
   HG_COUNT
 };
 
@@ -94,11 +96,11 @@ Pipeline::Pipeline(OptixDeviceContext ctx, bool debug) : ctx_(ctx) {
   hg("__intersection__quadric", "__closesthit__radiance", nullptr);
   hg("__intersection__quadric", "__closesthit__radiance", "__anyhit__mask");
   hg("__intersection__quadric", nullptr, nullptr);
-  hg("__intersection__quadric", nullptr, "__anyhit__mask");
+  hg("__intersection__quadric", nullptr, "__anyhit__shadow");
   hg(nullptr, "__closesthit__radiance_tri", nullptr);
   hg(nullptr, "__closesthit__radiance_tri", "__anyhit__mask_tri");
   hg(nullptr, nullptr, nullptr);
-  hg(nullptr, nullptr, "__anyhit__mask_tri");
+  hg(nullptr, nullptr, "__anyhit__shadow_tri");
 
   groups_.resize(descs.size());
   OptixProgramGroupOptions pgOpts{};
@@ -142,6 +144,9 @@ void Pipeline::buildSbt(const Scene& scene, const std::vector<GpuMesh>& meshes) 
     const SceneObject& o = scene.objects[i];
     bool tri = o.geomKind == GK_MESH;
     bool masked = o.matFront == MAT_NONE || o.matBack == MAT_NONE || o.cutoutTexId >= 0;
+    // Shadow rays additionally need anyhit on glass/water (transmittance
+    // accumulation); radiance rays keep the opaque fast path for those.
+    bool shadowAH = masked || objectTransmissive(scene, o);
 
     HitRecordData data{};
     data.geomKind = o.geomKind;
@@ -159,8 +164,8 @@ void Pipeline::buildSbt(const Scene& scene, const std::vector<GpuMesh>& meshes) 
 
     int rad = tri ? (masked ? HG_T_RAD_MSK : HG_T_RAD_OPQ)
                   : (masked ? HG_Q_RAD_MSK : HG_Q_RAD_OPQ);
-    int shd = tri ? (masked ? HG_T_SHD_MSK : HG_T_SHD_OPQ)
-                  : (masked ? HG_Q_SHD_MSK : HG_Q_SHD_OPQ);
+    int shd = tri ? (shadowAH ? HG_T_SHD_XPR : HG_T_SHD_OPQ)
+                  : (shadowAH ? HG_Q_SHD_XPR : HG_Q_SHD_OPQ);
     hits[2 * i].data = data;
     hits[2 * i + 1].data = data;
     OPTIX_CHECK(optixSbtRecordPackHeader(groups_[GROUP_HG0 + rad], &hits[2 * i]));

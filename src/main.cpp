@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
     if (cli.width > 0) { scene.render.width = cli.width; scene.render.height = cli.height; }
     if (cli.seed >= 0) scene.render.seed = (unsigned)cli.seed;
     if (cli.denoise >= 0) scene.render.denoise = cli.denoise == 1;
+    if (cli.transparentShadows >= 0)
+      scene.render.transparentShadows = cli.transparentShadows == 1;
     if (cli.clampVal >= 0.0f) scene.render.clampVal = cli.clampVal;
     if (cli.gamma > 0.0f) scene.render.gamma = cli.gamma;
     if (!cli.tonemap.empty() && !tonemapFromString(cli.tonemap, scene.render.tonemap))
@@ -119,6 +121,7 @@ int main(int argc, char** argv) {
     params.clampVal = rs.clampVal;
     params.seed = rs.seed;
     params.countRays = cli.statsPath.empty() ? 0 : 1;
+    params.transparentShadows = rs.transparentShadows ? 1 : 0;
     params.accum = (float4*)film.accum();
     params.aovAlbedo = (float4*)film.aovAlbedo();
     params.aovNormal = (float4*)film.aovNormal();

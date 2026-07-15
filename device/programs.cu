@@ -22,11 +22,19 @@ extern "C" __constant__ LaunchParams params;
 enum RayType { RAY_RADIANCE = 0, RAY_SHADOW = 1, RAY_TYPE_COUNT = 2 };
 
 // ---------------- payload ----------------
+// Radiance rays (8 registers):
 // p0: 0 = miss; else bit0 = hit, bit1 = frontface
 // p1: t (float bits)
 // p2-4: miss -> background color; hit -> world shading normal (flipped to wo side)
 // p5-6: u, v
 // p7: matId (low 16) | (lightId + 1) << 16
+//
+// Shadow rays (5 registers):
+// p0: 0 = occluded (default); __miss__shadow sets 1 = reached the light
+// p1: product of per-interface Fresnel transmission (1-F)  (float bits)
+// p2-4: signed per-channel optical depth: over transparent crossings, sum of
+//       (backface ? +1 : -1) * sigma * hitT. Order-independent, so unsorted
+//       anyhit invocations may accumulate it safely.
 
 struct HitInfo {
   bool hit;
@@ -55,12 +63,24 @@ static __forceinline__ __device__ HitInfo traceRadiance(float3 o, float3 d) {
   return h;
 }
 
-static __forceinline__ __device__ bool traceShadow(float3 o, float3 d, float tmax) {
-  unsigned visible = 0;
+// Straight-line transmittance toward the light: f3(0) = occluded, f3(1) =
+// clear, fractional through glass/water (Fresnel per interface, Beer-Lambert
+// per medium segment; the ray is not bent — see report ch16).
+static __forceinline__ __device__ float3 traceShadow(float3 o, float3 d, float tmax) {
+  unsigned p0 = 0;
+  unsigned p1 = __float_as_uint(1.0f);
+  unsigned p2 = 0, p3 = 0, p4 = 0;  // 0u == __float_as_uint(0.0f), on purpose
   optixTrace(params.handle, o, d, 0.0f, tmax, 0.0f, 0xFF,
              OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT | OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
-             RAY_SHADOW, RAY_TYPE_COUNT, RAY_SHADOW, visible);
-  return visible != 0;
+             RAY_SHADOW, RAY_TYPE_COUNT, RAY_SHADOW, p0, p1, p2, p3, p4);
+  if (!p0) return f3(0.0f);
+  float3 tau = f3(fmaxf(0.0f, __uint_as_float(p2)),
+                  fmaxf(0.0f, __uint_as_float(p3)),
+                  fmaxf(0.0f, __uint_as_float(p4)));
+  float3 tr = f3(__uint_as_float(p1));
+  // Guard keeps fully-opaque scenes on the exact tr == 1.0 path (no exp3).
+  if (maxComp(tau) > 0.0f) tr = tr * exp3(-tau);
+  return tr;
 }
 
 // ---------------- background ----------------
@@ -201,6 +221,68 @@ extern "C" __global__ void __anyhit__mask() {
 extern "C" __global__ void __anyhit__mask_tri() {
   const HitRecordData* rec = (const HitRecordData*)optixGetSbtDataPointer();
   maskAnyhit(triShadePoint(rec), rec);
+}
+
+// Shadow anyhit: pass-through faces and alpha cutouts (same rules as
+// maskAnyhit), plus flag-gated transparent shadows for glass/water. A plain
+// return accepts the hit; with TERMINATE_ON_FIRST_HIT that means "fully
+// occluded". Correctness of the payload accumulation relies on
+// REQUIRE_SINGLE_ANYHIT_CALL (accel.cpp): each crossing must contribute
+// exactly once.
+static __forceinline__ __device__ void shadowAnyhit(const ShadePoint& sp,
+                                                    const HitRecordData* rec) {
+  int matId = sp.frontface ? rec->matFront : rec->matBack;
+  if (matId == (int)MAT_NONE) {
+    optixIgnoreIntersection();
+    return;
+  }
+  if (rec->cutoutTexId >= 0) {
+    float4 c = evalTexture(params.textures[rec->cutoutTexId], sp.u, sp.v);
+    if (c.w < 0.5f) {
+      optixIgnoreIntersection();
+      return;
+    }
+  }
+  const MaterialDesc& mat = params.materials[matId];
+  if (mat.kind != MT_DIELECTRIC && mat.kind != MT_WATER) return;  // occluder
+  if (!params.transparentShadows) return;  // legacy binary occlusion mode
+
+  // Per-interface Fresnel with the same eta/f0/cosine conventions as
+  // bsdfSample (device/bsdf.cuh). Documented approximations: the interface is
+  // taken against vacuum (no medium context on an unordered shadow ray), the
+  // flat front normal is used (no waterNormal perturbation), and the ray
+  // continues in a straight line.
+  float3 d = optixGetWorldRayDirection();           // unit (== ls.wi)
+  float3 n = sp.frontface ? sp.nFront : -sp.nFront;  // toward incident side
+  float eta = sp.frontface ? 1.0f / mat.ior : mat.ior;
+  float3 refr;
+  if (!refract(d, n, eta, refr)) return;  // TIR: outside Snell's window
+  float f0 = (1.0f - eta) / (1.0f + eta);
+  f0 = f0 * f0;
+  float cosine = sp.frontface ? -dot(d, n) : -dot(refr, n);
+  float F = schlick(cosine, f0);
+  optixSetPayload_1(__float_as_uint(
+      __uint_as_float(optixGetPayload_1()) * (1.0f - F)));
+
+  // Signed Beer-Lambert bookkeeping: exits add sigma*t, entries subtract, so
+  // the unsorted sum equals sigma times the in-medium path length. In AH,
+  // optixGetRayTmax() is the candidate hit t (world distance: d is unit).
+  float t = optixGetRayTmax();
+  float s = sp.frontface ? -t : t;
+  optixSetPayload_2(__float_as_uint(__uint_as_float(optixGetPayload_2()) + mat.absorb.x * s));
+  optixSetPayload_3(__float_as_uint(__uint_as_float(optixGetPayload_3()) + mat.absorb.y * s));
+  optixSetPayload_4(__float_as_uint(__uint_as_float(optixGetPayload_4()) + mat.absorb.z * s));
+  optixIgnoreIntersection();
+}
+
+extern "C" __global__ void __anyhit__shadow() {
+  const HitRecordData* rec = (const HitRecordData*)optixGetSbtDataPointer();
+  shadowAnyhit(quadricShadePoint(), rec);
+}
+
+extern "C" __global__ void __anyhit__shadow_tri() {
+  const HitRecordData* rec = (const HitRecordData*)optixGetSbtDataPointer();
+  shadowAnyhit(triShadePoint(rec), rec);
 }
 
 // ---------------- raygen ----------------
@@ -355,7 +437,8 @@ extern "C" __global__ void __raygen__render() {
         float cosS = ls.valid ? dot(ls.wi, ns) : 0.0f;
         if (ls.valid && cosS > 0.0f) {
           raysTraced++;
-          if (traceShadow(offsetRay(x, ns), ls.wi, ls.dist * 0.999f)) {
+          float3 tr = traceShadow(offsetRay(x, ns), ls.wi, ls.dist * 0.999f);
+          if (maxComp(tr) > 0.0f) {
             float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / nStrat;
             float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
             float w = 1.0f;
@@ -364,6 +447,7 @@ extern "C" __global__ void __raygen__render() {
               w = pdfLe / (pdfLe + pdfB);
             }
             float3 c = beta * f * cosS * ls.Li * w / pdfLe;
+            c = c * tr;  // separate statement: stays an exact *1.0 when clear
             if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
             L += sanitize(c);
           }

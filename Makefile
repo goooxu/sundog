@@ -56,14 +56,14 @@ $(BUILD) $(BUILD)/tests:
 # OptiX device code calls extern intrinsics (_optix_*) that ptxas cannot
 # resolve, so nvcc exits nonzero even though the emitted PTX is complete and
 # valid for the OptiX loader. For the PTX path we tolerate the exit code and
-# verify completeness ourselves (all 8 program entry points + closing brace);
+# verify completeness ourselves (all 10 program entry points + closing brace);
 # a real compile error leaves no/partial PTX and still fails the build.
 $(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
 	@rm -f $@
 	-@$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $< 2> $(BUILD)/nvcc-ptx.log || true
 	@entries=$$(grep -c '\.visible \.entry' $@ 2>/dev/null || echo 0); \
 	last=$$(tail -c 3 $@ 2>/dev/null | tr -d '[:space:]'); \
-	if [ "$$entries" -lt 8 ] || [ "$$last" != "}" ]; then \
+	if [ "$$entries" -lt 10 ] || [ "$$last" != "}" ]; then \
 	  echo "== device PTX incomplete ($$entries entries) — real compile error =="; \
 	  cat $(BUILD)/nvcc-ptx.log; rm -f $@; exit 1; \
 	fi; \

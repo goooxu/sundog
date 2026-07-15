@@ -16,6 +16,7 @@ struct CliOptions {
   int width = -1, height = -1;
   long seed = -1;
   int denoise = -1;   // -1 unset, 0 off, 1 on
+  int transparentShadows = -1;  // -1 unset, 0 legacy opaque, 1 transmissive
   float clampVal = -1.0f;
   float gamma = -1.0f;
   std::string tonemap;  // empty = scene value wins ("aces" | "clamp")

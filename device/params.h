@@ -104,6 +104,8 @@ struct LaunchParams {
   float clampVal;     // 0 = off; applied to indirect (depth>=1) contributions
   unsigned int seed;
   int countRays;      // 1 = atomicAdd into rayCounter (stats runs only)
+  int transparentShadows;  // 1 = Fresnel + Beer-Lambert shadow transmission
+                           // through glass/water; 0 = legacy binary occlusion
 
   float4* accum;      // running-mean linear HDR beauty
   float4* aovAlbedo;  // denoiser guide
