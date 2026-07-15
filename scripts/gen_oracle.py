@@ -44,8 +44,8 @@ scene = {
     "textures": {
         "floorTex": {"type": "grid", "a": [0.16, 0.155, 0.16],
                      "b": [0.08, 0.078, 0.085], "scale": [26, 26], "width": 0.05},
-        "mossTex": {"type": "grid", "a": [0.18, 0.30, 0.16],
-                    "b": [0.10, 0.16, 0.10], "scale": [10, 10], "width": 0.08},
+        "mossTex": {"type": "grid", "a": [0.30, 0.40, 0.24],
+                    "b": [0.15, 0.22, 0.14], "scale": [10, 10], "width": 0.08},
         "gearTex": {"type": "image", "file": "textures/gear.png"},
         "runeTex": {"type": "image", "file": "textures/runes.png", "srgb": True},
     },
@@ -92,23 +92,29 @@ def obj(shape, material, transform, **kw):
 
 
 # ---- temple shell -----------------------------------------------------------
-# Floor: four slabs framing the sunken pool opening at x in [4,10], z in [1,7]
-# (a rect cannot have a hole cut into it). Seams land on grid lines.
+# Floor: slabs framing the sunken pool opening at x in [-1.6,3.6], z in [2.5,8].
+# Screen-space check (camera -2.2,1.7,9.4 / vfov 55): the lower-right dead zone
+# of the frame maps to world x -1.5..3.6, z 2.5..6.5 — the pool must sit THERE
+# to read in the cover, and the mirror line camera->flames crosses the water at
+# x ~ -1.4, z ~ 4.7..5.2, so the west shore at -1.6 catches the fire's
+# reflection. (A rect cannot have a hole cut into it.)
 FLOOR_PHYS = {"physics": {"thickness": 0.5}}
-obj("rect", "floor", [{"scale": [8, 1, 15]}, {"translate": [-4, 0, 0]}], **FLOOR_PHYS)   # west slab (x -12..4)
-obj("rect", "floor", [{"scale": [4.5, 1, 4]}, {"translate": [8.5, 0, -6]}])      # north-east slab (z -10..-2)
-obj("rect", "floor", [{"scale": [4.5, 1, 1.5]}, {"translate": [8.5, 0, -0.5]}])  # strip between pool and NE (z -2..1)
-obj("rect", "floor", [{"scale": [4.5, 1, 4]}, {"translate": [8.5, 0, 11]}])      # south-east slab (z 7..15)
-obj("rect", "floor", [{"scale": [1.0, 1, 3]}, {"translate": [2.0, 0, 4]}])       # thin west rim of the pool (x 1..3)
-obj("rect", "floor", [{"scale": [1.5, 1, 3]}, {"translate": [10.5, 0, 4]}])      # east rim (x 9..12)
+obj("rect", "floor", [{"scale": [5.2, 1, 12.5]}, {"translate": [-6.8, 0, 2.5]}], **FLOOR_PHYS)  # west slab (x -12..-1.6)
+obj("rect", "floor", [{"scale": [6.8, 1, 6.25]}, {"translate": [5.2, 0, -3.75]}], **FLOOR_PHYS)  # north-east slab (z -10..2.5)
+obj("rect", "floor", [{"scale": [6.8, 1, 3.5]}, {"translate": [5.2, 0, 11.5]}])   # south-east slab (z 8..15)
+obj("rect", "floor", [{"scale": [4.2, 1, 2.75]}, {"translate": [7.8, 0, 5.25]}])  # east rim (x 3.6..12)
 
-# Pool: moss-brick bed, dark stone walls, water sheet just below floor level
-obj("rect", "moss", [{"scale": [3, 1, 3]}, {"translate": [6, -1.4, 4]}])
-obj("rect", "stone", [{"scale": [3, 1, 0.7]}, {"rotate_x": 90}, {"translate": [6, -0.7, 1]}])
-obj("rect", "stone", [{"scale": [3, 1, 0.7]}, {"rotate_x": -90}, {"translate": [6, -0.7, 7]}])
-obj("rect", "stone", [{"scale": [0.7, 1, 3]}, {"rotate_z": -90}, {"translate": [3, -0.7, 4]}])
-obj("rect", "stone", [{"scale": [0.7, 1, 3]}, {"rotate_z": 90}, {"translate": [9, -0.7, 4]}])
-obj("rect", "water", [{"scale": [3, 1, 3]}, {"translate": [6, -0.15, 4]}])
+# Pool: tilted moss-brick bed (shallow clear west shore -> deep blue east),
+# dark stone walls, water sheet just below floor level
+obj("rect", "moss", [{"scale": [2.75, 1, 2.8]}, {"rotate_z": -18}, {"translate": [1.0, -1.25, 5.25]}])
+obj("rect", "stone", [{"scale": [2.6, 1, 1.1]}, {"rotate_x": 90}, {"translate": [1.0, -1.1, 2.5]}])
+obj("rect", "stone", [{"scale": [2.6, 1, 1.1]}, {"rotate_x": -90}, {"translate": [1.0, -1.1, 8]}])
+obj("rect", "stone", [{"scale": [1.1, 1, 2.75]}, {"rotate_z": -90}, {"translate": [-1.6, -1.1, 5.25]}])
+obj("rect", "stone", [{"scale": [1.1, 1, 2.75]}, {"rotate_z": 90}, {"translate": [3.6, -1.1, 5.25]}])
+obj("rect", "water", [{"scale": [2.6, 1, 2.75]}, {"translate": [1.0, -0.12, 5.25]}])
+# half-submerged stones on the shallow west shore
+obj("sphere", "stone", [{"scale": [0.5, 0.33, 0.45]}, {"translate": [-1.45, -0.08, 3.7]}])
+obj("sphere", "stone", [{"scale": [0.34, 0.24, 0.3]}, {"translate": [-1.1, -0.2, 5.9]}])
 scene["materials"]["water"] = {"type": "water", "wave_amp": 0.035, "wave_freq": 2.6,
                                "absorb": [0.85, 0.18, 0.08]}
 
@@ -116,7 +122,7 @@ scene["materials"]["water"] = {"type": "water", "wave_amp": 0.035, "wave_freq": 
 obj("rect", "stone", [{"scale": [12, 1, 4.5]}, {"rotate_x": 90}, {"translate": [0, 4.5, -9]}])
 obj("rect", "stone", [{"scale": [5.5, 1, 9]}, {"rotate_z": -90}, {"translate": [-11, 5.5, 0]}])
 # low east wall behind the pool (half-open side)
-obj("rect", "stone", [{"scale": [2.2, 1, 9]}, {"rotate_z": 90}, {"translate": [11, 2.2, 0]}])
+obj("rect", "stone", [{"scale": [1.75, 1, 9]}, {"rotate_z": 90}, {"translate": [11, 1.75, 0]}])
 
 # Roof at y=9. The breach sits in the NORTHERN band (x[-3,3], z[-9,-4]):
 # with the 48-deg sun due north, its beam clears the back wall (top y=9),
@@ -149,9 +155,9 @@ obj("mesh:spot", "cowShell",
 
 # fallen roof rubble in the sun pool (debris from the collapsed dome)
 obj("sphere", "stone", [{"scale": [0.55, 0.32, 0.5]}, {"translate": [-2.6, 0.3, 1.6]}])
-obj("sphere", "stone", [{"scale": [0.35, 0.22, 0.4]}, {"translate": [-1.4, 0.2, 2.6]}])
-obj("cylinder", "pillar", [{"scale": [0.45, 0.5, 0.45]}, {"rotate_z": 82}, {"rotate_y": 15}, {"translate": [1.9, 0.42, 2.3]}])
-obj("sphere", "stone", [{"scale": [0.28, 0.18, 0.3]}, {"translate": [2.7, 0.17, 1.2]}])
+obj("sphere", "stone", [{"scale": [0.35, 0.22, 0.4]}, {"translate": [-1.3, 0.2, 1.5]}])
+obj("cylinder", "pillar", [{"scale": [0.45, 0.5, 0.45]}, {"rotate_z": 82}, {"rotate_y": 15}, {"translate": [-4.3, 0.42, 3.5]}])
+obj("sphere", "stone", [{"scale": [0.28, 0.18, 0.3]}, {"translate": [0.2, 0.17, 1.7]}])
 
 # shell fragments / machine parts: spheres bursting radially from the cow
 frag_mats = ["shard", "shard", "shard", "gold", "copper"]
