@@ -94,6 +94,8 @@ $(BUILD)/img_compare: tests/tools/img_compare.cpp | $(BUILD)
 
 host-tests: $(TEST_BINS)
 	@for t in $(TEST_BINS); do echo "== $$t"; $$t || exit 1; done
+	@echo "== python3 tests/test_scenelib.py"
+	@python3 tests/test_scenelib.py
 	@echo "host-tests OK"
 
 smoke: all
