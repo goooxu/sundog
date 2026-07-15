@@ -124,8 +124,8 @@ CLI 覆盖场景 JSON 里的 `render` 设置。
 ## 场景格式
 
 见 [docs/SCENES.md](docs/SCENES.md)。示例场景在 `scenes/`（`smoke.json` 最小、
-`features.json` 全特性、`01…10` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU；
-`03/05/06/10` 的网格与 HDR 资产由 `scripts/fetch-assets.sh` 下载）。
+`features.json` 全特性、`01…11` 画廊，其中 `06-spot-cascade` 需要 PhysX GPU；
+`03/05/06/10/11` 的网格与 HDR 资产由 `scripts/fetch-assets.sh` 下载）。
 
 ## 测试
 
