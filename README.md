@@ -6,7 +6,16 @@ Blackwell）。输入场景 JSON，输出 PNG：megakernel 路径追踪（NEE + 
 硬件三角形与大规模实例化、PhysX GPU 刚体装载、OptiX AI 降噪，固定种子时
 输出逐位可复现。
 
-![Marble Run](docs/gallery/01-marble-run.png)
+![熔岩圣殿的机械先知](docs/cover.png)
+
+**Molten Oracle**（封面，原生 4K）— 机械奶牛在祭坛烈焰上被击碎的瞬间：
+PhysX GPU 定格 49 个刚体的爆裂、穹顶破口的 envmap 神光与地面碎影、
+零发射黑烟柱、极坐标镂空齿轮、纹理化符文发光体、下沉水池——
+一图汇演十六章全部机制。
+
+| ![Marble Run](docs/gallery/01-marble-run.png) | ![Glasswork](docs/gallery/11-glasswork.png) |
+|:---:|:---:|
+| **Marble Run** — 纯 quadric 弹珠乐园，五种解析图元 | **Glasswork** — 嵌套介质 + 透明彩影，牛立气泡中 |
 
 | ![Cornell Lume](docs/gallery/02-cornell-lume.png) | ![Parabolica](docs/gallery/04-parabolica.png) |
 |:---:|:---:|
