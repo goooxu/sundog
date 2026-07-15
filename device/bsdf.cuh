@@ -104,8 +104,10 @@ SD_HD float bsdfPdf(const MaterialDesc& m, float3 wo, float3 wi, float3 n) {
 
 // `frontface`: true when the ray hit the geometric front side (dielectric
 // entering). `rayDir` = incident direction (unit, toward surface) = -wo.
+// `etaExt`: IOR of the medium on the OUTSIDE of this interface (the raygen
+// medium stack; 1.0 in vacuum) — glass under water refracts at 1.5/1.33.
 SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
-                            float3 n, bool frontface, Pcg32& rng) {
+                            float3 n, bool frontface, float etaExt, Pcg32& rng) {
   BsdfSample s;
   s.valid = false;
   s.pdf = 0.0f;
@@ -154,14 +156,15 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
     case MT_DIELECTRIC: {
       s.isDelta = true;
       float3 refr;
-      float eta = frontface ? 1.0f / m.ior : m.ior;
+      float eta = frontface ? etaExt / m.ior : m.ior / etaExt;
       float f0 = (1.0f - eta) / (1.0f + eta);
       f0 = f0 * f0;
       if (refract(rayDir, n, eta, refr)) {
         // Schlick needs the cosine on the low-IOR side: the incident angle
-        // when entering, the transmitted angle when exiting the denser
-        // medium (continuous with the TIR branch: cosT -> 0 => R -> 1).
-        float cosine = frontface ? -dot(rayDir, n) : -dot(refr, n);
+        // when eta < 1, the transmitted angle otherwise (continuous with the
+        // TIR branch: cosT -> 0 => R -> 1). With etaExt = 1 this reduces to
+        // the old entering/exiting split.
+        float cosine = eta < 1.0f ? -dot(rayDir, n) : -dot(refr, n);
         float reflectProb = schlick(cosine, f0);
         if (rng.rnd() < reflectProb) {
           s.wi = normalize(reflect(rayDir, n));

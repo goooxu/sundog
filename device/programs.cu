@@ -340,8 +340,15 @@ extern "C" __global__ void __raygen__render() {
     float3 prevX = org;
     float3 o = org, d = dir;
     bool aovDone = false;
-    float3 mediumAbsorb = f3(0.0f);  // Beer-Lambert sigma of the medium the
-                                     // ray is inside (water); 0 = vacuum
+    // Medium stack for nested dielectrics/water (LIFO; well-formed nesting
+    // assumed — geometry must be properly contained, interpenetration is not
+    // arbitrated). Logical depth may exceed the cap: writes above MED_MAX are
+    // dropped but the counter keeps counting, so a deep excursion unwinds
+    // without corrupting the tracked levels.
+    constexpr int MED_MAX = 4;
+    float3 medSigma[MED_MAX];
+    float medIor[MED_MAX];
+    int medDepth = 0;  // 0 = vacuum
     // NEE strategy set: the explicit lights plus (with an envmap) the
     // environment light. One uniform pick per vertex; the 1/nStrat selection
     // probability folds into both sides of every MIS pair below.
@@ -353,8 +360,11 @@ extern "C" __global__ void __raygen__render() {
       raysTraced++;
 
       // ---- absorbing medium (inside water): Beer-Lambert over the segment ----
-      if (maxComp(mediumAbsorb) > 0.0f)
-        beta *= exp3(-mediumAbsorb * (hit.hit ? hit.t : 1e4f));
+      if (medDepth > 0) {
+        float3 sigma = medSigma[min(medDepth, MED_MAX) - 1];
+        if (maxComp(sigma) > 0.0f)
+          beta *= exp3(-sigma * (hit.hit ? hit.t : 1e4f));
+      }
 
       // ---- emissive media (procedural flames) ----
       // March before the surface/background contribution: emission along the
@@ -455,12 +465,31 @@ extern "C" __global__ void __raygen__render() {
       }
 
       // ---- BSDF sample ----
-      BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface, rng);
+      // Relative IOR at this interface: entering compares against the medium
+      // we are currently inside (stack top); exiting compares the medium
+      // being left against the level beneath it. Vacuum (1.0) when the stack
+      // has no such level — which is every scene without nested media.
+      float etaExt = 1.0f;
+      if (mat.kind == MT_DIELECTRIC || mat.kind == MT_WATER) {
+        int outer = min(hit.frontface ? medDepth : medDepth - 1, MED_MAX);
+        if (outer > 0) etaExt = medIor[outer - 1];
+      }
+      BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface, etaExt, rng);
       if (!bs.valid) break;
-      // Water transmission crosses the interface: entering sets the absorbing
-      // medium, exiting clears it (TIR is a reflection — no toggle).
-      if (mat.kind == MT_WATER && dot(bs.wi, ns) < 0.0f)
-        mediumAbsorb = hit.frontface ? mat.absorb : f3(0.0f);
+      // Transmission crosses the interface: push the entered medium on the
+      // front side, pop on exit (TIR is a reflection — no toggle).
+      if ((mat.kind == MT_WATER || mat.kind == MT_DIELECTRIC) &&
+          dot(bs.wi, ns) < 0.0f) {
+        if (hit.frontface) {
+          if (medDepth < MED_MAX) {
+            medSigma[medDepth] = mat.absorb;
+            medIor[medDepth] = mat.ior;
+          }
+          medDepth++;
+        } else if (medDepth > 0) {
+          medDepth--;
+        }
+      }
       beta *= bs.weight;
       specularBounce = bs.isDelta;
       prevPdf = bs.isDelta ? 0.0f : bs.pdf;
