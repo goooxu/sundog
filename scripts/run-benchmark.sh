@@ -17,7 +17,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 
 OUT_MD="$ROOT/docs/BENCHMARKS.md"
@@ -26,7 +26,7 @@ DN_SCENE=09-ember-shore DN_REF_SPP=4096 DN_TEST_SPP=16
 DN_SIZE=1920x1080
 
 fail() { echo "run-benchmark: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
+[ -f "$BACKEND" ] || fail "backend not found: $BACKEND"
 
 if [ ! -x "$IMG_COMPARE" ]; then
   echo "== building img_compare =="

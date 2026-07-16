@@ -20,35 +20,33 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 CUDA_HOME="${CUDA_HOME:-/tmp/cuda-13.0}"
 SANITIZER="$CUDA_HOME/bin/compute-sanitizer"
 SCENE_PY="$ROOT/scenes/smoke.py"
 
 fail() { echo "run-sanitizer: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ]    || fail "binary not found: $SUNDOG"
+[ -f "$BACKEND" ]   || fail "backend not found: $BACKEND"
 [ -x "$SANITIZER" ] || fail "compute-sanitizer not found: $SANITIZER"
 [ -f "$SCENE_PY" ]  || fail "scene not found: $SCENE_PY"
 
 TMP="$(mktemp -d /tmp/sundog-sanitizer.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Pre-emit the JSON IR so compute-sanitizer wraps the bare renderer process
-# (keeps python out of the instrumented process tree).
-SCENE="$TMP/smoke.json"
-python3 "$SCENE_PY" --emit-json "$SCENE" || fail "scene emit failed"
-
+# compute-sanitizer wraps the python process: rendering happens in-process
+# through libsundog.so (ctypes), so the CUDA work is fully instrumented; the
+# interpreter itself does no GPU work and adds no sanitizer noise.
 echo "== compute-sanitizer --tool memcheck (smoke 64x64 / 4 spp) =="
 "$SANITIZER" --tool memcheck --error-exitcode 1 \
-  "$SUNDOG" --scene "$SCENE" --out "$TMP/smoke-memcheck.png" \
-            --size 64x64 --spp 4 --quiet \
+  python3 "$SCENE_PY" --out "$TMP/smoke-memcheck.png" \
+          --size 64x64 --spp 4 --quiet \
   || fail "memcheck reported errors"
 
 echo "== compute-sanitizer --tool initcheck (smoke 64x64 / 4 spp) =="
 rc=0
 "$SANITIZER" --tool initcheck --error-exitcode 1 \
-  "$SUNDOG" --scene "$SCENE" --out "$TMP/smoke-initcheck.png" \
-            --size 64x64 --spp 4 --quiet \
+  python3 "$SCENE_PY" --out "$TMP/smoke-initcheck.png" \
+          --size 64x64 --spp 4 --quiet \
   > "$TMP/initcheck.log" 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then
   # Tolerate only the known optixAccelBuild compacted-size false positive.

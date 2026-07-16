@@ -15,12 +15,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 SCENE="$ROOT/scenes/smoke.py"
 
 fail() { echo "run-smoke: FAIL: $*" >&2; exit 1; }
 
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG (build it on the test box first)"
+[ -f "$BACKEND" ] || fail "backend not found: $BACKEND (build it on the test box first)"
 [ -f "$SCENE" ]  || fail "scene not found: $SCENE"
 
 TMP="$(mktemp -d /tmp/sundog-smoke.XXXXXX)"
@@ -35,7 +35,7 @@ check_png() { # check_png FILE
 }
 
 echo "== 1. probe =="
-"$SUNDOG" --probe | tee "$TMP/probe.txt"
+python3 "$SCENE" --probe | tee "$TMP/probe.txt"
 grep -q '^GPU:' "$TMP/probe.txt" || fail "--probe did not report a GPU"
 
 echo "== 2. render smoke.py 64x64 / 4 spp =="

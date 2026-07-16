@@ -12,18 +12,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 GOLDEN_DIR="$ROOT/tests/golden"
 
 WIDTH=256 HEIGHT=256 SPP=64 SEED=7
 SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork)
 
 fail() { echo "make-goldens: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
+[ -f "$BACKEND" ] || fail "backend not found: $BACKEND"
 
 mkdir -p "$GOLDEN_DIR"
 
-PROBE_TXT="$("$SUNDOG" --probe)"
+PROBE_TXT="$(python3 "$ROOT/scenes/smoke.py" --probe)"
 echo "$PROBE_TXT"
 
 for s in "${SCENES[@]}"; do

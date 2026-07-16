@@ -12,7 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 GALLERY="$ROOT/out/gallery"
 SIZE="${GALLERY_SIZE:-1920x1080}"
 
@@ -33,7 +33,7 @@ ENTRIES=(
 )
 
 fail() { echo "render-gallery: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
+[ -f "$BACKEND" ] || fail "backend not found: $BACKEND"
 mkdir -p "$GALLERY"
 
 RENDERED=()  # image stems, in display order

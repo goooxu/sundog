@@ -14,7 +14,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
+BACKEND="$SUNDOG_BUILD/libsundog.so"
 IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 GOLDEN_DIR="$ROOT/tests/golden"
 
@@ -22,7 +22,7 @@ WIDTH=256 HEIGHT=256 SPP=64 SEED=7 MIN_PSNR=45
 SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork)
 
 fail() { echo "run-golden: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG"
+[ -f "$BACKEND" ] || fail "backend not found: $BACKEND"
 
 # Build img_compare on demand (host-only tool, plain g++).
 if [ ! -x "$IMG_COMPARE" ]; then

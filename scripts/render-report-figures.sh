@@ -2,8 +2,8 @@
 # sundog report figures — renders the 15 comparison PNGs from the
 # docs/report/OUTLINE.md "渲染图" table.
 #
-# Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/sundog built
-# (default /tmp/sundog-build/sundog). Callable from any cwd.
+# Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/libsundog.so built
+# (scenes render in-process through scenelib/ctypes). Callable from any cwd.
 #
 # Raw renders land in out/report/ (not committed); the labeled /
 # stitched / cropped finals are losslessly recompressed via PIL into
@@ -13,13 +13,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUNDOG_BUILD="${SUNDOG_BUILD:-/tmp/sundog-build}"
-SUNDOG="$SUNDOG_BUILD/sundog"
 RAW="$ROOT/out/report"
 FIG="$ROOT/docs/report/figures"
 REUSE="${REUSE:-0}"
 
 fail() { echo "render-report-figures: FAIL: $*" >&2; exit 1; }
-[ -x "$SUNDOG" ] || fail "binary not found: $SUNDOG (set SUNDOG_BUILD)"
+[ -f "$SUNDOG_BUILD/libsundog.so" ] || fail "backend not found: $SUNDOG_BUILD/libsundog.so (set SUNDOG_BUILD)"
 python3 -c 'import PIL' 2>/dev/null || \
   pip3 install --user --break-system-packages pillow || fail "pillow unavailable"
 mkdir -p "$RAW" "$FIG"
@@ -148,11 +147,16 @@ render() { # render RAW_STEM SCENE EXTRA_ARGS...
     return
   fi
   echo "== render $stem =="
-  case "$scene" in
-    *.py) python3 "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@" ;;
-    *)    "$SUNDOG" --scene "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@" ;;
-  esac
+  python3 "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@"
   [ -s "$RAW/$stem.png" ] || fail "empty output: $stem"
+}
+
+# reuse gate for the inline scenelib variants below
+skip_reuse() {
+  [ "$REUSE" = 1 ] && [ -s "$RAW/$1.png" ] \
+    && { echo "== $1 (reusing existing render) =="; return 0; }
+  echo "== render $1 =="
+  return 1
 }
 
 # ------------------------------------------------ ch01-spp-convergence.png
@@ -193,28 +197,26 @@ python3 "$COMPOSE" strip "$FIG/ch01-tonemap.png" --label-size 26 \
 # -------------------------------------------------------------- ch04-nee.png
 # 02-cornell-lume with NEE on (default) vs off: temp scene variant with
 # "nee": false on every emissive object. Original scene untouched.
-NEE_OFF="/tmp/cornell-lume-nee-off.json"
-python3 "$ROOT/scenes/02-cornell-lume.py" --emit-json /tmp/cornell-lume-base.json
-python3 - /tmp/cornell-lume-base.json "$NEE_OFF" <<'PY'
-import json, sys
-src, dst = sys.argv[1:]
-s = json.load(open(src))
-# (02-cornell-lume has no file assets, so the /tmp variant needs no
-# path rewriting)
-emissive = {k for k, m in s["materials"].items() if m.get("type") == "emissive"}
+render "ch04-nee-on"  "$ROOT/scenes/02-cornell-lume.py" \
+       --size 960x540 --spp 64
+skip_reuse "ch04-nee-off" || python3 - "$ROOT" "$RAW/ch04-nee-off.png" <<'PY'
+import os, runpy, sys
+root, out = sys.argv[1:]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "02-cornell-lume.py"))
+s = g["s"]
+doc = s.doc  # live view: mutating it mutates the scene
+emissive = {k for k, m in doc["materials"].items() if m.get("type") == "emissive"}
 n = 0
-for o in s["objects"]:
+for o in doc["objects"]:
     if o.get("material") in emissive:
         o["nee"] = False
         n += 1
-assert n, "no emissive objects found in " + src
-json.dump(s, open(dst, "w"), indent=2)
-print(f"wrote {dst} ({n} emitters set nee:false)")
+assert n, "no emissive objects found"
+s.run(out=out, argv=["--size", "960x540", "--spp", "64",
+                     "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-render "ch04-nee-on"  "$ROOT/scenes/02-cornell-lume.py" \
-       --size 960x540 --spp 64
-render "ch04-nee-off" "$NEE_OFF" \
-       --size 960x540 --spp 64
 python3 "$COMPOSE" strip "$FIG/ch04-nee.png" --label-size 26 \
   "$RAW/ch04-nee-on.png|NEE 开（默认）· 64 spp" \
   "$RAW/ch04-nee-off.png|NEE 关（发光体 nee:false）· 64 spp"
@@ -238,7 +240,7 @@ python3 "$COMPOSE" strip "$FIG/ch04-clamp.png" --label-size 20 \
 # Dedicated scene: five metal spheres, roughness 0/0.1/0.25/0.45/0.7,
 # one big rect area light overhead, dark gray floor.
 render "ch05-roughness-ladder" \
-       "$ROOT/docs/report/figures/src/roughness-ladder.json" --spp 512
+       "$ROOT/docs/report/figures/src/roughness-ladder.py" --spp 512
 python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.png" \
   "$RAW/ch05-roughness-ladder.png" "金属球 · 512 spp" \
   "roughness 0" "roughness 0.1" "roughness 0.25" \
@@ -258,10 +260,10 @@ if [ "$REUSE" = 1 ] && [ -s "$RAW/ch09-beauty.png" ] && \
   echo "== ch09-beauty/albedo/normal (reusing existing renders) =="
 else
   echo "== render ch09-beauty (+ albedo/normal AOVs) =="
-  "$SUNDOG" --scene "$ROOT/scenes/03-spot-atrium.py" \
-            --out "$RAW/ch09-beauty.png" --size 800x450 --spp 64 \
-            --aov-albedo "$RAW/ch09-albedo.png" \
-            --aov-normal "$RAW/ch09-normal.png" --no-denoise --quiet
+  python3 "$ROOT/scenes/03-spot-atrium.py" \
+          --out "$RAW/ch09-beauty.png" --size 800x450 --spp 64 \
+          --aov-albedo "$RAW/ch09-albedo.png" \
+          --aov-normal "$RAW/ch09-normal.png" --no-denoise --quiet
   [ -s "$RAW/ch09-albedo.png" ] || fail "empty output: ch09-albedo"
 fi
 python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
@@ -288,30 +290,22 @@ python3 "$COMPOSE" strip "$FIG/ch12-freeze-sequence.png" --label-size 20 \
 # --------------------------------------------------- ch13-noise-anatomy.png
 # Flame close-up at noise_scale 0 / 1.5 / 3: smooth teardrop profile -> mild
 # warp -> full licks. Temp scene generated inline (same recipe as ch04-nee).
-FLAME_TPL="/tmp/report-flame-ns"
-python3 - "$FLAME_TPL" <<'PY'
-import json, sys
-tpl = sys.argv[1]
-scene = {
-    "render": {"width": 480, "height": 640, "spp": 48, "max_depth": 4,
-               "seed": 7, "clamp": 0},
-    "camera": {"lookfrom": [0, 0.9, 3.2], "lookat": [0, 0.85, 0], "vfov": 36},
-    "background": {"type": "solid", "color": [0.01, 0.01, 0.015]},
-    "materials": {"ground": {"type": "lambert", "color": [0.25, 0.22, 0.2]}},
-    "objects": [{"shape": "rect", "material": "ground",
-                 "transform": [{"scale": 6}]}],
-    "lights": [],
-}
-for ns in (0.0, 1.5, 3.0):
-    scene["flames"] = [{"base": [0, 0.05, 0], "height": 1.6, "radius": 0.45,
-                        "intensity": 20, "sigma": 4, "noise_scale": ns,
-                        "seed": 1, "light_intensity": 12}]
-    path = f"{tpl}{ns}.json"
-    json.dump(scene, open(path, "w"))
-    print("wrote", path)
-PY
 for ns in 0.0 1.5 3.0; do
-  render "ch13-flame-ns$ns" "$FLAME_TPL$ns.json"
+  skip_reuse "ch13-flame-ns$ns" || python3 - "$ROOT" "$RAW/ch13-flame-ns$ns.png" "$ns" <<'PY'
+import os, sys
+root, out, ns = sys.argv[1], sys.argv[2], float(sys.argv[3])
+sys.path.insert(0, os.path.join(root, "scenes"))
+from scenelib import Scene, scale
+s = Scene()
+s.render(width=480, height=640, spp=48, max_depth=4, seed=7, clamp=0)
+s.camera(lookfrom=[0, 0.9, 3.2], lookat=[0, 0.85, 0], vfov=36)
+s.background_solid(color=[0.01, 0.01, 0.015])
+s.lambert("ground", color=[0.25, 0.22, 0.2])
+s.add("rect", "ground", scale(6))
+s.flame(base=[0, 0.05, 0], height=1.6, radius=0.45, intensity=20, sigma=4,
+        noise_scale=ns, seed=1, light_intensity=12)
+s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
+PY
 done
 python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
   "$RAW/ch13-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
@@ -321,51 +315,32 @@ python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
 # -------------------------------------------------------- ch14-anatomy.png
 # Water close-up (checker lake bed, sun sphere) in three variants: flat
 # mirror (wave_amp 0), default waves, no absorption. Temp scenes inline.
-WATER_TPL="/tmp/report-water"
-python3 - "$WATER_TPL" <<'PY'
-import json, sys
-tpl = sys.argv[1]
-base = {
-    "render": {"width": 640, "height": 360, "spp": 64, "max_depth": 10,
-               "seed": 7, "clamp": 10},
-    "camera": {"lookfrom": [0, 1.1, 9], "lookat": [0, 0.1, 0], "vfov": 40},
-    "background": {"type": "gradient", "horizon": [0.9, 0.45, 0.18],
-                   "zenith": [0.05, 0.10, 0.28]},
-    "textures": {"bed": {"type": "checker", "a": [0.65, 0.6, 0.5],
-                         "b": [0.35, 0.32, 0.28], "scale": [24, 24]}},
-    "materials": {
-        "bedmat": {"type": "lambert", "texture": "bed"},
-        "red": {"type": "lambert", "color": [0.7, 0.15, 0.1]},
-        "sun": {"type": "emissive", "color": [1.0, 0.55, 0.25], "intensity": 60},
-    },
-    "objects": [
-        {"shape": "rect", "material": "bedmat",
-         "transform": [{"scale": 22}, {"rotate_x": -6}, {"translate": [0, -1.2, 0]}]},
-        {"shape": "sphere", "material": "red",
-         "transform": [{"scale": 0.7}, {"translate": [2.4, 0.45, 0.5]}]},
-        {"shape": "sphere", "material": "sun",
-         "transform": [{"scale": 9}, {"translate": [-30, 6, -200]}]},
-    ],
-    "lights": [{"type": "distant", "direction": [0.3, -1.0, 0.5],
-                "radiance": [0.25, 0.18, 0.12]}],
-}
-variants = {
-    "flat":     {"type": "water", "absorb": [0.7, 0.14, 0.06], "wave_amp": 0.0},
-    "waves":    {"type": "water", "absorb": [0.7, 0.14, 0.06],
-                 "wave_amp": 0.09, "wave_freq": 1.2},
-    "noabsorb": {"type": "water", "absorb": [0, 0, 0],
-                 "wave_amp": 0.09, "wave_freq": 1.2},
-}
-for name, mat in variants.items():
-    s = dict(base)
-    s["materials"] = dict(base["materials"], water=mat)
-    s["objects"] = [{"shape": "rect", "material": "water",
-                     "transform": [{"scale": 22}]}] + base["objects"]
-    json.dump(s, open(f"{tpl}-{name}.json", "w"))
-    print("wrote", f"{tpl}-{name}.json")
-PY
 for v in flat waves noabsorb; do
-  render "ch14-water-$v" "$WATER_TPL-$v.json"
+  skip_reuse "ch14-water-$v" || python3 - "$ROOT" "$RAW/ch14-water-$v.png" "$v" <<'PY'
+import os, sys
+root, out, variant = sys.argv[1], sys.argv[2], sys.argv[3]
+sys.path.insert(0, os.path.join(root, "scenes"))
+from scenelib import Scene, rotate_x, scale, translate
+s = Scene()
+s.render(width=640, height=360, spp=64, max_depth=10, seed=7, clamp=10)
+s.camera(lookfrom=[0, 1.1, 9], lookat=[0, 0.1, 0], vfov=40)
+s.background_gradient(horizon=[0.9, 0.45, 0.18], zenith=[0.05, 0.10, 0.28])
+s.texture("bed", "checker", a=[0.65, 0.6, 0.5], b=[0.35, 0.32, 0.28],
+          scale=[24, 24])
+s.lambert("bedmat", texture="bed")
+s.lambert("red", color=[0.7, 0.15, 0.1])
+s.emissive("sun", color=[1.0, 0.55, 0.25], intensity=60)
+WATER = {"flat":     dict(absorb=[0.7, 0.14, 0.06], wave_amp=0.0),
+         "waves":    dict(absorb=[0.7, 0.14, 0.06], wave_amp=0.09, wave_freq=1.2),
+         "noabsorb": dict(absorb=[0, 0, 0], wave_amp=0.09, wave_freq=1.2)}
+s.water("water", **WATER[variant])
+s.add("rect", "water", scale(22))
+s.add("rect", "bedmat", scale(22), rotate_x(-6), translate(0, -1.2, 0))
+s.add("sphere", "red", scale(0.7), translate(2.4, 0.45, 0.5))
+s.add("sphere", "sun", scale(9), translate(-30, 6, -200))
+s.distant_light(direction=[0.3, -1.0, 0.5], radiance=[0.25, 0.18, 0.12])
+s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
+PY
 done
 python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
   "$RAW/ch14-water-flat.png|wave_amp 0（静水镜面）" \
@@ -376,25 +351,18 @@ python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
 # 10-suncatcher with importance:false (uniform sphere NEE) vs default, at
 # 16 and 256 spp. The variant lives in /tmp, so relative asset paths are
 # rewritten to absolute ones first.
-UNI="/tmp/report-suncatcher-uniform.json"
-python3 "$ROOT/scenes/10-suncatcher.py" --emit-json /tmp/report-suncatcher-base.json
-python3 - /tmp/report-suncatcher-base.json "$UNI" "$ROOT/scenes" <<'PY'
-import json, os, sys
-src, dst, base = sys.argv[1:]
-s = json.load(open(src))
-assert s["background"]["type"] == "envmap"
-s["background"]["importance"] = False
-s["background"]["file"] = os.path.normpath(os.path.join(base, s["background"]["file"]))
-for m in s.get("meshes", {}).values():
-    m["obj"] = os.path.normpath(os.path.join(base, m["obj"]))
-for t in s.get("textures", {}).values():
-    if "file" in t:
-        t["file"] = os.path.normpath(os.path.join(base, t["file"]))
-json.dump(s, open(dst, "w"))
-print("wrote", dst)
-PY
 for spp in 16 256; do
-  render "ch15-uni-$spp" "$UNI"                             --size 480x270 --spp "$spp"
+  skip_reuse "ch15-uni-$spp" || python3 - "$ROOT" "$RAW/ch15-uni-$spp.png" "$spp" <<'PY'
+import os, runpy, sys
+root, out, spp = sys.argv[1], sys.argv[2], sys.argv[3]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "10-suncatcher.py"))
+s = g["s"]
+s.doc["background"]["importance"] = False   # uniform-sphere NEE variant
+s.run(out=out, argv=["--size", "480x270", "--spp", spp,
+                     "--no-denoise", "--quiet"], base_dir=scenes)
+PY
   render "ch15-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
 done
 python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
@@ -418,38 +386,28 @@ python3 "$COMPOSE" strip "$FIG/ch16-shadow-compare.png" --label-size 26 \
 # Underwater camera looking straight up: the sky compresses into Snell's
 # window (half-angle asin(1/1.33) ~ 48.6 deg); outside it, total internal
 # reflection mirrors the lake floor. Temp scene in /tmp (absolute asset path).
-SNELL="/tmp/report-snell-window.json"
-python3 - "$ROOT" "$SNELL" <<'PY'
-import json, os, sys
-root, dst = sys.argv[1:]
+skip_reuse "ch16-snell" || python3 - "$ROOT" "$RAW/ch16-snell.png" <<'PY'
+import os, sys
+root, out = sys.argv[1], sys.argv[2]
+sys.path.insert(0, os.path.join(root, "scenes"))
+from scenelib import Scene, scale, translate
 hdr = os.path.join(root, "assets", "kloofendal_48d_partly_cloudy_puresky_4k.hdr")
-s = {
-    "render": {"width": 960, "height": 540, "spp": 128, "max_depth": 12,
-               "seed": 7, "clamp": 10},
-    # camera 2 units below a calm water surface, looking straight up
-    "camera": {"lookfrom": [0, -2.0, 0], "lookat": [0, 0, 0.001],
-               "up": [0, 0, 1], "vfov": 85},
-    "background": {"type": "envmap", "file": hdr, "rotate": 180},
-    "textures": {"bed": {"type": "checker", "a": [0.5, 0.42, 0.3],
-                         "b": [0.28, 0.24, 0.18], "scale": [16, 16]}},
-    "materials": {
-        "water": {"type": "water", "wave_amp": 0.0, "absorb": [0.2, 0.05, 0.02]},
-        "floor": {"type": "lambert", "texture": "bed"},
-        "coral": {"type": "lambert", "color": [0.85, 0.35, 0.25]},
-    },
-    "objects": [
-        {"shape": "rect", "material": "water", "transform": [{"scale": 40}]},
-        {"shape": "rect", "material": "floor",
-         "transform": [{"scale": 40}, {"translate": [0, -4, 0]}]},
-        {"shape": "sphere", "material": "coral",
-         "transform": [{"scale": 0.6}, {"translate": [1.5, -3.4, 1.2]}]},
-    ],
-    "lights": [],
-}
-json.dump(s, open(dst, "w"))
-print("wrote", dst)
+s = Scene()
+s.render(width=960, height=540, spp=128, max_depth=12, seed=7, clamp=10)
+# camera 2 units below a calm water surface, looking straight up
+s.camera(lookfrom=[0, -2.0, 0], lookat=[0, 0, 0.001], up=[0, 0, 1], vfov=85)
+s.background_envmap(hdr, rotate=180)
+s.texture("bed", "checker", a=[0.5, 0.42, 0.3], b=[0.28, 0.24, 0.18],
+          scale=[16, 16])
+s.water("water", wave_amp=0.0, absorb=[0.2, 0.05, 0.02])
+s.lambert("floor", texture="bed")
+s.lambert("coral", color=[0.85, 0.35, 0.25])
+s.add("rect", "water", scale(40))
+s.add("rect", "floor", scale(40), translate(0, -4, 0))
+s.add("sphere", "coral", scale(0.6), translate(1.5, -3.4, 1.2))
+s.run(out=out, argv=["--size", "960x540", "--spp", "128",
+                     "--no-denoise", "--quiet"], base_dir=".")
 PY
-render "ch16-snell" "$SNELL" --size 960x540 --spp 128
 python3 "$COMPOSE" strip "$FIG/ch16-snell-window.png" --label-size 22 \
   "$RAW/ch16-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
