@@ -9,17 +9,11 @@
 #define SUNDOG_TONEMAP_H
 
 #include "math.cuh"
-#include <string>
 
 namespace sd {
 
 enum TonemapMode : int { TM_ACES = 0, TM_CLAMP };
 
-inline bool tonemapFromString(const std::string& s, TonemapMode& out) {
-  if (s == "aces") { out = TM_ACES; return true; }
-  if (s == "clamp") { out = TM_CLAMP; return true; }
-  return false;
-}
 
 // sRGB => XYZ => D65->D60 => AP1, with the RRT saturation matrix folded in.
 // Row-major; rows sum to ~1 so the gray axis stays neutral.

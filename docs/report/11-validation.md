@@ -12,7 +12,7 @@
 
 **第二层：烟雾测试。** `scripts/run-smoke.sh` 是最快的整机连通性检查：`--probe` 能报出 GPU、最小场景 64×64 / 4 spp 渲得出非空 PNG、`--denoise` 变体能跑通、`--stats` 写出的 JSON 可解析。它不判断"对不对"，只回答"活没活着"，改动后几秒内给出第一反馈。
 
-**第三层：golden 图像回归。** `scripts/run-golden.sh` 把 5 个场景（smoke 与四个画廊场景）按冻结参数——256×256、64 spp、`--seed 7`、不降噪——重新渲染，与入库参考图比峰值信噪比（PSNR，见[第 3 章·蒙特卡洛积分](03-monte-carlo.md)），阈值 45 dB。比较工具 `img_compare`（tests/tools/img_compare.cpp）按 8 位 RGB 算 $`\mathrm{PSNR}=10\log_{10}(255^2/\mathrm{MSE})`$；45 dB 意味着均方根误差约 1.4 个灰阶——任何肉眼可辨的行为变化都过不去，而合法的微小数值抖动（如编译器升级）不会误报。参考图由 `scripts/make-goldens.sh` 生成，同时写入 `manifest.json` 记录 GPU 与驱动版本：golden 只对该组合有效，换驱动须重新生成——这是第 10 章"决定性只在同 GPU/驱动内成立"的直接推论。
+**第三层：golden 图像回归。** `scripts/run-golden.sh` 把 6 个场景（smoke 与五个画廊场景）按冻结参数——256×256、64 spp、`--seed 7`、不降噪——重新渲染，与入库参考图比峰值信噪比（PSNR，见[第 3 章·蒙特卡洛积分](03-monte-carlo.md)），阈值 45 dB。比较工具 `img_compare`（tests/tools/img_compare.cpp）按 8 位 RGB 算 $`\mathrm{PSNR}=10\log_{10}(255^2/\mathrm{MSE})`$；45 dB 意味着均方根误差约 1.4 个灰阶——任何肉眼可辨的行为变化都过不去，而合法的微小数值抖动（如编译器升级）不会误报。参考图由 `scripts/make-goldens.sh` 生成，同时写入 `manifest.json` 记录 GPU 与驱动版本：golden 只对该组合有效，换驱动须重新生成——这是第 10 章"决定性只在同 GPU/驱动内成立"的直接推论。
 
 **第四层：sha256 决定性。** golden 脚本还把 smoke 场景渲染两遍，要求两个 PNG 的 sha256 **完全相同**。这是对第 10 章整套决定性论证（按样本播种的 PCG32 + 固定顺序累积）的端到端检验：任何一处引入调度相关性——一个原子浮点加、一次依赖线程序的归约——都会立刻在这里失败。
 
@@ -22,7 +22,7 @@
 
 `scripts/run-benchmark.sh` 把性能问题拆成两层：**A. 特性层**——9 个画廊场景按其原生分辨率 1920×1080 / 64 spp，采集渲染时间、光线吞吐与峰值显存，从 21 个 quadric 的极简场景到 3 万多个实例的网格阵列，覆盖全部特性组合；**B. 降噪层**——量化 AI 降噪的等效收益（下节）。结果写入 `docs/BENCHMARKS.md`（RTX 5090 实测），逐场景数字见其特性层表；本节解释这些数字怎么读、吞吐从哪里来。计时口径统一取 stats 的 `render` 分段：只含渲染循环，场景解析、加速结构构建与 06 场景的 PhysX 刚体沉降（独立的 `physics` 分段）都不计入。
 
-**Mrays/s 的含义**：`--stats` 时 raygen 逐线程数 `optixTrace` 调用（辐射光线 + 阴影光线都算），launch 末原子累加，除以渲染时间（src/main.cpp、device/programs.cu）。以 05-spot-swarm 在 1920×1080 / 32 spp 下的一次 `--stats` 实测为例（stats.json，与[第 8 章·加速结构与 RT Core](08-acceleration.md)引用的是同一次）：44.1 ms 追完 184,400,592 条光线，吞吐 4185 Mrays/s。用它可以还原路径结构：$`1920\times 1080\times 32\approx 66.4`$M 个像素样本，$`184.4\mathrm{M}/66.4\mathrm{M}\approx 2.8`$，平均每样本不到 3 次 trace——路径段加上朗伯面的 NEE 阴影线，量级合理。把工作量放大 4 倍——同场景 128 spp——光线数恰好乘 4（737,621,292 条，逐位决定性的另一个侧影），吞吐仍稳定在 4.1 Gigarays/s：渲染处在吞吐主导的稳态，时间随工作量近似线性扩展，不是 launch 开销制造的假象。
+**Mrays/s 的含义**：`--stats` 时 raygen 逐线程数 `optixTrace` 调用（辐射光线 + 阴影光线都算），launch 末原子累加，除以渲染时间（src/capi_render.cpp、device/programs.cu）。以 05-spot-swarm 在 1920×1080 / 32 spp 下的一次 `--stats` 实测为例（stats.json，与[第 8 章·加速结构与 RT Core](08-acceleration.md)引用的是同一次）：44.1 ms 追完 184,400,592 条光线，吞吐 4185 Mrays/s。用它可以还原路径结构：$`1920\times 1080\times 32\approx 66.4`$M 个像素样本，$`184.4\mathrm{M}/66.4\mathrm{M}\approx 2.8`$，平均每样本不到 3 次 trace——路径段加上朗伯面的 NEE 阴影线，量级合理。把工作量放大 4 倍——同场景 128 spp——光线数恰好乘 4（737,621,292 条，逐位决定性的另一个侧影），吞吐仍稳定在 4.1 Gigarays/s：渲染处在吞吐主导的稳态，时间随工作量近似线性扩展，不是 launch 开销制造的假象。
 
 规模的直观感受也在这个场景里：32,770 个物体（32,768 个实例共享一份 5,856 三角形的 GAS，约 1.9 亿等效三角形），整个进程峰值显存 708 MB，1080p / 32 spp 一帧四十几毫秒。九个场景从纯 quadric 到亿级等效三角形，吞吐始终停留在同一量级（见 BENCHMARKS.md 特性层表）——两级加速结构把几何规模与求交成本解耦（见第 8 章），实例化把显存与物体数解耦（见[第 7 章·变换与实例化](07-transforms.md)）。
 

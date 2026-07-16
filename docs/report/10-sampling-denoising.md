@@ -76,7 +76,7 @@ $`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。hos
 
 *图：降噪器的三张输入（复用第 9 章三联图）——含噪 beauty、首跳反照率引导层、相机空间法线引导层。*
 
-sundog 用 OptiX 内置降噪器（denoiser），流程在 `Denoiser`（src/denoise.cpp）：创建时声明 `guideAlbedo/guideNormal` 并选 `OPTIX_DENOISER_MODEL_KIND_HDR` 模型——HDR 即高动态范围（high dynamic range），指未经压缩的线性辐亮度值域，可以远超 $`[0,1]`$；每帧先 `optixDenoiserComputeIntensity` 在整幅 HDR 输入上算一个全局亮度尺度（`hdrIntensity`，把任意曝光的场景归一到网络训练时的量级），再 `optixDenoiserInvoke` 输出。所有输入输出都是 float4 线性辐亮度缓冲——降噪发生在**HDR 线性域、色调映射之前**（main.cpp 的顺序：渲染循环 → 降噪 → `writePng` 才做 exposure/ACES/gamma）。这与噪声的统计假设一致：辐亮度域里噪声零均值，若先做 clamp 和伽马这类非线性再降噪，均值就被扭曲了。
+sundog 用 OptiX 内置降噪器（denoiser），流程在 `Denoiser`（src/denoise.cpp）：创建时声明 `guideAlbedo/guideNormal` 并选 `OPTIX_DENOISER_MODEL_KIND_HDR` 模型——HDR 即高动态范围（high dynamic range），指未经压缩的线性辐亮度值域，可以远超 $`[0,1]`$；每帧先 `optixDenoiserComputeIntensity` 在整幅 HDR 输入上算一个全局亮度尺度（`hdrIntensity`，把任意曝光的场景归一到网络训练时的量级），再 `optixDenoiserInvoke` 输出。所有输入输出都是 float4 线性辐亮度缓冲——降噪发生在**HDR 线性域、色调映射之前**（src/capi_render.cpp 的顺序：渲染循环 → 降噪 → `writePng` 才做 exposure/ACES/gamma）。这与噪声的统计假设一致：辐亮度域里噪声零均值，若先做 clamp 和伽马这类非线性再降噪，均值就被扭曲了。
 
 | ![16 spp 原始](../gallery/09-ember-shore-spp16-raw.png) | ![16 spp + 降噪](../gallery/09-ember-shore-spp16-denoised.png) |
 |:---:|:---:|

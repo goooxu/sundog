@@ -114,7 +114,7 @@ source scripts/env-testbox.sh
 make -j16                        # 产出 $SUNDOG_BUILD/libsundog.so（渲染后端库）
 ```
 
-可调项：`ARCH=sm_120`、`DEBUG=1`（`-O0 -G`）。设备代码走 PTX JIT——
+可调项：`DEBUG=1`（`-O0 -G`）。设备代码走 PTX JIT——
 OptiX-IR 在目标驱动上不可用，来龙去脉见技术报告第 9 章 §9.6。
 
 ## 渲染一个场景
@@ -171,11 +171,11 @@ scripts/render-gallery.sh       # 1080p 正式渲染 -> out/gallery/ + docs/GALL
 ## 目录结构
 
 ```
-src/          host 端 C++（CLI、场景解析、accel、pipeline、denoise、PNG、stats）
+src/          host 端 C++（C 场景构建 ABI、渲染编排、accel、pipeline、denoise、PNG、stats）
 device/       CUDA/OptiX 设备代码（单 module）+ host 共享的类型/装配头
 extern/       第三方单头文件库（见 THIRD_PARTY.md）
 scenes/       Python 场景（自执行）+ scenelib.py + 纹理
-assets/       网格资产（spot.obj，CC0，来源见 assets/LICENSES.md）
+assets/       网格资产（spot.obj 按需下载、sparky.obj 入库；来源见 assets/LICENSES.md）
 tests/        场景解析/scenelib 单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
 docs/         SCENES.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图

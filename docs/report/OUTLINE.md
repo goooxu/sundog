@@ -175,7 +175,7 @@
 3. sundog 的 megakernel 决策——路径循环放 raygen、trace depth=1、CH 只打包命中信息（8 个 payload 寄存器布局表，对账 programs.cu 顶部注释与 `packHit()`）
 4. SBT——records、`sbtOffset = 2×instanceId`、radiance/shadow 两套 hitgroup、8 个 PG 变体矩阵（对账 `Pipeline::buildSbt()`（src/pipeline.cpp））
 5. anyhit 的四件事——穿透面（MAT_NONE ignore）、alpha 镂空、阴影线复用、透明阴影透射率累积（第 16 章）；DISABLE_ANYHIT 快速路径的三态判据（对账 `maskAnyhit()`/`shadowAnyhit()` 与 accel.cpp 实例 flags）
-6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 main.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过
+6. 主机侧一帧的编排——上传/建 AS/launch 分块/回读（对账 src/capi_render.cpp 渲染循环）；PTX/OptiX-IR 的工程坑一段带过
 
 图：
 - `figures/ch09-app-flow.svg`：七步生命周期泳道图（主机一次性准备 → 渲染循环 ⑤↔⑥ → 降噪落盘，框内标源文件，硬件/软件分色）
@@ -222,7 +222,7 @@
 **回答**：512 只堆叠奶牛的位姿从哪来？刚体模拟怎么与渲染共用一块 GPU，又怎么保持逐位可复现？
 
 小节：
-1. 为什么渲染器要长出物理——自然堆叠"摆不出来"；场景只声明初始条件，模拟生成最终位姿；管线位置在第 9 章生命周期 ①② 之间（对账 `runPhysics()` 调用处（src/main.cpp）与 scenes/06-spot-cascade.json 的 physics 块）
+1. 为什么渲染器要长出物理——自然堆叠"摆不出来"；场景只声明初始条件，模拟生成最终位姿；管线位置在第 9 章生命周期 ①② 之间（对账 `runPhysics()` 调用处（src/capi_render.cpp）与 scenes/06-spot-cascade.py 的 physics 声明）
 2. 刚体动力学速成——状态 (p,q,v,ω)、四元数姿态、牛顿–欧拉方程、半隐式欧拉与固定步长 dt=1/240（对账 `updateMassAndInertia` 调用）
 3. 碰撞：从形状到接触——凸包 ≤64 顶点实例共享（对账 `convexOf()` 与 PxMeshScale）、rect 薄盒挤出、宽相/窄相（呼应第 8 章）、迭代约束求解 8/2、restitution/friction、speculative CCD、休眠=沉降
 4. GPU 上的物理与位姿烘焙——eENABLE_GPU_DYNAMICS+GPU 宽相、共卡串行、唯一 PhysX TU 模块边界；T·R·S 列范数分解与烘焙（对账 `decompose()`/`bakePose()`（src/physics.cpp）），实测 2100 步/8.75 s/约 2.5 s 墙钟（stats physics 分段）

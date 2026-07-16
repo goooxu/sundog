@@ -13,8 +13,7 @@ triangles, UV image textures, and smooth normals as before.
 Run: python3 scenes/03-spot-atrium.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_y, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=128, max_depth=12, clamp=8, seed=3)

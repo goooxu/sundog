@@ -11,8 +11,7 @@ Three spot cows have gathered around the fire ring on the shore.
 Run: python3 scenes/09-ember-shore.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_x, rotate_y, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=256, max_depth=10, clamp=8, seed=7, exposure=0.5)

@@ -13,8 +13,7 @@ tests/host/test_scene_json.cpp.
 Run: python3 scenes/smoke.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, scale, translate
 
 s = Scene()
 s.render(width=256, height=256, spp=16, max_depth=8, seed=7)

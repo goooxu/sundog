@@ -14,8 +14,7 @@ area light, an explicit soft-shadow point light, and a distant sun.
 Run: python3 scenes/features.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_x, rotate_z, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=64, max_depth=16, seed=7)

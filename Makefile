@@ -10,7 +10,6 @@ CXX        ?= g++
 
 # Device code ships as PTX (driver JIT): nvcc 13.0's --optix-ir output is
 # rejected by current drivers' OptiX loader — full story in the report, ch09.
-ARCH  ?= sm_120
 DEBUG ?= 0
 
 CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP -fPIC \
@@ -86,8 +85,8 @@ $(BUILD)/%.o: src/%.cpp | $(BUILD)
 $(BUILD)/libsundog.so: $(HOST_OBJS) $(BUILD)/embedded_module.o
 	$(CXX) -shared -Wl,-soname,libsundog.so -o $@ $^ $(LDFLAGS)
 
-# tests #include device headers and src/scene_json.cpp directly — depend on
-# them so edits trigger rebuilds
+# tests #include device headers and src/*.cpp implementation TUs directly —
+# depend on them so edits trigger rebuilds
 $(BUILD)/tests/%: tests/host/%.cpp tests/host/check.h $(wildcard device/*.cuh) device/params.h $(wildcard src/*.cpp) $(wildcard src/*.h) | $(BUILD)/tests
 	$(CXX) $(TESTFLAGS) -o $@ $<
 

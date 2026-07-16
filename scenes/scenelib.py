@@ -34,7 +34,6 @@ Stdlib only; compatible with Python 3.6+.
 
 import argparse
 import ctypes
-import math
 import os
 import sys
 

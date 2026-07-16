@@ -11,8 +11,7 @@ primitive's custom intersection and two-sided (material_back) semantics.
 Run: python3 scenes/04-parabolica.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_y, rotate_z, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=320, max_depth=24, clamp=30, seed=3, exposure=0.25)

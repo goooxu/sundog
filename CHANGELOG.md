@@ -10,6 +10,31 @@
 
 （暂无）
 
+## [0.12.1] - 2026-07-16 — 清理
+
+### 移除（零引用死面，三路审计交叉验证）
+
+- `scripts/gen_cover_textures.py`（封面纹理一次性生成器；gear/runes.png
+  转为静态资产，出处记入 assets/LICENSES.md，生成器见 git 历史）
+- 10 个场景文件的转换器模板剩余 import（AST 逐名核对）与 scenelib 的
+  未用 `import math`
+- 旧 CLI 残骸 `printProbe()`（探针输出早已由 Python 侧格式化）、
+  零调用设备 helper `fractf()`、生产侧零消费者的 `tonemapFromString()`
+  （tonemap 走 C ABI int）及其单测用例、Makefile 失效旋钮 `ARCH`
+  （设备架构硬编码 compute_120）
+
+### 修正（v0.11 库化迁移漏更的陈旧引用）
+
+- 技术报告 8 处 `src/main.cpp` 对账点与 ch09 流程图 SVG 改指
+  `src/capi_render.cpp`；"八个设备程序"改十个（透明阴影后实际入口数）、
+  "嵌入可执行文件/二进制"改嵌入渲染库；golden 场景数 5→6；
+  07 章"JSON 中的角度"改场景口径；OUTLINE 残留 .json 提法
+- README 目录结构（src/ 的 CLI/场景解析提法、assets/ 举例）；
+  report/index.md 摘掉 OUTLINE/STYLE 的读者链接（写作脚手架保留，
+  不再暴露在报告门面）
+
+（主要提交见本版单提交）
+
 ## [0.12.0] - 2026-07-16 — Sparky 机器人与多材质组网格
 
 ### 新增

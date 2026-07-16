@@ -43,7 +43,7 @@
   <text x="20" y="228" font-size="17" font-weight="bold" fill="#B45309">渲染循环</text>
   <rect x="300" y="210" width="360" height="70" rx="8" stroke="#B45309" fill="#F59E0B" fill-opacity="0.12"/>
   <text x="480" y="236" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">⑤ optixLaunch ×（spp ÷ chunk）</text>
-  <text x="480" y="260" text-anchor="middle" font-size="16" fill="#64748B">main.cpp · 每块后 cudaDeviceSynchronize</text>
+  <text x="480" y="260" text-anchor="middle" font-size="16" fill="#64748B">capi_render.cpp · 每块后 cudaDeviceSynchronize</text>
   <path d="M 660 230 C 706 218, 706 262, 660 254" stroke="#B45309" stroke-width="2" fill="none" marker-end="url(#arrB)"/>
   <text x="714" y="246" font-size="16" fill="#B45309">直到 spp 采满</text>
 

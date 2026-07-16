@@ -15,8 +15,7 @@ along the straight line to the light.
 Run: python3 scenes/11-glasswork.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_y, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=256, max_depth=16, clamp=10, seed=7)

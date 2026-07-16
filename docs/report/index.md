@@ -5,9 +5,10 @@
 微积分、线性代数与概率论基础；每个图形学概念都先给直觉与图，再给严格推导，
 最后落到 sundog 源码的具体函数。
 
-写作/审查规范见 [STYLE.md](STYLE.md)，章节规格见 [OUTLINE.md](OUTLINE.md)。
 所有渲染对比图可由 `scripts/render-report-figures.sh` 与
 `scripts/gen-report-charts.py` 再生。
+
+<!-- 写作脚手架（作者用，非读者材料）：STYLE.md 术语/风格规范、OUTLINE.md 章节规格与产图登记 -->
 
 ## 阅读路径
 

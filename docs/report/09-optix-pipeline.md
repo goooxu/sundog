@@ -14,11 +14,11 @@
 
 **② 构建加速结构**。`optixAccelBuild` 把上一步的三角形与 AABB 变成 GPU 上的 BVH：每种**用到的**解析图元建一个 GAS、每个网格建一个 GAS（均做 compaction 压缩），顶层 IAS 为每个场景对象生成一个带 3×4 变换的实例（`buildQuadricGas()/buildTriangleGas()/buildIas()`（src/accel.cpp）；原理与两级结构见[第 8 章](08-acceleration.md)）。
 
-**③ 编译程序**。八个设备程序全部写在唯一的模块 `device/programs.cu` 里，构建期由 nvcc 编成 PTX、`bin2c` 嵌入可执行文件，运行期 `optixModuleCreate` 交给驱动即时编译——教科书路线是 OptiX-IR，sundog 因工程坑退回 PTX（见 9.6 节末段）。
+**③ 编译程序**。十个设备程序全部写在唯一的模块 `device/programs.cu` 里，构建期由 nvcc 编成 PTX、`bin2c` 嵌入渲染库，运行期 `optixModuleCreate` 交给驱动即时编译——教科书路线是 OptiX-IR，sundog 因工程坑退回 PTX（见 9.6 节末段）。
 
 **④ 创建 Pipeline 与 SBT**。`optixProgramGroupCreate` 把程序包成 1（raygen）+2（miss）+8（hitgroup 变体）个程序组，`optixPipelineCreate` 以 `maxTraceDepth = 1` 链接成管线，随后组装 SBT——把"每个对象 × 每种光线"接到正确的程序与数据上（`Pipeline`（src/pipeline.cpp）；索引规则见 9.4 节）。
 
-**⑤ 调用 optixLaunch**。主机把 spp 按固定块大小（16）切块，循环发射并同步，每次 launch 覆盖全部像素、每像素一个线程（src/main.cpp 渲染循环，代码见 9.6 节）。
+**⑤ 调用 optixLaunch**。主机把 spp 按固定块大小（16）切块，循环发射并同步，每次 launch 覆盖全部像素、每像素一个线程（src/capi_render.cpp 渲染循环，代码见 9.6 节）。
 
 **⑥ 遍历、求交与着色**。设备侧每条光线由 RT Core 遍历 BVH：三角形硬件求交，解析图元回调 IS 程序，AH 对穿透面与 alpha 镂空行使否决权，CH/miss 收尾——但 sundog 的着色（BSDF、NEE、MIS、俄罗斯轮盘）**不在 CH 里**，而是全部收在 raygen 的路径循环中，CH 退化为把命中信息打包进 8 个 payload 寄存器。这是 sundog 与"在 CH 里递归着色"的教科书结构最大的差异，动机见 9.3 节。
 
@@ -32,7 +32,7 @@
 | ② GAS / IAS | `optixAccelBuild` / `optixAccelCompact` | src/accel.cpp | 第 8 章 |
 | ③ 程序编译 | nvcc `-ptx` → `optixModuleCreate` | device/programs.cu、Makefile | 9.6 节末段 |
 | ④ Pipeline + SBT | `optixProgramGroupCreate` / `optixPipelineCreate` / `optixSbtRecordPackHeader` | src/pipeline.cpp | 9.2、9.4 节 |
-| ⑤ 发射 | `optixLaunch` | src/main.cpp 渲染循环 | 9.6 节 |
+| ⑤ 发射 | `optixLaunch` | src/capi_render.cpp 渲染循环 | 9.6 节 |
 | ⑥ 遍历/求交/着色 | `optixTrace` / `optixReportIntersection` / `optixIgnoreIntersection` | device/programs.cu | 9.2、9.3、9.5 节；第 6 章 |
 | ⑦ 降噪 | `optixDenoiserInvoke` | src/denoise.cpp | 第 10 章 |
 
@@ -156,6 +156,6 @@ while (done < rs.spp) {
 
 *图：左起 beauty、反照率 AOV、法线 AOV（03-spot-atrium 场景）；AOV 作降噪引导层的用法见第 10 章。*
 
-最后是一个工程坑，一段带过：设备代码理论上可编成 OptiX-IR（OptiX 专用的二进制中间表示）交给驱动，但 nvcc 13.0 的 `--optix-ir` 输出会被 R610 驱动（610.47.04）的加载器拒收，`optixModuleCreate` 报出空日志的编译错误。因此 sundog 一律编成 PTX（CUDA 的汇编级中间表示，`-arch=compute_120`）嵌入二进制，运行时由驱动即时编译（JIT）为机器码，性能无差别，代价只是首次创建模块稍慢。
+最后是一个工程坑，一段带过：设备代码理论上可编成 OptiX-IR（OptiX 专用的二进制中间表示）交给驱动，但 nvcc 13.0 的 `--optix-ir` 输出会被 R610 驱动（610.47.04）的加载器拒收，`optixModuleCreate` 报出空日志的编译错误。因此 sundog 一律编成 PTX（CUDA 的汇编级中间表示，`-arch=compute_120`）嵌入渲染库，运行时由驱动即时编译（JIT）为机器码，性能无差别，代价只是首次创建模块稍慢。
 
 **小结**：OptiX 的五种程序各管一段——raygen 发光线、IS 算自定义求交、AH 行使否决权、CH/miss 收尾；sundog 用 megakernel 结构把整个路径积分器收进 raygen，trace 深度压到 1，CH 退化为 8 寄存器的打包器；SBT 以 `2×instanceId + rayType` 的索引规则把每个对象、每种光线接到 8 个 hitgroup 变体之一；anyhit 一段逻辑同时实现穿透、镂空与正确的阴影，其余对象全部走 DISABLE_ANYHIT 快速路径。下一章转向让图像"干净"的另一半工程：并行随机数如何做到逐位可复现、纹理如何采样、以及 AI 降噪如何用 16 spp 逼近数千 spp——[第 10 章·随机数、纹理与 AI 降噪](10-sampling-denoising.md)。

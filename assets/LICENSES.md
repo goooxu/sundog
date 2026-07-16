@@ -24,6 +24,13 @@
 - **Use in this project:** `scenes/03-spot-atrium.py` 的多材质网格演示
   （usemtl 组过滤：玻璃头罩/发光屏幕/金属关节/塑料壳）。
 
+## gear.png / runes.png — 封面场景程序化纹理
+
+- **Origin:** 项目自制程序化纹理（12 号封面场景的齿轮 alpha 镂空与符文
+  发光图集），静态资产入库于 `scenes/textures/`；一次性生成器已随
+  v0.12.1 清理移除，可在 git 历史找 `scripts/gen_cover_textures.py`。
+- **Terms:** 项目自有资产，随仓库分发。
+
 ## kloofendal_48d_partly_cloudy_puresky_4k.hdr — 晴日天空 HDRI
 
 - **Origin:** "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal,

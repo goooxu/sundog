@@ -11,8 +11,7 @@ light makes the NEE+MIS convergence behavior obvious at a glance.
 Run: python3 scenes/02-cornell-lume.py
 """
 
-from scenelib import (Scene, rigid_body, rotate_x, rotate_y, rotate_z,
-                      scale, static_body, translate)
+from scenelib import Scene, rotate_x, rotate_z, scale, translate
 
 s = Scene()
 s.render(width=1920, height=1080, spp=256, max_depth=16, clamp=10, seed=5, exposure=0.25)

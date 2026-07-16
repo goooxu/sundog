@@ -18,7 +18,6 @@ struct DeviceInfo {
 
 OptixDeviceContext createContext(bool verboseLog);
 DeviceInfo queryDeviceInfo(OptixDeviceContext ctx);
-void printProbe(const DeviceInfo& di);
 
 }  // namespace sd
 

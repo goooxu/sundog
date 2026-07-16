@@ -8,7 +8,6 @@
 
 namespace sd {
 
-SD_HD float fractf(float x) { return x - floorf(x); }
 
 // Handles inverted edges (e0 > e1) as a descending ramp.
 SD_HD float smoothstepf(float e0, float e1, float x) {

@@ -45,15 +45,5 @@ DeviceInfo queryDeviceInfo(OptixDeviceContext ctx) {
   return di;
 }
 
-void printProbe(const DeviceInfo& di) {
-  printf("GPU:            %s\n", di.name.c_str());
-  printf("Compute:        sm_%d%d\n", di.ccMajor, di.ccMinor);
-  printf("VRAM:           %zu MB\n", di.totalMemMB);
-  printf("CUDA driver:    %d.%d\n", di.driverVersion / 1000, (di.driverVersion % 1000) / 10);
-  printf("CUDA runtime:   %d.%d\n", di.runtimeVersion / 1000, (di.runtimeVersion % 1000) / 10);
-  printf("OptiX header:   %u.%u.%u\n", di.optixHeaderVersion / 10000,
-         (di.optixHeaderVersion % 10000) / 100, di.optixHeaderVersion % 100);
-  printf("RT core:        %u.%u\n", di.rtcoreVersion / 10, di.rtcoreVersion % 10);
-}
 
 }  // namespace sd

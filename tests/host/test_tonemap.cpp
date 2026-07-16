@@ -8,16 +8,6 @@
 
 using namespace sd;
 
-static void testParse() {
-  TonemapMode m = TM_CLAMP;
-  CHECK(tonemapFromString("aces", m) && m == TM_ACES);
-  CHECK(tonemapFromString("clamp", m) && m == TM_CLAMP);
-  m = TM_ACES;
-  CHECK(!tonemapFromString("reinhard", m));
-  CHECK(m == TM_ACES);  // failed parse must not touch the output
-  CHECK(!tonemapFromString("", m));
-}
-
 static void testGrayAxis() {
   // Black stays black (the saturate absorbs the fit's -3.8e-4 at 0).
   float3 z = acesFitted(f3(0.0f));
@@ -68,7 +58,6 @@ static void testColorPin() {
 }
 
 int main() {
-  testParse();
   testGrayAxis();
   testMonotone();
   testColorPin();
