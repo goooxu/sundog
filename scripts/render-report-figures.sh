@@ -423,4 +423,14 @@ PY
 python3 "$COMPOSE" strip "$FIG/ch16-snell-window.png" --label-size 22 \
   "$RAW/ch16-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
+# -------------------------------------------------- ch17-frosted-ladder.png
+# Dedicated scene: five glass spheres, dielectric roughness 0/0.05/0.15/
+# 0.3/0.6, HDR sky over a checker floor — refraction blurring to frost.
+render "ch17-frosted-ladder" \
+       "$ROOT/docs/report/figures/src/frosted-ladder.py" --spp 256
+python3 "$COMPOSE" ladder "$FIG/ch17-frosted-ladder.png" \
+  "$RAW/ch17-frosted-ladder.png" "磨砂玻璃 · 256 spp" \
+  "roughness 0" "roughness 0.05" "roughness 0.15" \
+  "roughness 0.3" "roughness 0.6"
+
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

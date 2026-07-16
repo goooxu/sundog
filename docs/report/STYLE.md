@@ -87,6 +87,10 @@
 | 斯涅尔窗口 | Snell's window | 水下仰望时天空被压进的临界角圆锥 |
 | 介质栈 | medium stack | 嵌套介质的 LIFO 记账（进 push 出 pop） |
 | 光学深度 | optical depth | τ = ∫σ dt，透射率 e^−τ 的指数 |
+| 粗糙电介质 | rough dielectric | roughness>0 的玻璃：微表面反射+透射 |
+| 磨砂玻璃 | frosted glass | 粗糙电介质的日常名 |
+| 微表面透射 | microfacet transmission | Walter 2007，透射半程向量 |
+| 双向透射分布函数 | BTDF | f_t；与 BRDF 合称 BSDF |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | 出口映射：ACES Hill 拟合（RRT+ODT），第 1 章 |

@@ -316,6 +316,25 @@
 
 ---
 
+## 17-rough-dielectric.md 粗糙电介质：微表面透射与磨砂玻璃
+
+**回答**：磨砂玻璃为什么"透光不透形"？第 5 章的 GGX 微表面怎么从反射搬进透射？粗糙度归零时如何逐位退回旧玻璃？
+
+小节：
+1. 两个旧答案拼不出的新材质——金属有粗糙度但只反射（5.2-5.3）、玻璃能透射但只有光滑（5.4-5.5）；磨砂玻璃的直觉：微镜面各自光滑折射、宏观方向被法线抖动糊开（13 号场景对读：屏后火苗 vs 屏前光斑）
+2. 透射半程向量——反射 h ∝ ω_o+ω_i 的推广 h ∝ η·ω_o+ω_i（Walter 2007，相对 η 形式；canonical 取 ω_o 侧）；逐微镜面 Snell 的方向意义；TIR 在微镜面级发生、确定性反射（对账透射半程向量构造与 `fresnelDielectric()`（device/bsdf.cuh））
+3. Walter BTDF 与雅可比推导——f_t 全式逐因子来历，教程式推导 |dω_h/dω_i| = |ω_i·h|/(η(ω_o·h)+(ω_i·h))² 的透射雅可比（反射侧 1/(4|ω_o·h|) 的镜像）；η² 辐亮度因子为什么不可省略：NEE 消费 eval 做不成对的单界面连接，缺 η² 每界面偏 η²，沿完整 BSDF 路径进出才相消（对账 `bsdfEval()` 透射分支与 `ggxPdfTransmit()`（device/bsdf.cuh））
+4. VNDF 采样、瓣选择与权重化简——ggxSampleVndf 采 h 照旧、菲涅尔 F(ω_o·h) 掷硬币选瓣（抽取序：VNDF 在前、瓣选在后——F 依赖所采微面）；两瓣 f/p 同时化简为 G/G₁（透射再乘 η²）；组合 pdf = F·pdf_refl / (1−F)·pdf_trans 两侧一致（对账 `bsdfSample()`/`bsdfPdf()`（device/bsdf.cuh））
+5. delta 退化、决定性与一次数值现场——roughness<1e-3 走原 delta 分支、抽取契约逐字节（golden 七场景全 inf 红线；水面固定光滑极限）；ggxD 紧凑式 k=c²(α²-1)+1 在极小 α 下 float 舍入到 k=0、D 爆 inf 的现场复盘与稳定式 k=α²c²+(1-c²)（对账 `ggxD()`（device/bsdf.cuh））；delta 极限验证：roughness 2e-3 vs 0 各 4096 spp 收敛一致
+6. NEE/MIS 接驳与阴影近似第五项——粗糙电介质不再 isDelta：透射 NEE（光在玻璃后的主动连线，13 号的方差控制）与 MIS 组合 pdf 记账（对账 raygen NEE 分支（device/programs.cu））；阴影线仍按光滑菲涅尔直线透射（第 16 章近似清单第五项）——13 号屏前光斑逐扇同锐 vs 屏后光晕逐扇变糊即其可视化；实测引 BENCHMARKS（13 号渲染吞吐与 11 号对照）
+
+图：
+- `figures/ch17-halfvec-refraction.svg`：反射/透射半程向量几何（微镜面上的 Snell、η 加权和、TIR 情形）
+- `figures/ch17-frosted-ladder.png`：磨砂玻璃阶梯（5 球 roughness 0/0.05/0.15/0.3/0.6，HDR 天空）
+- 复用 `../gallery/13-frosted-veil.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
 ## appendix-pitfalls.md 附录：路径追踪常见实现陷阱
 
 **回答**：写一个路径追踪器最容易在哪些地方悄悄算错？（案例式清单，每条=症状/数学分析/sundog 的做法）
@@ -353,6 +372,7 @@
 | ch14-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
 | ch15-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
 | ch16-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
+| ch17-frosted-ladder.png | 磨砂玻璃阶梯（5 球 roughness 0→0.6） | 新建 figures/src/frosted-ladder.py（仿 roughness-ladder，HDR 天空 + 棋盘地面），256spp，compose ladder |
 | ch16-snell-window.png | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
@@ -379,8 +399,8 @@ ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
 ch12-physics-pipeline, ch12-trs-bake, ch13-radiative-transfer,
 ch13-flame-field, ch14-water-layers, ch14-glitter,
 ch15-equirect-mapping, ch15-env-cdf,
-ch16-shadow-transmit, ch16-medium-stack,
-appendix-lambert-bias（共 33 张）
+ch16-shadow-transmit, ch16-medium-stack, ch17-halfvec-refraction,
+appendix-lambert-bias（共 34 张）
 
 要求：`<svg>` 根元素带白色背景 rect；宽 720-960；字号≥16；中文标注；
 配色统一（线条 #334155、强调 #2563EB、光线 #F59E0B、法线 #16A34A、面/体填充 10-15% 透明度）；
