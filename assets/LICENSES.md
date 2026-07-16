@@ -13,6 +13,17 @@
 - **Use in this project:** rendering demo/benchmark scenes for the sundog
   path tracer.
 
+## sparky.obj / sparky.mtl — Sparky（卡通机器人）
+
+- **Origin:** AI 生成模型（项目作者提供，由生成式 3D 工具产出；7,284 三角形，
+  带 UV，十个 usemtl 材质组）。
+- **Texture:** `scenes/textures/sparky_albedo.png`（屏幕面板图集，入库）。
+- **Terms:** 项目自有资产，随仓库分发。
+- **获取方式:** 无外部下载源——OBJ/MTL/纹理全部入库
+  （`assets/sparky.obj`、`assets/sparky.mtl`）。
+- **Use in this project:** `scenes/03-spot-atrium.py` 的多材质网格演示
+  （usemtl 组过滤：玻璃头罩/发光屏幕/金属关节/塑料壳）。
+
 ## kloofendal_48d_partly_cloudy_puresky_4k.hdr — 晴日天空 HDRI
 
 - **Origin:** "Kloofendal 48d Partly Cloudy (Pure Sky)" by Greg Zaal,

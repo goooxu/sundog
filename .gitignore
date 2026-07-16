@@ -4,6 +4,8 @@ out/
 # large assets (provenance in assets/LICENSES.md; re-download as needed)
 assets/*.obj
 assets/*.hdr
+# sparky has no download source — committed in-tree
+!assets/sparky.obj
 
 # build trees (dev box; on the test box builds go to /tmp/sundog-build)
 build*/

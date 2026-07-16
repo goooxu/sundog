@@ -10,6 +10,26 @@
 
 （暂无）
 
+## [0.12.0] - 2026-07-16 — Sparky 机器人与多材质组网格
+
+### 新增
+
+- **网格 usemtl 组过滤**：`s.mesh(name, obj, usemtl="组名")` 只加载 OBJ 的
+  一个材质组——多材质模型按组拆成同变换子网格，各组映射独立的 sundog
+  材质（tinyobj 逐面 material_ids 过滤；组缺失/空组报错）
+- **Sparky**：AI 生成的卡通机器人模型入库（assets/sparky.obj/.mtl +
+  屏幕图集纹理，7,284 三角形、十个材质组，无外部下载源故全部入库，
+  provenance 见 assets/LICENSES.md）
+
+### 变更
+
+- `03-spot-atrium` 改造为「Sparky 会奶牛」：机器人十组子网格
+  （dielectric 玻璃头罩、emissive 像素屏与核心灯、metal 关节、
+  lambert 塑料壳——材质按 .mtl 名字意图演绎）与三头 Spot 同框；
+  画廊/基准/README/报告 ch09 AOV 图同步
+
+（主要提交 016f6b9 与 Sparky 入库提交）
+
 ## [0.11.0] - 2026-07-16 — 零中间表示：libsundog.so + ctypes 直灌
 
 ### 新增
