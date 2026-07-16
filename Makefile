@@ -13,7 +13,7 @@ CXX        ?= g++
 ARCH  ?= sm_120
 DEBUG ?= 0
 
-CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP \
+CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP -fPIC \
             -Isrc -Idevice -Iextern -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include \
             -I$(PHYSX_HOME)/include
 # PhysX static archives must precede -ldl/-lpthread; libPhysXGpu_64.so is
@@ -36,6 +36,8 @@ endif
 
 HOST_SRCS := $(wildcard src/*.cpp)
 HOST_OBJS := $(HOST_SRCS:src/%.cpp=$(BUILD)/%.o)
+# the shared library carries everything except the executable's main
+LIB_OBJS  := $(filter-out $(BUILD)/main.o,$(HOST_OBJS))
 
 # Host tests: scene parsing/loading only (rendering is GPU-only and is
 # validated by golden images + determinism). Needs CUDA/OptiX headers to
@@ -45,7 +47,7 @@ TEST_BINS := $(TEST_SRCS:tests/host/%.cpp=$(BUILD)/tests/%)
 TESTFLAGS := -std=c++17 -O2 -g -Wall -Idevice -Iextern -Isrc \
              -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
 
-all: $(BUILD)/sundog
+all: $(BUILD)/sundog $(BUILD)/libsundog.so
 
 $(BUILD) $(BUILD)/tests:
 	mkdir -p $@
@@ -76,13 +78,18 @@ $(BUILD)/embedded_module.c: $(BUILD)/programs.$(DEVEXT)
 
 # compile as C: in C++ a const array at namespace scope gets internal linkage
 $(BUILD)/embedded_module.o: $(BUILD)/embedded_module.c
-	$(CC) -c -O1 -o $@ $<
+	$(CC) -c -O1 -fPIC -o $@ $<
 
 $(BUILD)/%.o: src/%.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BUILD)/sundog: $(HOST_OBJS) $(BUILD)/embedded_module.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
+
+# the renderer as a shared library: scenes/scenelib.py drives it via ctypes
+# (scene data crosses the C ABI directly — no intermediate representation)
+$(BUILD)/libsundog.so: $(LIB_OBJS) $(BUILD)/embedded_module.o
+	$(CXX) -shared -Wl,-soname,libsundog.so -o $@ $^ $(LDFLAGS)
 
 # tests #include device headers and src/scene_json.cpp directly — depend on
 # them so edits trigger rebuilds

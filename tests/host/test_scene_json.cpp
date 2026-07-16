@@ -2,7 +2,8 @@
 // Python scene in scenes/, detailed assertions on smoke.py / features.py,
 // error paths. Needs python3 on PATH (scene .py -> JSON IR conversion).
 // NOTE: uses relative path "scenes/", so run from the repo root (make does).
-#include "scene_json.cpp"  // reuse the implementation directly
+#include "scene_build.cpp"  // derivation shared with the C API
+#include "scene_json.cpp"   // reuse the implementation directly
 
 #include "check.h"
 

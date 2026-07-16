@@ -2,6 +2,7 @@
 // transform chains into one affine, and auto-registers emissive rect/disk/
 // sphere objects as NEE area lights.
 #include "scene.h"
+#include "scene_build.h"
 
 #include "json.hpp"
 #include <cmath>
@@ -19,24 +20,6 @@ static float3 jf3(const json& j) {
 }
 
 static void fail(const std::string& msg) { throw std::runtime_error("scene: " + msg); }
-
-CameraData makeCamera(const CameraSettings& cs, int width, int height) {
-  CameraData c{};
-  float aspect = (float)width / (float)height;
-  float theta = cs.vfov * SD_PI / 180.0f;
-  float halfH = tanf(theta / 2.0f);
-  float halfW = aspect * halfH;
-  float focus = cs.focusDist > 0.0f ? cs.focusDist : length(cs.lookfrom - cs.lookat);
-  c.w = normalize(cs.lookfrom - cs.lookat);
-  c.u = normalize(cross(cs.up, c.w));
-  c.v = cross(c.w, c.u);
-  c.origin = cs.lookfrom;
-  c.lowerLeft = c.origin - halfW * focus * c.u - halfH * focus * c.v - focus * c.w;
-  c.horizontal = 2.0f * halfW * focus * c.u;
-  c.vertical = 2.0f * halfH * focus * c.v;
-  c.lensRadius = cs.aperture / 2.0f;
-  return c;
-}
 
 static Affine parseTransform(const json& arr) {
   Affine m = Affine::identity();
@@ -285,15 +268,11 @@ Scene loadScene(const std::string& path) {
     } else {
       so.matBack = so.matFront;  // both sides by default (null front stays null)
     }
-    if (so.matFront == MAT_NONE && so.matBack == MAT_NONE)
-      fail("object has no material on either face");
     if (o.contains("cutout")) so.cutoutTexId = texId(o["cutout"], "cutout");
     so.xform = parseTransform(o.value("transform", json()));
     so.nee = o.value("nee", true);
 
     if (o.contains("physics")) {
-      if (!s.physics.enabled)
-        fail("physics: object opts in but the scene has no top-level physics block");
       const auto& p = o["physics"];
       so.physics.enabled = true;
       so.physics.dynamic = p.value("dynamic", false);
@@ -303,73 +282,11 @@ Scene loadScene(const std::string& path) {
       so.physics.friction = p.value("friction", so.physics.friction);
       so.physics.restitution = p.value("restitution", so.physics.restitution);
       so.physics.thickness = p.value("thickness", so.physics.thickness);
-      if (so.geomKind == GK_DISK || so.geomKind == GK_CYLINDER || so.geomKind == GK_PARABOLA)
-        fail("physics: shape '" + shape + "' is not supported as a collider "
-             "(use sphere, rect, or mesh)");
-      if (so.geomKind == GK_RECT && so.physics.dynamic)
-        fail("physics: rect colliders are static-only (zero-thickness plates tunnel)");
-      if (so.physics.dynamic && so.physics.density <= 0.0f)
-        fail("physics: dynamic body needs positive density");
-      if (so.physics.thickness <= 0.0f)
-        fail("physics: thickness must be positive");
     }
 
-    // Auto-register emissive rect/disk/sphere objects as NEE area lights.
-    uint16_t emId = MAT_NONE;
-    if (so.matFront != MAT_NONE && s.materials[so.matFront].kind == MT_EMISSIVE)
-      emId = so.matFront;
-    if (emId != MAT_NONE && so.nee &&
-        (so.geomKind == GK_RECT || so.geomKind == GK_DISK || so.geomKind == GK_SPHERE)) {
-      const MaterialDesc& em = s.materials[emId];
-      LightDesc ld{};
-      ld.texId = -1;
-      ld.p = so.xform.applyPoint(f3(0, 0, 0));
-      float3 ux = so.xform.applyVector(f3(1, 0, 0));
-      float3 uy = so.xform.applyVector(f3(0, 1, 0));
-      float3 uz = so.xform.applyVector(f3(0, 0, 1));
-      // Sign of det(M): cross(uz,ux) picks up the determinant sign while the
-      // device normal (inverse-transpose) does not — flip to stay consistent
-      // under mirroring transforms.
-      float detSign = dot(uy, cross(uz, ux)) < 0.0f ? -1.0f : 1.0f;
-      ld.L = em.color * em.intensity;
-      ld.twoSided = em.twoSided;
-      if (em.texId >= 0) {
-        if (so.geomKind == GK_SPHERE)
-          fail("textured emissive sphere cannot be an NEE light (uv frame is "
-               "object-space); use a solid color or set nee:false");
-        ld.texId = em.texId;
-        ld.L = f3(em.intensity);  // Li = tex(uv) * intensity, matching emitter hits
-      }
-      if (so.geomKind == GK_RECT) {
-        ld.kind = LT_RECT;
-        ld.u = ux;
-        ld.v = uz;
-        ld.n = normalize(cross(uz, ux)) * detSign;
-        ld.area = 4.0f * length(cross(ux, uz));
-      } else if (so.geomKind == GK_DISK) {
-        float ru = length(ux), rz = length(uz);
-        if (fabsf(ru - rz) > 1e-3f * fmaxf(ru, rz))
-          fail("disk NEE light requires uniform XZ scale (pdf would be wrong); set nee:false");
-        ld.kind = LT_DISK;
-        ld.u = ux;
-        ld.v = uz;
-        ld.n = normalize(cross(uz, ux)) * detSign;
-        ld.area = SD_PI * ru * rz;
-      } else {
-        float rx = length(ux), rz = length(uz);
-        float ry = length(so.xform.applyVector(f3(0, 1, 0)));
-        if (fabsf(rx - ry) > 1e-3f * rx || fabsf(rx - rz) > 1e-3f * rx)
-          fail("sphere NEE light requires uniform scale; set nee:false");
-        ld.kind = LT_SPHERE;
-        ld.radius = rx;
-      }
-      so.lightId = (int)s.lights.size();
-      s.lights.push_back(ld);
-    }
-    if (so.physics.dynamic && so.lightId != -1)
-      fail("physics: a dynamic object cannot be an NEE area light (the light "
-           "frame is baked at parse time); set nee:false or keep it static");
-    s.objects.push_back(so);
+    // Derivation (physics constraints, NEE area-light registration, push)
+    // lives in scene_build.cpp — shared with the C API.
+    addObjectDerived(s, so);
   }
 
   if (j.contains("flames")) {
@@ -383,28 +300,8 @@ Scene loadScene(const std::string& path) {
       fd.sigma = fj.value("sigma", 4.0f);
       fd.noiseScale = fj.value("noise_scale", 3.0f);
       fd.seed = (unsigned)fj.value("seed", 0);
-      if (fd.height <= 0.0f || fd.radius <= 0.0f)
-        fail("flame: height and radius must be positive");
-      if (fd.intensity < 0.0f || fd.sigma < 0.0f)
-        fail("flame: intensity and sigma must be >= 0");
-      // The volume emission makes the flame visible; two embedded warm point
-      // lights (soft shadows via radius) make it illuminate the scene through
-      // the regular NEE machinery. Documented approximation: BSDF paths that
-      // happen to cross the volume add a small extra on top of these lights.
       float lightI = fj.value("light_intensity", 12.0f);
-      const float frac[2] = {0.65f, 0.35f};
-      const float hfac[2] = {0.35f, 0.70f};
-      const float3 warm[2] = {f3(1.0f, 0.50f, 0.15f), f3(1.0f, 0.62f, 0.25f)};
-      for (int k = 0; k < 2; k++) {
-        LightDesc ld{};
-        ld.texId = -1;
-        ld.kind = LT_POINT;
-        ld.p = fd.base + f3(0.0f, hfac[k] * fd.height, 0.0f);
-        ld.radius = 0.3f * fd.radius;
-        ld.L = warm[k] * (lightI * frac[k]);
-        s.lights.push_back(ld);
-      }
-      s.flames.push_back(fd);
+      addFlameDerived(s, fd, lightI);  // domain checks + 2 embedded point lights
     }
   }
 
