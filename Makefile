@@ -36,8 +36,6 @@ endif
 
 HOST_SRCS := $(wildcard src/*.cpp)
 HOST_OBJS := $(HOST_SRCS:src/%.cpp=$(BUILD)/%.o)
-# the shared library carries everything except the executable's main
-LIB_OBJS  := $(filter-out $(BUILD)/main.o,$(HOST_OBJS))
 
 # Host tests: scene parsing/loading only (rendering is GPU-only and is
 # validated by golden images + determinism). Needs CUDA/OptiX headers to
@@ -47,7 +45,7 @@ TEST_BINS := $(TEST_SRCS:tests/host/%.cpp=$(BUILD)/tests/%)
 TESTFLAGS := -std=c++17 -O2 -g -Wall -Idevice -Iextern -Isrc \
              -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
 
-all: $(BUILD)/sundog $(BUILD)/libsundog.so
+all: $(BUILD)/libsundog.so
 
 $(BUILD) $(BUILD)/tests:
 	mkdir -p $@
@@ -83,12 +81,9 @@ $(BUILD)/embedded_module.o: $(BUILD)/embedded_module.c
 $(BUILD)/%.o: src/%.cpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(BUILD)/sundog: $(HOST_OBJS) $(BUILD)/embedded_module.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-
-# the renderer as a shared library: scenes/scenelib.py drives it via ctypes
+# the renderer is a shared library: scenes/scenelib.py drives it via ctypes
 # (scene data crosses the C ABI directly — no intermediate representation)
-$(BUILD)/libsundog.so: $(LIB_OBJS) $(BUILD)/embedded_module.o
+$(BUILD)/libsundog.so: $(HOST_OBJS) $(BUILD)/embedded_module.o
 	$(CXX) -shared -Wl,-soname,libsundog.so -o $@ $^ $(LDFLAGS)
 
 # tests #include device headers and src/scene_json.cpp directly — depend on

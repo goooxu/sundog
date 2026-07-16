@@ -10,7 +10,6 @@ exercised on the test box by run-smoke/run-golden (real renders through
 libsundog.so).
 """
 
-import json
 import math
 import os
 import subprocess
@@ -363,12 +362,6 @@ r = subprocess.Popen([sys.executable, "-B", scene_py], env=env,
 _, err = r.communicate()
 check(r.returncode == 1 and b"backend not found" in err,
       "missing backend reported (rc=%d, err=%r)" % (r.returncode, err[:120]))
-
-# transitional --emit-json escape hatch still emits valid JSON without a backend
-out = subprocess.check_output([sys.executable, "-B", scene_py,
-                               "--emit-json", "-"], env=env)
-check(json.loads(out.decode())["render"]["width"] == 64,
-      "--emit-json works without a backend (transitional)")
 
 import shutil  # noqa: E402
 shutil.rmtree(TMP)

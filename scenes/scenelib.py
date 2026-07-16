@@ -34,7 +34,6 @@ Stdlib only; compatible with Python 3.6+.
 
 import argparse
 import ctypes
-import json
 import math
 import os
 import sys
@@ -509,16 +508,6 @@ class Scene(object):
             d["flames"] = self._flames
         return d
 
-    def to_json(self):
-        self._validate()
-        return json.dumps(self.doc, separators=(",", ":")) + "\n"
-
-    def save(self, path):
-        text = self.to_json()
-        with open(path, "w") as f:
-            f.write(text)
-        sys.stderr.write("wrote %s (%d objects)\n" % (path, len(self._objects)))
-
     # ---- backend program: ordered call list, ready for the C ABI ----------
 
     def _program(self, base_dir):
@@ -692,14 +681,6 @@ class Scene(object):
         except SceneError as e:
             sys.stderr.write("sundog: fatal: %s\n" % e)
             sys.exit(1)
-        if opts.emit_json is not None:      # transitional escape hatch
-            text = self.to_json()
-            if opts.emit_json == "-":
-                sys.stdout.write(text)
-            else:
-                with open(opts.emit_json, "w") as f:
-                    f.write(text)
-            return
         if base_dir is None:
             base_dir = os.path.dirname(os.path.abspath(sys.argv[0])) or "."
         lib = _load_backend()
@@ -918,8 +899,6 @@ def _parse_args(args, default_out):
     ap.add_argument("--aov-normal", dest="aov_normal", default=None)
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--quiet", action="store_true")
-    ap.add_argument("--emit-json", dest="emit_json", default=None,
-                    metavar="PATH")   # transitional; removed with the JSON layer
     ns = ap.parse_args(args)
     ns.width = ns.height = -1
     if ns.size:

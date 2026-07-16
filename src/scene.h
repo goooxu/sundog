@@ -112,7 +112,6 @@ inline bool objectTransmissive(const Scene& s, const SceneObject& o) {
 }
 
 // scene_json.cpp
-Scene loadScene(const std::string& path);
 
 // Build the device CameraData (thin-lens look-at construction).
 CameraData makeCamera(const CameraSettings& cs, int width, int height);

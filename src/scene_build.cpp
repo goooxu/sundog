@@ -80,8 +80,15 @@ void addObjectDerived(Scene& s, SceneObject& so) {
   uint16_t emId = MAT_NONE;
   if (so.matFront != MAT_NONE && s.materials[so.matFront].kind == MT_EMISSIVE)
     emId = so.matFront;
-  if (emId != MAT_NONE && so.nee &&
-      (so.geomKind == GK_RECT || so.geomKind == GK_DISK || so.geomKind == GK_SPHERE)) {
+  bool registersLight =
+      emId != MAT_NONE && so.nee &&
+      (so.geomKind == GK_RECT || so.geomKind == GK_DISK || so.geomKind == GK_SPHERE);
+  // Checked before the light is pushed so a rejected add leaves no orphan
+  // light behind (the old all-or-nothing loader could afford to check after).
+  if (so.physics.dynamic && registersLight)
+    sceneFail("physics: a dynamic object cannot be an NEE area light (the light "
+              "frame is baked at parse time); set nee:false or keep it static");
+  if (registersLight) {
     const MaterialDesc& em = s.materials[emId];
     LightDesc ld{};
     ld.texId = -1;
@@ -128,9 +135,6 @@ void addObjectDerived(Scene& s, SceneObject& so) {
     so.lightId = (int)s.lights.size();
     s.lights.push_back(ld);
   }
-  if (so.physics.dynamic && so.lightId != -1)
-    sceneFail("physics: a dynamic object cannot be an NEE area light (the light "
-              "frame is baked at parse time); set nee:false or keep it static");
   s.objects.push_back(so);
 }
 
