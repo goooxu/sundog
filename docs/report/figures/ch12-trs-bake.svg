@@ -16,7 +16,7 @@
     <rect x="652" y="64" width="268" height="150" rx="8" stroke="#16A34A" fill="#16A34A" fill-opacity="0.08"/>
   </g>
   <g font-size="16" fill="#334155">
-    <text x="155" y="92"  text-anchor="middle" font-size="17" font-weight="bold">作者态（场景 JSON）</text>
+    <text x="155" y="92"  text-anchor="middle" font-size="17" font-weight="bold">作者态（Python 场景）</text>
     <text x="155" y="120" text-anchor="middle">M = T · R · S</text>
     <text x="155" y="146" text-anchor="middle">变换链复合（第 7 章 §7.1）</text>
     <text x="155" y="172" text-anchor="middle" fill="#64748B">缩放藏在 3×3 部分的列长里</text>

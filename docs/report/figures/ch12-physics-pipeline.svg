@@ -17,9 +17,9 @@
     <rect x="356" y="74" width="280" height="84" rx="8"/>
   </g>
   <g font-size="16" fill="#334155">
-    <text x="170" y="98"  text-anchor="middle" font-size="17" font-weight="bold">场景 JSON 解析</text>
+    <text x="170" y="98"  text-anchor="middle" font-size="17" font-weight="bold">场景构建（Python 直灌）</text>
     <text x="170" y="120" text-anchor="middle">初始位姿 · 初速度 · physics 参数</text>
-    <text x="170" y="142" text-anchor="middle" fill="#64748B">scene_json.cpp · 只填纯结构体</text>
+    <text x="170" y="142" text-anchor="middle" fill="#64748B">scene_build.cpp · 只填纯结构体</text>
     <text x="496" y="98"  text-anchor="middle" font-size="17" font-weight="bold">网格加载</text>
     <text x="496" y="120" text-anchor="middle">OBJ → 顶点（留主机端副本）</text>
     <text x="496" y="142" text-anchor="middle" fill="#64748B">mesh_obj.cpp</text>

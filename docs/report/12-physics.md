@@ -48,7 +48,7 @@ v_{n+1} = v_n + \Delta t\,a_n,\qquad p_{n+1} = p_n + \Delta t\,v_{n+1}
 
 上面每一步都高度并行：积分是逐刚体独立的，宽相是海量包围盒测试，窄相是几千对独立的凸-凸相交，约束求解可以把不共享刚体的接触分组并行处理。这正是 GPU 的用武之地，也是本项目选 PhysX GPU 刚体（`eENABLE_GPU_DYNAMICS` + GPU 宽相）的原因：模拟与渲染共用同一块 RTX GPU，先模拟、后渲染，串行执行，互不争抢。实测（RTX 5090，`06-spot-cascade`，512 刚体 + 5 静态碰撞体）：沉降全程 2,100 步、模拟时长 8.75 秒，墙钟约 2.5 秒——含凸包烹制与场景装配，摊到每步约 1.2 毫秒（数字来自 `--stats` 的 `physics` 分段，同一分段也保证了第 11 章基准的 `render` 计时口径不被污染）。
 
-工程上最要紧的是**模块边界**。PhysX 是几百 MB 的重依赖，不该渗进解析、测试或设备代码：场景解析（src/scene_json.cpp）只把 `physics` 块翻译成纯结构体描述，全项目只有 `src/physics.cpp` 一个翻译单元包含 PhysX 头文件、链接 PhysX 库（对账 `runPhysics()`（src/physics.cpp））。主机单测照常在无 PhysX 的环境下编译运行，渲染设备代码更是从头到尾不知道物理的存在。
+工程上最要紧的是**模块边界**。PhysX 是几百 MB 的重依赖，不该渗进解析、测试或设备代码：场景构建（src/capi_scene.cpp + src/scene_build.cpp）只把 physics 声明翻译成纯结构体描述，全项目只有 `src/physics.cpp` 一个翻译单元包含 PhysX 头文件、链接 PhysX 库（对账 `runPhysics()`（src/physics.cpp））。主机单测照常在无 PhysX 的环境下编译运行，渲染设备代码更是从头到尾不知道物理的存在。
 
 模拟前后各有一次矩阵手术，合起来是第 7 章 §7.1 复合公式的逆向应用。场景作者给出的变换是 $`M = T\,R\,S`$，但物理引擎只认刚体位姿 $`(p, q)`$——缩放不是刚体运动的一部分。**分解**（对账 `decompose()`（src/physics.cpp））从 $`M`$ 的 $`3\times 3`$ 部分按列提取缩放与旋转：
 

@@ -19,7 +19,7 @@
 小节：
 1. 像素、RGB 与线性空间——显示器 gamma、为什么渲染在线性空间累积、伽马留到最后
 2. 色调映射：把无界的辐亮度装进 8-bit——截断丢层次丢色相（火心数值例）；胶片 S 曲线（toe/shoulder）；ACES Hill 拟合公式与关键数值走读（0.18→0.106、1.0→0.619、渐近 1.0165）；管线顺序 曝光→ACES→gamma 的理由；tonemap:"clamp" 线性退路的用途（对账 `acesFitted()`（src/tonemap.h）与 `Film::writePng()`（src/film.cpp））
-3. 针孔相机模型——成像平面、视场角 vfov、从像素 (i,j) 构造光线 o+t·d（对账 `makeCamera()`（src/scene_json.cpp）：lowerLeft/horizontal/vertical 的几何含义）
+3. 针孔相机模型——成像平面、视场角 vfov、从像素 (i,j) 构造光线 o+t·d（对账 `makeCamera()`（src/scene_build.cpp）：lowerLeft/horizontal/vertical 的几何含义）
 4. 薄透镜与景深——光圈半径、对焦距离（对账 raygen 中 lensRadius 采样）
 5. 光的可逆性：从眼睛出发反向追踪的合理性（Helmholtz 互易性直觉版）；一张图给出"渲染一帧 = 对每个像素解一个积分"的全书路线图
 6. sundog 的一帧流程速览（伪代码 10 行：循环 spp→构造光线→追踪→累积→tonemap）
@@ -137,7 +137,7 @@
 1. 仿射变换 3×4 矩阵、复合顺序（scale→rotate→translate 的列表语义，对账 `parseTransform()` 的 `M = e·M`）
 2. 光线的逆变换——世界光线→物体空间求交→命中变回世界（OptiX 实例机制承担）
 3. 法线为什么用逆转置——切向量保持相切的推导 (M⁻¹)ᵀ；非均匀缩放反例（对账 `optixTransformNormalFromObjectToWorldSpace` 的使用+renormalize）
-4. 实例化——一份 GAS + N 个带变换的实例；32768 奶牛只有 5856 个三角形一份；面光源的面积/pdf 要用世界空间量（对账 scene_json 灯注册 `area = 4|u×v|`、行列式符号翻转法线）
+4. 实例化——一份 GAS + N 个带变换的实例；32768 奶牛只有 5856 个三角形一份；面光源的面积/pdf 要用世界空间量（对账 scene_build 灯注册 `area = 4|u×v|`、行列式符号翻转法线）
 5. 变换下的 pdf/面积修正（为什么非均匀缩放的球面光被解析期拒绝）
 
 图：

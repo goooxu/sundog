@@ -111,7 +111,7 @@ source scripts/env-testbox.sh   # CUDA_HOME、OPTIX_HOME、PHYSX_HOME、LD_LIBRA
 
 ```bash
 source scripts/env-testbox.sh
-make -j16                        # 产出 $SUNDOG_BUILD/sundog
+make -j16                        # 产出 $SUNDOG_BUILD/libsundog.so（渲染后端库）
 ```
 
 可调项：`ARCH=sm_120`、`DEBUG=1`（`-O0 -G`）。设备代码走 PTX JIT——
@@ -135,10 +135,11 @@ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
 --physics-time F   刚体定格于模拟第 F 秒（0 = 强制沉降到静止）
 --stats FILE.json  渲染统计
 --aov-albedo / --aov-normal F.png        --quiet        关闭进度输出
---emit-json PATH|- 只输出场景中间表示不渲染（调试/工具用）
+--probe            打印 GPU/驱动/OptiX 信息
 ```
 
-GPU/驱动信息用后端二进制查询：`$SUNDOG_BUILD/sundog --probe`。
+场景数据经 ctypes 逐调用直灌渲染库（libsundog.so），渲染在 python 进程内
+完成——没有中间表示、没有临时文件、没有子进程。
 
 ## 场景格式
 

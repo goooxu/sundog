@@ -54,7 +54,7 @@ r(t) = o + t\cdot d, \qquad t \ge 0
 
 其中 $`o`$ 是起点（针孔位置），$`d`$ 是方向向量，$`t`$ 是沿线走过的参数距离。全书所有"光线"都指这个参数化。
 
-sundog 在场景文件里用 lookfrom（相机位置）、lookat（注视点）、up（头顶方向）、vfov（竖直视场角，vertical field of view）描述相机，`makeCamera()`（src/scene_json.cpp）把它们换算成发射光线所需的几何量。先建相机的右手正交基：
+sundog 在场景文件里用 lookfrom（相机位置）、lookat（注视点）、up（头顶方向）、vfov（竖直视场角，vertical field of view）描述相机，`makeCamera()`（src/scene_build.cpp）把它们换算成发射光线所需的几何量。先建相机的右手正交基：
 
 ```math
 w = \mathrm{normalize}(\text{lookfrom} - \text{lookat}),\quad u = \mathrm{normalize}(\text{up} \times w),\quad v = w \times u

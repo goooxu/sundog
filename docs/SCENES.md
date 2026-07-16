@@ -13,10 +13,10 @@ There is no separate scene *file format* to learn and no main program to
 drive: the scene chooses its own render settings and output name in code,
 and any backend flag given on the command line overrides it
 (`--spp/--size/--seed/--out/--denoise/--stats/--tonemap/--physics-time/...`).
-Under the hood `Scene.run()` serializes the scene to a JSON intermediate
-representation in a temp file beside the scene, hands it to the renderer
-backend (`$SUNDOG_BUILD/sundog`, default `/tmp/sundog-build/sundog`), and
-forwards your CLI arguments verbatim (see [wire format](#appendix-wire-format-internal)).
+Under the hood `Scene.run()` feeds the scene through the C ABI of the
+renderer library (`$SUNDOG_BUILD/libsundog.so`) via ctypes — call by call,
+with **no intermediate representation of any kind** — then renders in-process
+(see [ABI notes](#appendix-the-c-abi-internal)).
 
 ## Quick start
 
@@ -46,8 +46,10 @@ if __name__ == "__main__":
     s.run(out="smoke.png")
 ```
 
-Preview the emitted scene without rendering:
-`python3 scenes/smoke.py --emit-json - | python3 -m json.tool`.
+Inspect a scene's assembled state without rendering:
+`python3 -c "import runpy,pprint,sys; sys.path.insert(0,'scenes'); pprint.pprint(runpy.run_path('scenes/smoke.py')['s'].doc)"`
+(`Scene.doc` is a live view — report-figure scripts mutate it to render
+variants of a committed scene).
 
 Scene files import `scenelib` from their own directory (Python puts the
 script's directory on `sys.path`), so keep scenes inside `scenes/` — they
@@ -284,8 +286,8 @@ faces, area-light uniform-scale rules, the textured-emissive-sphere
 
 ## Determinism & reproducibility
 
-- scenelib itself never draws randomness or timestamps; the JSON IR is a
-  pure function of the API calls (`--emit-json` twice → identical bytes).
+- scenelib itself never draws randomness or timestamps; the backend call
+  program is a pure function of the API calls.
 - Scenes that use random layout own their seed: call `random.seed(N)` before
   the first draw (see `scenes/05-spot-swarm.py`). This layout seed is
   independent of `render(seed=…)`, the renderer's sampling seed.
@@ -299,11 +301,13 @@ resolve relative to **the scene file's own directory** (not the cwd) —
 gallery scenes use `textures/…` and `../assets/…`. Absolute paths pass
 through unchanged.
 
-## Appendix: wire format (internal)
+## Appendix: the C ABI (internal)
 
-`Scene.run()` and `--emit-json` produce a compact JSON document (the
-renderer backend's native input, parsed by `src/scene_json.cpp`). It is an
-internal contract between scenelib and the backend — not a user-facing
-format, and its schema may change with the renderer. Tooling that needs raw
-scene data (tests, report figures) uses `--emit-json` rather than writing
-JSON by hand.
+`Scene.run()` drives `src/sundog_api.h` — a C scene-construction API
+(`sundog_add_material_*`/`sundog_add_object`/…): scalars cross as doubles
+and are narrowed to float once at the boundary, omitted options cross as
+NaN/NULL/-1 sentinels so renderer defaults stay renderer-side, and the call
+order (config → objects → flames → lights) is enforced by the library. It is
+an internal contract between scenelib and libsundog.so — not a user-facing
+API, and it may change with the renderer. Tooling that needs scene data
+works on `Scene.doc` in-process instead.

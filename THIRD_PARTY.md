@@ -4,7 +4,6 @@
 
 | 组件 | 用途 | 许可 |
 |---|---|---|
-| [nlohmann/json](https://github.com/nlohmann/json)（`json.hpp`） | 场景 JSON、stats 输出 | MIT |
 | [stb](https://github.com/nothings/stb)（`stb_image.h`、`stb_image_write.h`） | 纹理读取、PNG 输出、img_compare | public domain（Unlicense）/ MIT 双许可 |
 | [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)（`tiny_obj_loader.h`） | OBJ 网格加载 | MIT |
 

@@ -10,6 +10,51 @@
 
 （暂无）
 
+## [0.11.0] - 2026-07-16 — 零中间表示：libsundog.so + ctypes 直灌
+
+### 新增
+
+- **C 场景构建 ABI**（`src/sundog_api.h` + `capi_scene/capi_render.cpp`）：
+  渲染器编译为 `libsundog.so`，场景数据经类型化 grouped-call 逐调用直灌
+  （标量 double 进边界立即窄化 float，与旧 JSON 解析同一 IEEE 操作；
+  可选性 = NaN/NULL/-1 哨兵，渲染器缺省只活在 C++；相位状态机把
+  光序契约升格为 API 不变量；异常不过 ABI——错误码 + thread-local
+  last_error）；`scene_build.cpp` 承载装载器无关的派生逻辑
+  （变换合成/NEE 面光注册/火焰双灯），自旧装载器逐字搬运
+- scenelib：`_program()` 纯函数展平调用流（纹理/材质/网格 id 按
+  sorted(name) 分配——与 nlohmann std::map 字典序一致，golden 逐位
+  稳定的前提）、ctypes 后端（RTLD_GLOBAL 供 PhysX 运行时解析 CUDA
+  符号）、argparse 全旗面、`--probe` 经库、公开 `validate()`、
+  `doc` 升格官方逃生舱（图版变体经改 doc 后进程内渲染）
+
+### 变更
+
+- **场景的 JSON 中间表示自代码中彻底删除**：渲染路径零序列化、零临时
+  文件、零子进程——`python3 scenes/xx.py` 在进程内完成构建与渲染
+- **独立可执行文件 sundog 删除**（Makefile 只产 .so）；`--scene`/
+  `--emit-json`/`to_json()`/`save()` 随之退场；`extern/json.hpp`
+  （24765 行）移除，`--stats` 输出改约 40 行手写序列化
+- run-sanitizer 直包 python 进程；报告图版的变体场景全部改为进程内
+  scenelib 构建（含入库 roughness-ladder 场景迁 .py）；
+  `test_scene_json.cpp` → `test_scene_build.cpp`（断言面重定向到
+  C API，新增光序/相位/detSign/材质上限契约测试）
+- 取代 0.10.0 的三点表述：JSON 临时中间表示、--emit-json 逃生舱、
+  host-tests 经 --emit-json 装载——本版全部不复存在
+- 已知行为变化：ctypes 调用期间 Ctrl-C 响应有延迟（渲染在 python
+  进程内，信号处理排队至调用返回）
+
+### 修复
+
+- 报告图版 ch09 一直把 .py 场景喂给 `--scene`（场景即程序切换后即坏），
+  改为场景直执行带 AOV 旗子
+- C API 原子性：动态刚体+NEE 面光的拒绝原发生在光注册之后，失败的
+  add 会留下孤儿光——检查前移，失败调用零副作用
+
+红线记录：golden 6 场景不重生成 PSNR 全 inf；smoke 决定性 sha 与
+JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字节不变。
+
+（主要提交 9e7a18a · de347d5 · 9a1a1b9 · 0274f37）
+
 ## [0.10.0] - 2026-07-15 — 场景即程序：Python 场景定义
 
 ### 新增
