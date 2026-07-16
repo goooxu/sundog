@@ -5,7 +5,8 @@
     "02-cornell-lume",
     "04-parabolica",
     "10-suncatcher",
-    "11-glasswork"
+    "11-glasswork",
+    "13-frosted-veil"
   ],
   "params": {
     "width": 256,
@@ -14,7 +15,7 @@
     "seed": 7,
     "denoise": false
   },
-  "date": "2026-07-15T09:52:42+00:00",
+  "date": "2026-07-16T11:47:02+00:00",
   "probe": {
     "GPU": "NVIDIA GeForce RTX 5090",
     "Compute": "sm_120",

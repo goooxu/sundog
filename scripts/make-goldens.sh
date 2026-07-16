@@ -16,7 +16,7 @@ BACKEND="$SUNDOG_BUILD/libsundog.so"
 GOLDEN_DIR="$ROOT/tests/golden"
 
 WIDTH=256 HEIGHT=256 SPP=64 SEED=7
-SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork)
+SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork 13-frosted-veil)
 
 fail() { echo "make-goldens: FAIL: $*" >&2; exit 1; }
 [ -f "$BACKEND" ] || fail "backend not found: $BACKEND"

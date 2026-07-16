@@ -157,7 +157,7 @@ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
 ```bash
 make host-tests        # 场景/scenelib 单测（编译需 CUDA/OptiX 头，运行无需 GPU、需 python3）
 make smoke             # scripts/run-smoke.sh：probe + 小渲染 + denoise + stats 校验
-make golden            # scripts/run-golden.sh：6 场景 PSNR≥45 对比 golden + 决定性检查
+make golden            # scripts/run-golden.sh：7 场景 PSNR≥45 对比 golden + 决定性检查
 make check             # 以上全部
 scripts/run-sanitizer.sh    # compute-sanitizer memcheck + initcheck
 scripts/make-goldens.sh     # 重新生成 tests/golden/（渲染器有意变更后）
