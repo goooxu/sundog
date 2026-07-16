@@ -341,7 +341,7 @@ import runpy  # noqa: E402
 
 stems = sorted(f for f in os.listdir(SCENES)
                if f.endswith(".py") and f != "scenelib.py")
-check(len(stems) >= 14, "expected >= 14 scenes, saw %d" % len(stems))
+check(len(stems) >= 15, "expected >= 15 scenes, saw %d" % len(stems))
 for f in stems:
     g = runpy.run_path(os.path.join(SCENES, f))
     sc = g["s"]

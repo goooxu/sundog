@@ -5,7 +5,7 @@
 # (default /tmp/sundog-build/sundog). Callable from any cwd.
 #
 # Tiers:
-#   A. feature — the twelve gallery scenes at their native 1920x1080 / 64 spp
+#   A. feature — the thirteen gallery scenes at their native 1920x1080 / 64 spp
 #                (render time, ray throughput, VRAM; 06's PhysX settling is
 #                reported under timings_ms.physics, not render).
 #   B. denoise — 09-ember-shore at 16 spp with/without --denoise, PSNR of
@@ -21,7 +21,7 @@ BACKEND="$SUNDOG_BUILD/libsundog.so"
 IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 
 OUT_MD="$ROOT/docs/BENCHMARKS.md"
-FEATURE_SCENES=(01-marble-run 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore 10-suncatcher 11-glasswork 12-molten-oracle)
+FEATURE_SCENES=(01-marble-run 02-cornell-lume 03-spot-atrium 04-parabolica 05-spot-swarm 06-spot-cascade 07-campfire 08-lakeside 09-ember-shore 10-suncatcher 11-glasswork 12-molten-oracle 13-frosted-veil)
 DN_SCENE=09-ember-shore DN_REF_SPP=4096 DN_TEST_SPP=16
 DN_SIZE=1920x1080
 
