@@ -29,7 +29,7 @@ struct MaterialDesc {
   int kind;        // MatKind
   int texId;       // -1 -> use .color
   float3 color;
-  float roughness; // metal (GGX alpha = roughness^2); <1e-3 -> delta mirror
+  float roughness; // metal & dielectric (GGX alpha = roughness^2); <1e-3 -> delta
   float ior;       // dielectric / water
   float intensity; // emissive scale
   int twoSided;    // emissive visible from both faces

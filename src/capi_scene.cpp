@@ -246,13 +246,15 @@ extern "C" int sundog_add_material_metal(sundog_scene* h, const double color[3],
 
 extern "C" int sundog_add_material_dielectric(sundog_scene* h, double ior,
                                               const double absorb[3],
-                                              const double color[3], int tex_id) {
+                                              const double color[3], int tex_id,
+                                              double roughness) {
   SUNDOG_TRY
   MaterialDesc md = baseMaterial();
   md.kind = MT_DIELECTRIC;
   md.color = nf3(color, md.color);
   md.texId = tex_id;
   md.ior = nf(ior, md.ior);
+  md.roughness = nf(roughness, md.roughness);  // NaN -> 0 = smooth delta glass
   if (absorb) {
     // Beer-Lambert absorption inside the glass (tinted transparent shadows
     // and interiors); vacuum-clear when absent.

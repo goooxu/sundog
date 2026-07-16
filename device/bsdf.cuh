@@ -1,5 +1,7 @@
 // sundog: BSDF sampling/evaluation. Lambert (cosine), metal (GGX + VNDF,
-// Schlick F0 = base color), smooth dielectric.
+// Schlick F0 = base color), dielectric (smooth delta below the roughness
+// gate; GGX microfacet reflection + transmission above it — Walter et al.
+// 2007, VNDF-sampled half vectors).
 //
 // Conventions: wo points AWAY from the surface (toward the previous vertex),
 // n is the shading normal on the same side as wo (already flipped by the
@@ -22,8 +24,10 @@ struct BsdfSample {
 };
 
 SD_HD bool bsdfIsDelta(const MaterialDesc& m) {
-  if (m.kind == MT_DIELECTRIC || m.kind == MT_WATER) return true;
-  if (m.kind == MT_METAL) return m.roughness < 1e-3f;
+  // Water stays a smooth interface unconditionally: its waves arrive via the
+  // fbm normal perturbation (ch14), not microfacets.
+  if (m.kind == MT_WATER) return true;
+  if (m.kind == MT_DIELECTRIC || m.kind == MT_METAL) return m.roughness < 1e-3f;
   return false;
 }
 
@@ -31,7 +35,11 @@ SD_HD bool bsdfIsDelta(const MaterialDesc& m) {
 
 SD_HD float ggxD(float3 h, float alpha) {  // h in local frame (n = +Z)
   float c2 = h.z * h.z;
-  float k = c2 * (alpha * alpha - 1.0f) + 1.0f;
+  // Numerically stable form of c2*(alpha^2-1)+1: at tiny alpha the compact
+  // form rounds (alpha^2 - 1) to -1 and lands on k = 0 exactly when h.z = 1,
+  // blowing D (and every pdf built on it) up to inf. Grouping as
+  // alpha^2*c2 + (1-c2) keeps k >= alpha^2 > 0 for any gated roughness.
+  float k = alpha * alpha * c2 + (1.0f - c2);
   return alpha * alpha / (SD_PI * k * k);
 }
 
@@ -70,12 +78,70 @@ SD_HD float ggxPdf(float3 wo, float3 wi, float alpha) {
   return ggxG1(wo, alpha) * ggxD(h, alpha) / (4.0f * wo.z);
 }
 
-// ---------- eval / pdf (non-delta lobes only; local computation in world space) ----------
+// Dielectric Fresnel with the smooth branch's conventions: Schlick at the
+// low-IOR-side cosine (incident when eta < 1, transmitted otherwise), and
+// F = 1 past the critical angle. cosI is the incident cosine against the
+// (micro)facet normal, > 0. Continuous with TIR (cosT -> 0 => F -> 1), and
+// sqrtf(k) equals -dot(refr, h) from refract()'s construction, so this is
+// mutually exact with the sampled refraction direction.
+SD_HD float fresnelDielectric(float cosI, float eta, float f0) {
+  float k = 1.0f - eta * eta * (1.0f - cosI * cosI);
+  if (k <= 0.0f) return 1.0f;  // total internal reflection at the facet
+  return schlick(eta < 1.0f ? cosI : sqrtf(k), f0);
+}
 
-SD_HD float3 bsdfEval(const MaterialDesc& m, float3 albedo, float3 wo, float3 wi, float3 n) {
+// pdf of a transmitted wi under VNDF sampling: D_vis(h) times the refraction
+// Jacobian |dwh/dwi| = |wi.h| / (eta*(wo.h) + (wi.h))^2 (Walter et al. 2007
+// eq. 17 in relative-eta form, eta = eta_o_side / eta_i_side). h canonical
+// on the wo side (h.z > 0), wo above, wi below.
+SD_HD float ggxPdfTransmit(float3 lo, float3 li, float3 h, float eta, float alpha) {
+  float loh = dot(lo, h), lih = dot(li, h);
+  if (lo.z <= 0.0f || li.z >= 0.0f || loh <= 0.0f || lih >= 0.0f) return 0.0f;
+  float denom = eta * loh + lih;
+  if (fabsf(denom) < 1e-6f) return 0.0f;  // index-matched degeneracy
+  return ggxG1(lo, alpha) * ggxD(h, alpha) * loh / lo.z *
+         fabsf(lih) / (denom * denom);
+}
+
+// ---------- eval / pdf (non-delta lobes only; local computation in world space) ----------
+// eta: relative IOR at this interface (outside/inside as seen from wo, i.e.
+// frontface ? etaExt/ior : ior/etaExt) — consumed only by the rough
+// dielectric, whose transmission lobe lives in the wi-below-surface
+// hemisphere that every other material rejects.
+
+SD_HD float3 bsdfEval(const MaterialDesc& m, float3 albedo, float3 wo, float3 wi,
+                      float3 n, float eta) {
   float ci = dot(wi, n);
   float co = dot(wo, n);
-  if (ci <= 0.0f || co <= 0.0f) return f3(0.0f);
+  if (co <= 0.0f) return f3(0.0f);
+  bool roughGlass = m.kind == MT_DIELECTRIC && m.roughness >= 1e-3f;
+
+  if (ci <= 0.0f) {
+    // Transmission hemisphere: only the rough dielectric reaches through.
+    if (!roughGlass || ci == 0.0f) return f3(0.0f);
+    // Walter et al. 2007 eq. 21 in relative-eta form, INCLUDING the eta^2
+    // radiance factor: it is not optional — NEE consumes this eval for
+    // unpaired single-interface connections, which are biased by eta^2
+    // without it. Along a full BSDF path the entry (eta^2 < 1) and exit
+    // (1/eta^2) factors cancel, so closed glass bodies stay consistent with
+    // the smooth branch's weight = 1 convention.
+    float alpha = m.roughness * m.roughness;
+    Onb onb(n);
+    float3 lo = onb.toLocal(wo), li = onb.toLocal(wi);
+    float3 h = normalize(eta * lo + li);  // ∝ the refraction half vector
+    if (h.z < 0.0f) h = -h;               // canonical: wo side
+    float loh = dot(lo, h), lih = dot(li, h);
+    if (loh <= 0.0f || lih >= 0.0f) return f3(0.0f);
+    float denom = eta * loh + lih;
+    if (fabsf(denom) < 1e-6f) return f3(0.0f);
+    float f0 = (1.0f - eta) / (1.0f + eta);
+    f0 = f0 * f0;
+    float F = fresnelDielectric(loh, eta, f0);  // F = 1 inside the TIR cone
+    float ft = eta * eta * (1.0f - F) * ggxD(h, alpha) * ggxG(lo, li, alpha) *
+               fabsf(loh * lih) / (lo.z * fabsf(li.z) * denom * denom);
+    return f3(ft);  // untinted: glass color arrives via absorb, not albedo
+  }
+
   if (m.kind == MT_LAMBERT) return albedo * SD_INV_PI;
   if (m.kind == MT_METAL && m.roughness >= 1e-3f) {
     float alpha = m.roughness * m.roughness;
@@ -85,17 +151,58 @@ SD_HD float3 bsdfEval(const MaterialDesc& m, float3 albedo, float3 wo, float3 wi
     float3 F = schlick3(dot(lo, h), albedo);
     return F * (ggxD(h, alpha) * ggxG(lo, li, alpha) / (4.0f * lo.z * li.z));
   }
+  if (roughGlass) {
+    // Reflection lobe: the metal microfacet formula with dielectric Fresnel.
+    float alpha = m.roughness * m.roughness;
+    Onb onb(n);
+    float3 lo = onb.toLocal(wo), li = onb.toLocal(wi);
+    float3 h = normalize(lo + li);
+    float f0 = (1.0f - eta) / (1.0f + eta);
+    f0 = f0 * f0;
+    float F = fresnelDielectric(dot(lo, h), eta, f0);
+    return f3(F * ggxD(h, alpha) * ggxG(lo, li, alpha) / (4.0f * lo.z * li.z));
+  }
   return f3(0.0f);
 }
 
-SD_HD float bsdfPdf(const MaterialDesc& m, float3 wo, float3 wi, float3 n) {
+SD_HD float bsdfPdf(const MaterialDesc& m, float3 wo, float3 wi, float3 n,
+                    float eta) {
   float ci = dot(wi, n);
   float co = dot(wo, n);
-  if (ci <= 0.0f || co <= 0.0f) return 0.0f;
+  if (co <= 0.0f) return 0.0f;
+  bool roughGlass = m.kind == MT_DIELECTRIC && m.roughness >= 1e-3f;
+
+  if (ci <= 0.0f) {
+    if (!roughGlass || ci == 0.0f) return 0.0f;
+    // Transmission pdf INCLUDES the Fresnel lobe-choice probability so it
+    // matches bs.pdf from sampling (the emissive-hit MIS depends on this).
+    float alpha = m.roughness * m.roughness;
+    Onb onb(n);
+    float3 lo = onb.toLocal(wo), li = onb.toLocal(wi);
+    float3 h = normalize(eta * lo + li);
+    if (h.z < 0.0f) h = -h;
+    float loh = dot(lo, h);
+    if (loh <= 0.0f) return 0.0f;
+    float f0 = (1.0f - eta) / (1.0f + eta);
+    f0 = f0 * f0;
+    float F = fresnelDielectric(loh, eta, f0);
+    return (1.0f - F) * ggxPdfTransmit(lo, li, h, eta, alpha);
+  }
+
   if (m.kind == MT_LAMBERT) return ci * SD_INV_PI;
   if (m.kind == MT_METAL && m.roughness >= 1e-3f) {
     Onb onb(n);
     return ggxPdf(onb.toLocal(wo), onb.toLocal(wi), m.roughness * m.roughness);
+  }
+  if (roughGlass) {
+    float alpha = m.roughness * m.roughness;
+    Onb onb(n);
+    float3 lo = onb.toLocal(wo), li = onb.toLocal(wi);
+    float3 h = normalize(lo + li);
+    float f0 = (1.0f - eta) / (1.0f + eta);
+    f0 = f0 * f0;
+    float F = fresnelDielectric(dot(lo, h), eta, f0);
+    return F * ggxPdf(lo, li, alpha);
   }
   return 0.0f;
 }
@@ -151,31 +258,77 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
       return s;
     }
 
-    case MT_WATER:  // same smooth interface; waves arrive via n, absorption
-                    // is tracked by the caller (raygen medium state)
+    case MT_WATER:  // stays a smooth interface unconditionally; waves arrive
+                    // via n, absorption is tracked by the caller (raygen)
     case MT_DIELECTRIC: {
-      s.isDelta = true;
       float3 refr;
       float eta = frontface ? etaExt / m.ior : m.ior / etaExt;
       float f0 = (1.0f - eta) / (1.0f + eta);
       f0 = f0 * f0;
-      if (refract(rayDir, n, eta, refr)) {
-        // Schlick needs the cosine on the low-IOR side: the incident angle
-        // when eta < 1, the transmitted angle otherwise (continuous with the
-        // TIR branch: cosT -> 0 => R -> 1). With etaExt = 1 this reduces to
-        // the old entering/exiting split.
-        float cosine = eta < 1.0f ? -dot(rayDir, n) : -dot(refr, n);
+      if (m.kind == MT_WATER || m.roughness < 1e-3f) {
+        // ---- smooth delta interface (the original branch, byte-identical:
+        // one rnd() on refract success, zero on TIR — goldens pin it) ----
+        s.isDelta = true;
+        if (refract(rayDir, n, eta, refr)) {
+          // Schlick needs the cosine on the low-IOR side: the incident angle
+          // when eta < 1, the transmitted angle otherwise (continuous with the
+          // TIR branch: cosT -> 0 => R -> 1). With etaExt = 1 this reduces to
+          // the old entering/exiting split.
+          float cosine = eta < 1.0f ? -dot(rayDir, n) : -dot(refr, n);
+          float reflectProb = schlick(cosine, f0);
+          if (rng.rnd() < reflectProb) {
+            s.wi = normalize(reflect(rayDir, n));
+          } else {
+            s.wi = normalize(refr);
+          }
+        } else {
+          s.wi = normalize(reflect(rayDir, n));  // total internal reflection
+        }
+        s.weight = f3(1.0f);
+        s.valid = true;
+        return s;
+      }
+      // ---- rough dielectric: GGX reflection + transmission (Walter et al.
+      // 2007), VNDF half vector as in the metal branch (Heitz 2018). The
+      // Fresnel lobe-choice probability cancels F in the BSDF, so the weight
+      // is G/G1 <= 1 for either lobe — the transmission continuation of the
+      // metal branch's F*(G/G1). Draw order: VNDF rnd2() first (F depends on
+      // the sampled facet), lobe rnd() second; facet-level TIR reflects
+      // deterministically with no lobe draw, mirroring the smooth branch.
+      float alpha = m.roughness * m.roughness;
+      Onb onb(n);
+      float3 lo = onb.toLocal(wo);
+      if (lo.z <= 0.0f) return s;
+      float3 h = ggxSampleVndf(lo, alpha, rng.rnd2());
+      float loh = dot(lo, h);
+      if (loh <= 0.0f) return s;
+      float3 li;
+      if (!refract(-lo, h, eta, refr)) {   // all in the local frame
+        li = reflect(-lo, h);  // TIR at the microfacet: lobe prob = 1
+        if (li.z <= 0.0f) return s;
+        s.pdf = ggxPdf(lo, li, alpha);
+      } else {
+        float cosine = eta < 1.0f ? loh : -dot(refr, h);
         float reflectProb = schlick(cosine, f0);
         if (rng.rnd() < reflectProb) {
-          s.wi = normalize(reflect(rayDir, n));
+          li = reflect(-lo, h);
+          if (li.z <= 0.0f) return s;
+          s.pdf = reflectProb * ggxPdf(lo, li, alpha);
         } else {
-          s.wi = normalize(refr);
+          li = normalize(refr);
+          if (li.z >= 0.0f) return s;
+          s.pdf = (1.0f - reflectProb) * ggxPdfTransmit(lo, li, h, eta, alpha);
         }
-      } else {
-        s.wi = normalize(reflect(rayDir, n));  // total internal reflection
       }
-      s.weight = f3(1.0f);
-      s.valid = true;
+      s.wi = onb.toWorld(li);
+      // weight = f*|cos|/pdf with the lobe probability cancelled: G/G1 for
+      // reflection, eta^2 * G/G1 for transmission (the Walter eta^2 radiance
+      // factor — entry and exit cancel along a closed glass body, keeping
+      // parity with the smooth branch's weight = 1).
+      float wgt = ggxG(lo, li, alpha) / ggxG1(lo, alpha);
+      if (li.z < 0.0f) wgt *= eta * eta;
+      s.weight = f3(wgt);
+      s.valid = s.pdf > 0.0f;
       return s;
     }
 

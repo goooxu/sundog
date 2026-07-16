@@ -265,8 +265,9 @@ static __forceinline__ __device__ void shadowAnyhit(const ShadePoint& sp,
   // Per-interface Fresnel with the same eta/f0/cosine conventions as
   // bsdfSample (device/bsdf.cuh). Documented approximations: the interface is
   // taken against vacuum (no medium context on an unordered shadow ray), the
-  // flat front normal is used (no waterNormal perturbation), and the ray
-  // continues in a straight line.
+  // flat front normal is used (no waterNormal perturbation), the ray
+  // continues in a straight line, and a rough dielectric is treated as
+  // smooth (roughness never blurs a shadow — brightness-only, see ch17).
   float3 d = optixGetWorldRayDirection();           // unit (== ls.wi)
   float3 n = sp.frontface ? sp.nFront : -sp.nFront;  // toward incident side
   float eta = sp.frontface ? 1.0f / mat.ior : mat.ior;
@@ -454,6 +455,19 @@ extern "C" __global__ void __raygen__render() {
         break;
       }
 
+      // ---- relative IOR at this interface (used by NEE eval/pdf and the
+      // BSDF sample below) ----
+      // Entering compares against the medium we are currently inside (stack
+      // top); exiting compares the medium being left against the level
+      // beneath it. Vacuum (1.0) when the stack has no such level — which is
+      // every scene without nested media. Pure arithmetic, zero draws.
+      float etaExt = 1.0f;
+      if (mat.kind == MT_DIELECTRIC || mat.kind == MT_WATER) {
+        int outer = min(hit.frontface ? medDepth : medDepth - 1, MED_MAX);
+        if (outer > 0) etaExt = medIor[outer - 1];
+      }
+      float etaRel = hit.frontface ? etaExt / mat.ior : mat.ior / etaExt;
+
       // ---- NEE ----
       if (nStrat > 0 && !bsdfIsDelta(mat)) {
         int k = min((int)(rng.rnd() * nStrat), nStrat - 1);
@@ -461,9 +475,14 @@ extern "C" __global__ void __raygen__render() {
             ? sampleLight(params.lights[k], x, rng, params.textures)
             : sampleEnv(params.env, rng);
         float cosS = ls.valid ? dot(ls.wi, ns) : 0.0f;
-        if (ls.valid && cosS > 0.0f) {
+        // A rough dielectric also connects to lights BEHIND the interface:
+        // its transmission lobe makes cosS < 0 a real contribution (frosted
+        // glass lit from the far side). Every other non-delta material keeps
+        // the front-hemisphere-only gate.
+        bool transmitNee = cosS < 0.0f && mat.kind == MT_DIELECTRIC;
+        if (ls.valid && (cosS > 0.0f || transmitNee)) {
           raysTraced++;
-          float3 so = offsetRay(x, ns);
+          float3 so = offsetRay(x, transmitNee ? -ns : ns);
           float tmaxS = ls.dist * 0.999f;
           float3 tr = traceShadow(so, ls.wi, tmaxS);
           if (maxComp(tr) > 0.0f) {
@@ -481,13 +500,13 @@ extern "C" __global__ void __raygen__render() {
                                            so, ls.wi, tmaxS, rng, skipFl);
             }
             float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / nStrat;
-            float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
+            float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns, etaRel);
             float w = 1.0f;
             if (!ls.isDelta) {
-              float pdfB = bsdfPdf(mat, -d, ls.wi, ns);
+              float pdfB = bsdfPdf(mat, -d, ls.wi, ns, etaRel);
               w = pdfLe / (pdfLe + pdfB);
             }
-            float3 c = beta * f * cosS * ls.Li * w / pdfLe;
+            float3 c = beta * f * fabsf(cosS) * ls.Li * w / pdfLe;
             c = c * tr;  // separate statement: stays an exact *1.0 when clear
             if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
             L += sanitize(c);
@@ -495,16 +514,7 @@ extern "C" __global__ void __raygen__render() {
         }
       }
 
-      // ---- BSDF sample ----
-      // Relative IOR at this interface: entering compares against the medium
-      // we are currently inside (stack top); exiting compares the medium
-      // being left against the level beneath it. Vacuum (1.0) when the stack
-      // has no such level — which is every scene without nested media.
-      float etaExt = 1.0f;
-      if (mat.kind == MT_DIELECTRIC || mat.kind == MT_WATER) {
-        int outer = min(hit.frontface ? medDepth : medDepth - 1, MED_MAX);
-        if (outer > 0) etaExt = medIor[outer - 1];
-      }
+      // ---- BSDF sample ---- (etaExt resolved above the NEE block)
       BsdfSample bs = bsdfSample(mat, albedo, d, ns, hit.frontface, etaExt, rng);
       if (!bs.valid) break;
       // Transmission crosses the interface: push the entered medium on the

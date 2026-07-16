@@ -95,7 +95,8 @@ SUNDOG_API int sundog_add_material_metal(sundog_scene*, const double color[3],
                                          int tex_id, double roughness /* NaN */);
 SUNDOG_API int sundog_add_material_dielectric(sundog_scene*, double ior /* NaN */,
                                               const double absorb[3] /* NULL */,
-                                              const double color[3], int tex_id);
+                                              const double color[3], int tex_id,
+                                              double roughness /* NaN -> 0 */);
 SUNDOG_API int sundog_add_material_emissive(sundog_scene*, const double color[3],
                                             int tex_id, double intensity /* NaN */,
                                             int two_sided /* -1 -> 0 */);

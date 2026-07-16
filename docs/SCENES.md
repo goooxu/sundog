@@ -123,9 +123,13 @@ Typed helpers (each returns the material name):
 - `s.lambert(name, color | texture)`
 - `s.metal(name, color | texture, roughness)` — GGX, `color` is F0,
   roughness 0 = mirror
-- `s.dielectric(name, ior, absorb)` — smooth glass; optional `absorb`
+- `s.dielectric(name, ior, absorb, roughness)` — glass; optional `absorb`
   [r,g,b] is Beer–Lambert absorption inside the glass (tinted interiors and
-  tinted transparent shadows)
+  tinted transparent shadows). `roughness` (default 0) turns it into frosted
+  glass: GGX microfacet reflection + transmission (VNDF-sampled Walter BTDF);
+  below 1e-3 it degenerates bit-exactly to the smooth delta interface. Shadow
+  rays always treat the interface as smooth — roughness blurs what you see
+  through the glass, never the shadow behind it (report ch17)
 - `s.water(name, ior, absorb, wave_amp, wave_freq)` — 光滑电介质界面
   （`ior` 默认 **1.33**）+ 两件水特有的事——**fbm 波纹法线**（`wave_amp`
   默认 0.05、`wave_freq` 默认 2.0；只扰动着色法线不位移；波场定义在世界

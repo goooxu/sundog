@@ -160,7 +160,7 @@ static void testFeaturesEquivalent() {
                                        D3(0.35, 0.55, 0.95)) == 0);
   CHECK(sundog_add_texture_checker(h, D3(0.8, 0.8, 0.8), D3(0.25, 0.25, 0.3),
                                    D2(12, 12)) == 0);
-  int glass = sundog_add_material_dielectric(h, 1.5, nullptr, nullptr, -1);
+  int glass = sundog_add_material_dielectric(h, 1.5, nullptr, nullptr, -1, kNaN);
   int gold = sundog_add_material_metal(h, D3(1.0, 0.78, 0.34), -1, 0.15);
   int ground = sundog_add_material_lambert(h, nullptr, 0);
   int lamp = sundog_add_material_emissive(h, D3(1.0, 0.95, 0.85), -1, 20.0, -1);
@@ -274,13 +274,20 @@ static void testErrorPaths() {
 
   // tinted dielectric parses; plain glass stays vacuum-clear; negative fails
   h = sundog_scene_create(nullptr);
-  int g = sundog_add_material_dielectric(h, kNaN, D3(0.4, 0.05, 0.02), nullptr, -1);
-  int p = sundog_add_material_dielectric(h, kNaN, nullptr, nullptr, -1);
+  int g = sundog_add_material_dielectric(h, kNaN, D3(0.4, 0.05, 0.02), nullptr,
+                                         -1, kNaN);
+  int p = sundog_add_material_dielectric(h, kNaN, nullptr, nullptr, -1, kNaN);
   CHECK(g == 0 && p == 1);
   CHECK_NEAR(h->scene.materials[0].absorb.x, 0.4, 1e-6);
   CHECK_NEAR(h->scene.materials[1].absorb.x, 0.0, 0.0);
+  // roughness: NaN/omitted -> 0.0 (the smooth delta path — goldens pin it);
+  // an explicit value is stored verbatim (frosted glass)
+  CHECK_NEAR(h->scene.materials[0].roughness, 0.0, 1e-6);
+  int fr = sundog_add_material_dielectric(h, kNaN, nullptr, nullptr, -1, 0.35);
+  CHECK(fr == 2);
+  CHECK_NEAR(h->scene.materials[2].roughness, 0.35, 1e-6);
   expectAddFail(sundog_add_material_dielectric(h, kNaN, D3(-0.1, 0, 0),
-                                               nullptr, -1),
+                                               nullptr, -1, kNaN),
                 "dielectric negative absorb");
   sundog_scene_destroy(h);
 

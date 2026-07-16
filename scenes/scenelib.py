@@ -63,7 +63,7 @@ _TEXTURE_FIELDS = {
 _MATERIAL_FIELDS = {
     "lambert": ("color", "texture"),
     "metal": ("color", "texture", "roughness"),
-    "dielectric": ("ior", "absorb", "color", "texture"),
+    "dielectric": ("ior", "absorb", "color", "texture", "roughness"),
     "emissive": ("color", "texture", "intensity", "two_sided"),
     "water": ("ior", "absorb", "wave_amp", "wave_freq", "color"),
 }
@@ -293,9 +293,9 @@ class Scene(object):
         return self.material(name, "metal", _site_=_site(),
                              color=color, texture=texture, roughness=roughness)
 
-    def dielectric(self, name, ior=OMIT, absorb=OMIT):
+    def dielectric(self, name, ior=OMIT, absorb=OMIT, roughness=OMIT):
         return self.material(name, "dielectric", _site_=_site(),
-                             ior=ior, absorb=absorb)
+                             ior=ior, absorb=absorb, roughness=roughness)
 
     def emissive(self, name, color=OMIT, texture=OMIT, intensity=OMIT,
                  two_sided=OMIT):
@@ -599,7 +599,8 @@ class Scene(object):
                           fnum(m, "roughness")))
             elif kind == "dielectric":
                 p.append(("add_material_dielectric", fnum(m, "ior"),
-                          fvec(m, "absorb"), fvec(m, "color"), tid))
+                          fvec(m, "absorb"), fvec(m, "color"), tid,
+                          fnum(m, "roughness")))
             elif kind == "emissive":
                 p.append(("add_material_emissive", fvec(m, "color"), tid,
                           fnum(m, "intensity"), ftri(m, "two_sided")))
@@ -828,7 +829,8 @@ def _apply(lib, program):
             rc = lib.sundog_add_material_metal(h, _d3(args[0]), args[1], d(args[2]))
         elif name == "add_material_dielectric":
             rc = lib.sundog_add_material_dielectric(h, d(args[0]), _d3(args[1]),
-                                                    _d3(args[2]), args[3])
+                                                    _d3(args[2]), args[3],
+                                                    d(args[4]))
         elif name == "add_material_emissive":
             rc = lib.sundog_add_material_emissive(h, _d3(args[0]), args[1],
                                                   d(args[2]), args[3])

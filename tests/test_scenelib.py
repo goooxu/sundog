@@ -145,6 +145,8 @@ expect_error(lambda: minimal().texture("t", "solid", colr=[1, 1, 1]),
              "not a field", "texture field typo")
 expect_error(lambda: minimal().material("m", "plastic"), "unknown type",
              "material type enum")
+expect_error(lambda: minimal().dielectric("g", roughnes=0.1),
+             "unexpected keyword", "dielectric kwarg typo is a TypeError")
 expect_error(lambda: minimal().metal("m", roughnes=0.1), "unexpected keyword",
              "metal kwarg typo is a TypeError")
 expect_error(lambda: minimal().render(tonemap="filmic"), "tonemap",
