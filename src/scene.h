@@ -47,6 +47,7 @@ struct SceneEnv {
 
 struct SceneMesh {
   std::string objFile;
+  std::string usemtl;  // empty = whole mesh; else only this usemtl group
   bool smoothNormals = true;
 };
 

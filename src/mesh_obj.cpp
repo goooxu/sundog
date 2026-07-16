@@ -10,7 +10,8 @@
 
 namespace sd {
 
-GpuMesh loadObjMesh(const std::string& path, bool smoothNormals) {
+GpuMesh loadObjMesh(const std::string& path, bool smoothNormals,
+                    const std::string& usemtlFilter) {
   tinyobj::ObjReaderConfig cfg;
   cfg.triangulate = true;
   cfg.vertex_color = false;
@@ -30,11 +31,29 @@ GpuMesh loadObjMesh(const std::string& path, bool smoothNormals) {
   // Gather validated corner (vertex, texcoord) index pairs. tinyobjloader
   // does not bounds-check positive indices; a corrupt OBJ would otherwise
   // corrupt the heap in the normal pass / OOB on device.
+  // Resolve the usemtl filter to a material id (names live in the .mtl,
+  // auto-loaded by tinyobjloader via the OBJ's mtllib line).
+  int filterId = -1;
+  if (!usemtlFilter.empty()) {
+    const auto& mats = reader.GetMaterials();
+    for (size_t i = 0; i < mats.size(); i++)
+      if (mats[i].name == usemtlFilter) { filterId = (int)i; break; }
+    if (filterId < 0)
+      throw std::runtime_error("OBJ usemtl group not found: " + usemtlFilter +
+                               " in " + path);
+  }
+
   std::vector<std::pair<unsigned, int>> corners;
   bool allHaveUv = numTc > 0;
   for (const auto& shape : reader.GetShapes()) {
     const auto& mesh = shape.mesh;
     for (size_t f = 0; f + 2 < mesh.indices.size(); f += 3) {
+      if (filterId >= 0) {
+        size_t face = f / 3;
+        if (face >= mesh.material_ids.size() ||
+            mesh.material_ids[face] != filterId)
+          continue;
+      }
       for (int k = 0; k < 3; k++) {
         const tinyobj::index_t& ix = mesh.indices[f + k];
         unsigned v = (unsigned)ix.vertex_index;
@@ -50,7 +69,10 @@ GpuMesh loadObjMesh(const std::string& path, bool smoothNormals) {
       }
     }
   }
-  if (corners.empty()) throw std::runtime_error("OBJ has no triangles: " + path);
+  if (corners.empty())
+    throw std::runtime_error(usemtlFilter.empty()
+        ? "OBJ has no triangles: " + path
+        : "OBJ usemtl group has no triangles: " + usemtlFilter + " in " + path);
   if (numTc > 0 && !allHaveUv) {
     fprintf(stderr, "[mesh] %s: some faces lack vt — ignoring texture coords\n",
             path.c_str());

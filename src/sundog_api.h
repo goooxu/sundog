@@ -106,7 +106,8 @@ SUNDOG_API int sundog_add_material_water(sundog_scene*, double ior /* NaN=1.33 *
                                          const double color[3] /* NULL=white */);
 
 SUNDOG_API int sundog_add_mesh(sundog_scene*, const char* obj_file,
-                               int smooth_normals /* -1 -> 1 */);
+                               int smooth_normals /* -1 -> 1 */,
+                               const char* usemtl /* NULL = whole mesh */);
 
 /* ---- objects (phase 1) ----------------------------------------------------
  * Transform steps compose in C++ (top-down: later steps wrap earlier ones),

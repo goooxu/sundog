@@ -19,7 +19,10 @@ struct GpuMesh {
 };
 
 // Loads, optionally computes area-weighted smooth normals, uploads.
-GpuMesh loadObjMesh(const std::string& path, bool smoothNormals);
+// usemtlFilter: empty = all faces; otherwise only faces whose usemtl group
+// matches (multi-material OBJs split into per-group sub-meshes this way).
+GpuMesh loadObjMesh(const std::string& path, bool smoothNormals,
+                    const std::string& usemtlFilter = "");
 
 }  // namespace sd
 

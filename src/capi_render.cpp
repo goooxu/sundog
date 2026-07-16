@@ -94,7 +94,7 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     for (const SceneMesh& sm : scene.meshes) {
       std::string path = sm.objFile;
       if (!path.empty() && path[0] != '/') path = scene.baseDir + "/" + path;
-      meshes.push_back(loadObjMesh(path, sm.smoothNormals));
+      meshes.push_back(loadObjMesh(path, sm.smoothNormals, sm.usemtl));
       meshTriangles += meshes.back().numTris;
     }
     double sceneLoadMs = msSince(tLoad);

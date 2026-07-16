@@ -301,12 +301,13 @@ extern "C" int sundog_add_material_water(sundog_scene* h, double ior,
 }
 
 extern "C" int sundog_add_mesh(sundog_scene* h, const char* obj_file,
-                               int smooth_normals) {
+                               int smooth_normals, const char* usemtl) {
   SUNDOG_TRY
   phaseAdvance(h, 0, "meshes");
   if (!obj_file || !*obj_file) sceneFail("mesh: obj file is required");
   SceneMesh sm;
   sm.objFile = obj_file;
+  sm.usemtl = usemtl ? usemtl : "";
   sm.smoothNormals = smooth_normals != 0;  // -1/1 -> true, 0 -> false
   int id = (int)h->scene.meshes.size();
   h->scene.meshes.push_back(sm);

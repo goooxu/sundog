@@ -347,7 +347,10 @@ static void testPhysics() {
   CHECK(sundog_set_physics(h, D3(0, -9.81, 0), 0.005, 8.0, 0.7, 0.2, 16, 4,
                            0.01, 1.25) == SUNDOG_OK);
   CHECK(sundog_add_material_lambert(h, nullptr, -1) == 0);
-  CHECK(sundog_add_mesh(h, "../assets/spot.obj", -1) == 0);
+  CHECK(sundog_add_mesh(h, "../assets/spot.obj", -1, nullptr) == 0);
+  CHECK(sundog_add_mesh(h, "../assets/sparky.obj", -1, "GlassHead") == 1);
+  CHECK(h->scene.meshes[0].usemtl.empty());
+  CHECK(h->scene.meshes[1].usemtl == "GlassHead");  // group filter recorded
 
   sundog_xform_step floorS[1] = {{SUNDOG_XF_SCALE, 5, 5, 5}};
   sundog_physics_body floorBody{};

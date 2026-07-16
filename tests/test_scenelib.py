@@ -297,6 +297,18 @@ check(math.isnan(dyn[6]) and math.isnan(dyn[8]), "absent friction/thickness NaN"
 sta = objs[2][8]
 check(sta[0] == 0 and sta[8] == 0.5, "static_body packing")
 
+# mesh usemtl group packing
+s = minimal()
+s.mesh("head", "../assets/sparky.obj", normals="smooth", usemtl="GlassHead")
+s.mesh("whole", "../assets/spot.obj")
+s.add("mesh:head", "grey")
+prog = s._program(".")
+meshes = [c for c in prog if c[0] == "add_mesh"]
+check(meshes[0] == ("add_mesh", "../assets/sparky.obj", 1, "GlassHead"),
+      "usemtl group packed")
+check(meshes[1] == ("add_mesh", "../assets/spot.obj", -1, None),
+      "whole-mesh usemtl -> None")
+
 # ---- every committed scene builds, validates, and programs -------------------
 
 import runpy  # noqa: E402

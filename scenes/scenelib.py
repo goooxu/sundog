@@ -310,9 +310,13 @@ class Scene(object):
                              absorb=absorb, wave_amp=wave_amp,
                              wave_freq=wave_freq)
 
-    def mesh(self, name, obj, normals=OMIT):
+    def mesh(self, name, obj, normals=OMIT, usemtl=OMIT):
+        """usemtl: load only that material group of the OBJ — multi-material
+        models split into per-group sub-meshes (one mesh + add() per group,
+        sharing a transform)."""
         m = {"obj": obj}
         _put(m, "normals", normals)
+        _put(m, "usemtl", usemtl)
         self._meshes[name] = m
         self._sites[("meshes", name)] = _site()
         return "mesh:" + name
@@ -602,7 +606,7 @@ class Scene(object):
         for name in sorted(self._meshes):
             ms = self._meshes[name]
             smooth = -1 if "normals" not in ms else (1 if ms["normals"] == "smooth" else 0)
-            p.append(("add_mesh", ms["obj"], smooth))
+            p.append(("add_mesh", ms["obj"], smooth, ms.get("usemtl")))
         GK = {"sphere": 0, "rect": 1, "disk": 2, "cylinder": 3, "parabola": 4}
         for o in self._objects:
             shape = o["shape"]
@@ -828,7 +832,8 @@ def _apply(lib, program):
             rc = lib.sundog_add_material_water(h, d(args[0]), _d3(args[1]),
                                                d(args[2]), d(args[3]), _d3(args[4]))
         elif name == "add_mesh":
-            rc = lib.sundog_add_mesh(h, args[0].encode(), args[1])
+            rc = lib.sundog_add_mesh(h, args[0].encode(), args[1],
+                                     args[2].encode() if args[2] else None)
         elif name == "add_object":
             gk, mesh_id, front, back, cutout, steps, nee, phys = args
             arr = (_XformStep * max(len(steps), 1))()
