@@ -144,12 +144,26 @@ Typed helpers (each returns the material name):
 The generic `s.material(name, type, **fields)` accepts any documented field
 and is what the typed helpers delegate to.
 
-### Meshes — `s.mesh(name, obj, normals)`
+### Meshes — `s.mesh(name, obj, normals, usemtl)`
 
 Loads an OBJ (path relative to the scene file; `vt` texture coordinates are
 honored, smooth area-weighted normals by default — pass anything other than
 `"smooth"` for flat geometric normals). Returns `"mesh:name"`, ready to use
 as a shape.
+
+`usemtl="GroupName"` loads only that material group of a multi-material OBJ
+(the `.mtl` next to the OBJ supplies the group names; a missing or empty
+group is an error). One sundog material per object still holds — split a
+multi-material model into per-group sub-meshes sharing one transform:
+
+```python
+POSE = [scale(1.0), rotate_y(18), translate(0, 0, -0.6)]
+for grp, mat in [("GlassHead", "roboGlass"), ("MetalGrey", "roboMetal")]:
+    s.add(s.mesh("robot_" + grp, "../assets/sparky.obj", usemtl=grp),
+          mat, *POSE)
+```
+
+(`scenes/03-spot-atrium.py` splits Sparky's ten groups this way.)
 
 ### Objects — `s.add(shape, material, *steps, ...)`
 
