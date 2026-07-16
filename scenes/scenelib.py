@@ -14,30 +14,30 @@ A sundog scene is an executable Python program living next to this module:
     if __name__ == "__main__":
         s.run(out="my-scene.png")
 
-Running the file renders it: scenelib serializes the scene to the renderer's
-internal JSON form (a temp file beside the scene, so relative asset paths
-resolve), invokes the backend binary ($SUNDOG_BUILD/sundog, default
-/tmp/sundog-build/sundog), and forwards any extra CLI arguments verbatim
-(--spp/--size/--seed/--denoise/--stats/... override the scene's own render
-settings; --out overrides the name passed to run()). `--emit-json PATH|-`
-prints the JSON instead of rendering (used by tests and tooling).
+Running the file renders it in-process: scenelib feeds the scene through the
+C ABI of the renderer library ($SUNDOG_BUILD/libsundog.so, default
+/tmp/sundog-build/libsundog.so) via ctypes — call by call, with no
+intermediate representation of any kind — then renders. CLI flags override
+the scene's own render settings (--spp/--size/--seed/--denoise/--stats/...;
+--out overrides the name passed to run()).
 
 Determinism contract: this module never draws randomness or timestamps; the
-JSON it emits is a pure function of the API calls. Scenes that use random
-layout must call random.seed(N) themselves before the first draw. The
+backend call program is a pure function of the API calls. Scenes that use
+random layout must call random.seed(N) themselves before the first draw. The
 `render.seed` setting is the renderer's sampling seed — a separate concern.
 
-Optional arguments left at the OMIT default are not written into the JSON at
+Optional arguments left at the OMIT default are not sent across the ABI at
 all, so the renderer's own defaults apply (and stay documented in one place).
 
 Stdlib only; compatible with Python 3.6+.
 """
 
+import argparse
+import ctypes
 import json
+import math
 import os
-import subprocess
 import sys
-import tempfile
 
 
 class SceneError(ValueError):
@@ -519,55 +519,437 @@ class Scene(object):
             f.write(text)
         sys.stderr.write("wrote %s (%d objects)\n" % (path, len(self._objects)))
 
-    def run(self, out, argv=None):
-        """Render this scene: called from the scene file's __main__ block.
+    # ---- backend program: ordered call list, ready for the C ABI ----------
 
-        `out` is the output PNG the scene chooses for itself; a caller may
-        override it (and any render setting) with the backend's own flags,
-        which are forwarded verbatim: --out/--spp/--size/--seed/--denoise/...
-        `--emit-json PATH` (or `-` for stdout) prints the scene JSON instead
-        of rendering.
+    def _program(self, base_dir):
+        """Flatten the scene into an ordered list of backend calls (pure).
+
+        Ids for textures/materials/meshes are allocated by sorted name — the
+        old JSON loader iterated a std::map, so lexicographic ids are what the
+        golden images were rendered with. TODO: after a deliberate golden
+        re-bless this can switch to insertion order.
+        Optional values stay as None/NaN sentinels; renderer defaults live in
+        the C++ side only.
         """
-        args = list(sys.argv[1:] if argv is None else argv)
+        tex_ids = {n: i for i, n in enumerate(sorted(self._textures))}
+        mat_ids = {n: i for i, n in enumerate(sorted(self._materials))}
+        mesh_ids = {n: i for i, n in enumerate(sorted(self._meshes))}
+        NAN = float("nan")
 
-        if "--emit-json" in args:
-            i = args.index("--emit-json")
-            if i + 1 >= len(args):
-                sys.stderr.write("scenelib: --emit-json needs a path (or -)\n")
-                sys.exit(2)
-            target = args[i + 1]
+        def fnum(d, key):
+            return float(d[key]) if key in d else NAN
+
+        def fint(d, key):
+            return int(d[key]) if key in d else -1
+
+        def ftri(d, key):          # tri-state bool -> -1/0/1
+            return -1 if key not in d else (1 if d[key] else 0)
+
+        def fvec(d, key):
+            return [float(c) for c in d[key]] if key in d else None
+
+        p = [("create", base_dir)]
+        r = self._render
+        tm = {"aces": 0, "clamp": 1}.get(r.get("tonemap"), -1)
+        p.append(("set_render", fint(r, "width"), fint(r, "height"),
+                  fint(r, "spp"), fint(r, "max_depth"), fnum(r, "clamp"),
+                  fint(r, "seed"), fnum(r, "gamma"), fnum(r, "exposure"), tm,
+                  ftri(r, "transparent_shadows")))
+        if self._physics is not None:
+            ph = self._physics
+            si = ph.get("solver_iterations")
+            p.append(("set_physics", fvec(ph, "gravity"), fnum(ph, "timestep"),
+                      fnum(ph, "max_time"), fnum(ph, "friction"),
+                      fnum(ph, "restitution"),
+                      int(si[0]) if si else -1, int(si[1]) if si else -1,
+                      fnum(ph, "sleep_threshold"), fnum(ph, "stop_time")))
+        c = self._camera
+        p.append(("set_camera", fvec(c, "lookfrom"), fvec(c, "lookat"),
+                  fvec(c, "up"), fnum(c, "vfov"), fnum(c, "aperture"),
+                  fnum(c, "focus_dist")))
+        b = self._background
+        if b is not None:
+            if b["type"] == "solid":
+                p.append(("set_background_solid", fvec(b, "color")))
+            elif b["type"] == "gradient":
+                p.append(("set_background_gradient", fvec(b, "horizon"),
+                          fvec(b, "zenith")))
+            else:
+                p.append(("set_background_envmap", b["file"], fnum(b, "rotate"),
+                          fnum(b, "intensity"), ftri(b, "importance")))
+        for name in sorted(self._textures):
+            tx = self._textures[name]
+            kind = tx["type"]
+            if kind == "solid":
+                p.append(("add_texture_solid", fvec(tx, "color")))
+            elif kind == "checker":
+                p.append(("add_texture_checker", fvec(tx, "a"), fvec(tx, "b"),
+                          [float(v) for v in tx["scale"]] if "scale" in tx else None))
+            elif kind == "grid":
+                p.append(("add_texture_grid", fvec(tx, "a"), fvec(tx, "b"),
+                          [float(v) for v in tx["scale"]] if "scale" in tx else None,
+                          fnum(tx, "width")))
+            else:
+                p.append(("add_texture_image", tx["file"], ftri(tx, "srgb")))
+        for name in sorted(self._materials):
+            m = self._materials[name]
+            kind = m["type"]
+            tid = tex_ids[m["texture"]] if "texture" in m else -1
+            if kind == "lambert":
+                p.append(("add_material_lambert", fvec(m, "color"), tid))
+            elif kind == "metal":
+                p.append(("add_material_metal", fvec(m, "color"), tid,
+                          fnum(m, "roughness")))
+            elif kind == "dielectric":
+                p.append(("add_material_dielectric", fnum(m, "ior"),
+                          fvec(m, "absorb"), fvec(m, "color"), tid))
+            elif kind == "emissive":
+                p.append(("add_material_emissive", fvec(m, "color"), tid,
+                          fnum(m, "intensity"), ftri(m, "two_sided")))
+            else:
+                p.append(("add_material_water", fnum(m, "ior"), fvec(m, "absorb"),
+                          fnum(m, "wave_amp"), fnum(m, "wave_freq"),
+                          fvec(m, "color")))
+        for name in sorted(self._meshes):
+            ms = self._meshes[name]
+            smooth = -1 if "normals" not in ms else (1 if ms["normals"] == "smooth" else 0)
+            p.append(("add_mesh", ms["obj"], smooth))
+        GK = {"sphere": 0, "rect": 1, "disk": 2, "cylinder": 3, "parabola": 4}
+        for o in self._objects:
+            shape = o["shape"]
+            if shape.startswith("mesh:"):
+                gk, mesh_id = 5, mesh_ids[shape[5:]]
+            else:
+                gk, mesh_id = GK[shape], -1
+            front = -1 if o["material"] is None else mat_ids[o["material"]]
+            if "material_back" not in o:
+                back = -2                       # omitted -> same as front
+            elif o["material_back"] is None:
+                back = -1                       # explicit null -> pass-through
+            else:
+                back = mat_ids[o["material_back"]]
+            cutout = tex_ids[o["cutout"]] if "cutout" in o else -1
+            steps = []
+            for st in o.get("transform", []):
+                (k, v), = st.items()
+                if k == "scale":
+                    if isinstance(v, (int, float)):
+                        s = float(v)            # uniform: splat, narrow in C
+                        steps.append((0, s, s, s))
+                    else:
+                        steps.append((0, float(v[0]), float(v[1]), float(v[2])))
+                elif k == "translate":
+                    steps.append((1, float(v[0]), float(v[1]), float(v[2])))
+                else:
+                    steps.append(({"rotate_x": 2, "rotate_y": 3,
+                                   "rotate_z": 4}[k], float(v), 0.0, 0.0))
+            nee = ftri(o, "nee")
+            phys = None
+            if "physics" in o:
+                pb = o["physics"]
+                phys = (1 if pb.get("dynamic") else 0, fnum(pb, "density"),
+                        1 if "velocity" in pb else 0,
+                        fvec(pb, "velocity") or [0.0, 0.0, 0.0],
+                        1 if "angular_velocity" in pb else 0,
+                        fvec(pb, "angular_velocity") or [0.0, 0.0, 0.0],
+                        fnum(pb, "friction"), fnum(pb, "restitution"),
+                        fnum(pb, "thickness"))
+            p.append(("add_object", gk, mesh_id, front, back, cutout,
+                      steps, nee, phys))
+        for fl in self._flames:
+            p.append(("add_flame", [float(v) for v in fl["base"]],
+                      float(fl["height"]), float(fl["radius"]),
+                      fnum(fl, "intensity"), fnum(fl, "sigma"),
+                      fnum(fl, "noise_scale"), fint(fl, "seed"),
+                      fnum(fl, "light_intensity")))
+        for l in self._lights:
+            if l["type"] == "point":
+                p.append(("add_point_light", [float(v) for v in l["position"]],
+                          [float(v) for v in l["intensity"]], fnum(l, "radius")))
+            else:
+                p.append(("add_distant_light", [float(v) for v in l["direction"]],
+                          [float(v) for v in l["radiance"]]))
+        return p
+
+    def validate(self):
+        """Run the full construction-time validation (raises SceneError)."""
+        self._validate()
+
+    def run(self, out, argv=None, base_dir=None):
+        """Render this scene in-process: called from the scene file's
+        __main__ block. Scene data crosses the C ABI of libsundog.so
+        directly — no intermediate representation of any kind.
+
+        `out` is the output PNG the scene chooses for itself; CLI flags
+        override it and any render setting (--out/--spp/--size/...).
+        """
+        opts = _parse_args(list(sys.argv[1:] if argv is None else argv), out)
+        if opts.probe:
+            probe()
+            sys.exit(0)
+        try:
+            self._validate()
+        except SceneError as e:
+            sys.stderr.write("sundog: fatal: %s\n" % e)
+            sys.exit(1)
+        if opts.emit_json is not None:      # transitional escape hatch
             text = self.to_json()
-            if target == "-":
+            if opts.emit_json == "-":
                 sys.stdout.write(text)
             else:
-                with open(target, "w") as f:
+                with open(opts.emit_json, "w") as f:
                     f.write(text)
             return
-
-        build = os.environ.get("SUNDOG_BUILD") or "/tmp/sundog-build"
-        backend = os.path.join(build, "sundog")
-        if not (os.path.isfile(backend) and os.access(backend, os.X_OK)):
-            sys.stderr.write(
-                "scenelib: renderer backend not found at %s\n"
-                "  build it first: source scripts/env-testbox.sh && make -j16\n"
-                "  (or point SUNDOG_BUILD at the build directory)\n" % backend)
-            sys.exit(1)
-
-        scene_path = os.path.abspath(sys.argv[0])
-        scene_dir = os.path.dirname(scene_path) or "."
-        text = self.to_json()
-        fd, tmp = tempfile.mkstemp(prefix=".ir-", suffix=".json",
-                                   dir=scene_dir)
+        if base_dir is None:
+            base_dir = os.path.dirname(os.path.abspath(sys.argv[0])) or "."
+        lib = _load_backend()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        h = None
         try:
-            with os.fdopen(fd, "w") as f:
-                f.write(text)
-            cmd = [backend, "--scene", tmp] + args
-            if "--out" not in args:
-                cmd += ["--out", out]
-            rc = subprocess.call(cmd)
+            h = _apply(lib, self._program(base_dir))
+            _render(lib, h, opts)
+        except SceneError as e:
+            sys.stderr.write("sundog: fatal: %s\n" % e)
+            sys.exit(1)
         finally:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-        sys.exit(rc)
+            if h:
+                lib.sundog_scene_destroy(h)
+        sys.exit(0)
+
+
+# ---- ctypes backend ----------------------------------------------------------
+# Struct layouts and enum values mirror src/sundog_api.h (hand-synced; the
+# header is the source of truth).
+
+class _XformStep(ctypes.Structure):
+    _fields_ = [("kind", ctypes.c_int32), ("a", ctypes.c_double),
+                ("b", ctypes.c_double), ("c", ctypes.c_double)]
+
+
+class _PhysicsBody(ctypes.Structure):
+    _fields_ = [("dynamic", ctypes.c_int32), ("density", ctypes.c_double),
+                ("has_velocity", ctypes.c_int32),
+                ("has_angular_velocity", ctypes.c_int32),
+                ("velocity", ctypes.c_double * 3),
+                ("angular_velocity", ctypes.c_double * 3),
+                ("friction", ctypes.c_double), ("restitution", ctypes.c_double),
+                ("thickness", ctypes.c_double)]
+
+
+class _RenderOptions(ctypes.Structure):
+    _fields_ = [("out_path", ctypes.c_char_p), ("stats_path", ctypes.c_char_p),
+                ("aov_albedo_path", ctypes.c_char_p),
+                ("aov_normal_path", ctypes.c_char_p),
+                ("scene_name", ctypes.c_char_p),
+                ("spp", ctypes.c_int32), ("width", ctypes.c_int32),
+                ("height", ctypes.c_int32), ("seed", ctypes.c_int64),
+                ("denoise", ctypes.c_int32),
+                ("transparent_shadows", ctypes.c_int32),
+                ("clamp", ctypes.c_double), ("gamma", ctypes.c_double),
+                ("tonemap", ctypes.c_int32), ("physics_time", ctypes.c_double),
+                ("quiet", ctypes.c_int32)]
+
+
+class _DeviceInfo(ctypes.Structure):
+    _fields_ = [("name", ctypes.c_char * 256),
+                ("cc_major", ctypes.c_int32), ("cc_minor", ctypes.c_int32),
+                ("driver_version", ctypes.c_int32),
+                ("runtime_version", ctypes.c_int32),
+                ("total_mem_mb", ctypes.c_uint64),
+                ("optix_header_version", ctypes.c_uint32),
+                ("rtcore_version", ctypes.c_uint32)]
+
+
+def _load_backend():
+    build = os.environ.get("SUNDOG_BUILD") or "/tmp/sundog-build"
+    path = os.path.join(build, "libsundog.so")
+    if not os.path.isfile(path):
+        sys.stderr.write(
+            "scenelib: renderer backend not found at %s\n"
+            "  build it first: source scripts/env-testbox.sh && make -j16\n"
+            "  (or point SUNDOG_BUILD at the build directory)\n" % path)
+        sys.exit(1)
+    # RTLD_GLOBAL: PhysX dlopens libPhysXGpu_64.so at runtime, which resolves
+    # CUDA runtime symbols from the process's global scope — libsundog's
+    # libcudart dependency must land there, not in a local scope.
+    lib = ctypes.CDLL(path, mode=ctypes.RTLD_GLOBAL)
+    lib.sundog_last_error.restype = ctypes.c_char_p
+    lib.sundog_scene_create.restype = ctypes.c_void_p
+    lib.sundog_scene_create.argtypes = [ctypes.c_char_p]
+    lib.sundog_scene_destroy.argtypes = [ctypes.c_void_p]
+    return lib
+
+
+def _err(lib):
+    return (lib.sundog_last_error() or b"unknown error").decode("utf-8", "replace")
+
+
+def _d3(v):
+    return (ctypes.c_double * 3)(*v) if v is not None else None
+
+
+def _apply(lib, program):
+    """Replay a _program() call list against the backend; returns the handle."""
+    d = ctypes.c_double
+    h = None
+    for call in program:
+        name, args = call[0], call[1:]
+        if name == "create":
+            h = ctypes.c_void_p(lib.sundog_scene_create(args[0].encode()))
+            if not h.value:
+                raise SceneError(_err(lib))
+            continue
+        if name == "set_render":
+            w, ht, spp, md, clamp, seed, gamma, expo, tm, ts = args
+            rc = lib.sundog_set_render(h, w, ht, spp, md, d(clamp),
+                                       ctypes.c_int64(seed), d(gamma), d(expo),
+                                       tm, ts)
+        elif name == "set_physics":
+            g, ts_, mt, fr, re, pi, vi, st, sp = args
+            rc = lib.sundog_set_physics(h, _d3(g), d(ts_), d(mt), d(fr), d(re),
+                                        pi, vi, d(st), d(sp))
+        elif name == "set_camera":
+            lf, la, up, vf, ap, fd = args
+            rc = lib.sundog_set_camera(h, _d3(lf), _d3(la), _d3(up), d(vf),
+                                       d(ap), d(fd))
+        elif name == "set_background_solid":
+            rc = lib.sundog_set_background_solid(h, _d3(args[0]))
+        elif name == "set_background_gradient":
+            rc = lib.sundog_set_background_gradient(h, _d3(args[0]), _d3(args[1]))
+        elif name == "set_background_envmap":
+            f, rot, inten, imp = args
+            rc = lib.sundog_set_background_envmap(h, f.encode(), d(rot),
+                                                  d(inten), imp)
+        elif name == "add_texture_solid":
+            rc = lib.sundog_add_texture_solid(h, _d3(args[0]))
+        elif name == "add_texture_checker":
+            a, b, sc = args
+            sc2 = (ctypes.c_double * 2)(*sc) if sc is not None else None
+            rc = lib.sundog_add_texture_checker(h, _d3(a), _d3(b), sc2)
+        elif name == "add_texture_grid":
+            a, b, sc, w = args
+            sc2 = (ctypes.c_double * 2)(*sc) if sc is not None else None
+            rc = lib.sundog_add_texture_grid(h, _d3(a), _d3(b), sc2, d(w))
+        elif name == "add_texture_image":
+            rc = lib.sundog_add_texture_image(h, args[0].encode(), args[1])
+        elif name == "add_material_lambert":
+            rc = lib.sundog_add_material_lambert(h, _d3(args[0]), args[1])
+        elif name == "add_material_metal":
+            rc = lib.sundog_add_material_metal(h, _d3(args[0]), args[1], d(args[2]))
+        elif name == "add_material_dielectric":
+            rc = lib.sundog_add_material_dielectric(h, d(args[0]), _d3(args[1]),
+                                                    _d3(args[2]), args[3])
+        elif name == "add_material_emissive":
+            rc = lib.sundog_add_material_emissive(h, _d3(args[0]), args[1],
+                                                  d(args[2]), args[3])
+        elif name == "add_material_water":
+            rc = lib.sundog_add_material_water(h, d(args[0]), _d3(args[1]),
+                                               d(args[2]), d(args[3]), _d3(args[4]))
+        elif name == "add_mesh":
+            rc = lib.sundog_add_mesh(h, args[0].encode(), args[1])
+        elif name == "add_object":
+            gk, mesh_id, front, back, cutout, steps, nee, phys = args
+            arr = (_XformStep * max(len(steps), 1))()
+            for i, (k, a, b, c) in enumerate(steps):
+                arr[i] = _XformStep(k, a, b, c)
+            pb = None
+            if phys is not None:
+                dyn, den, hv, vel, hav, ang, fr, re, th = phys
+                pb = _PhysicsBody(dyn, den, hv, hav,
+                                  (ctypes.c_double * 3)(*vel),
+                                  (ctypes.c_double * 3)(*ang), fr, re, th)
+            rc = lib.sundog_add_object(h, gk, mesh_id, front, back, cutout,
+                                       arr, len(steps), nee,
+                                       ctypes.byref(pb) if pb else None)
+        elif name == "add_flame":
+            base, ht, rad, inten, sig, ns, seed, li = args
+            rc = lib.sundog_add_flame(h, _d3(base), d(ht), d(rad), d(inten),
+                                      d(sig), d(ns), ctypes.c_int64(seed), d(li))
+        elif name == "add_point_light":
+            rc = lib.sundog_add_point_light(h, _d3(args[0]), _d3(args[1]),
+                                            d(args[2]))
+        elif name == "add_distant_light":
+            rc = lib.sundog_add_distant_light(h, _d3(args[0]), _d3(args[1]))
+        else:
+            raise SceneError("unknown program call %r" % name)
+        if rc is None or rc < 0 or (name.startswith("set_") and rc != 0):
+            raise SceneError(_err(lib))
+    return h
+
+
+def _render(lib, h, opts):
+    o = _RenderOptions(
+        out_path=opts.out.encode(),
+        stats_path=opts.stats.encode() if opts.stats else None,
+        aov_albedo_path=opts.aov_albedo.encode() if opts.aov_albedo else None,
+        aov_normal_path=opts.aov_normal.encode() if opts.aov_normal else None,
+        scene_name=os.path.basename(sys.argv[0]).encode() or b"(scene)",
+        spp=opts.spp, width=opts.width, height=opts.height, seed=opts.seed,
+        denoise=opts.denoise, transparent_shadows=opts.transparent_shadows,
+        clamp=opts.clamp, gamma=opts.gamma, tonemap=opts.tonemap,
+        physics_time=opts.physics_time, quiet=1 if opts.quiet else 0)
+    if lib.sundog_render(h, ctypes.byref(o)) != 0:
+        raise SceneError(_err(lib))
+
+
+def _parse_args(args, default_out):
+    ap = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        description="sundog scene — running this file renders it",
+        allow_abbrev=False)
+    NAN = float("nan")
+    ap.add_argument("--out", default=default_out, metavar="FILE.png")
+    ap.add_argument("--spp", type=int, default=-1, metavar="N")
+    ap.add_argument("--size", default=None, metavar="WxH")
+    ap.add_argument("--seed", type=int, default=-1, metavar="N")
+    ap.add_argument("--denoise", dest="denoise", action="store_const",
+                    const=1, default=-1)
+    ap.add_argument("--no-denoise", dest="denoise", action="store_const", const=0)
+    ap.add_argument("--opaque-shadows", dest="transparent_shadows",
+                    action="store_const", const=0, default=-1)
+    ap.add_argument("--clamp", type=float, default=NAN, metavar="F")
+    ap.add_argument("--gamma", type=float, default=NAN, metavar="F")
+    ap.add_argument("--tonemap", choices=["aces", "clamp"], default=None)
+    ap.add_argument("--physics-time", dest="physics_time", type=float,
+                    default=NAN, metavar="F")
+    ap.add_argument("--stats", default=None, metavar="FILE.json")
+    ap.add_argument("--aov-albedo", dest="aov_albedo", default=None)
+    ap.add_argument("--aov-normal", dest="aov_normal", default=None)
+    ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--emit-json", dest="emit_json", default=None,
+                    metavar="PATH")   # transitional; removed with the JSON layer
+    ns = ap.parse_args(args)
+    ns.width = ns.height = -1
+    if ns.size:
+        try:
+            w, _, h = ns.size.partition("x")
+            ns.width, ns.height = int(w), int(h)
+        except ValueError:
+            ap.error("--size expects WxH")
+    ns.tonemap = {"aces": 0, "clamp": 1, None: -1}[ns.tonemap]
+    return ns
+
+
+def probe():
+    """Print GPU/driver/OptiX info (the old `sundog --probe` format)."""
+    lib = _load_backend()
+    di = _DeviceInfo()
+    if lib.sundog_probe(ctypes.byref(di)) != 0:
+        sys.stderr.write("sundog: fatal: %s\n" % _err(lib))
+        sys.exit(1)
+    v = di.optix_header_version
+    sys.stdout.write(
+        "GPU:            %s\n"
+        "Compute:        sm_%d%d\n"
+        "VRAM:           %d MB\n"
+        "CUDA driver:    %d.%d\n"
+        "CUDA runtime:   %d.%d\n"
+        "OptiX header:   %d.%d.%d\n"
+        "RT core:        %d.%d\n"
+        % (di.name.decode(), di.cc_major, di.cc_minor, di.total_mem_mb,
+           di.driver_version // 1000, (di.driver_version % 1000) // 10,
+           di.runtime_version // 1000, (di.runtime_version % 1000) // 10,
+           v // 10000, (v % 10000) // 100, v % 100,
+           di.rtcore_version // 10, di.rtcore_version % 10))
