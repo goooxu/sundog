@@ -312,6 +312,18 @@ python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
   "$RAW/ch13-flame-ns1.5.png|noise_scale 1.5" \
   "$RAW/ch13-flame-ns3.0.png|noise_scale 3（默认）"
 
+# ---------------------------------------------- ch13-flame-shadow.png
+# 12-molten-oracle with shadow rays blind to flames vs marching them: the
+# zero-emission smoke column casts no shadow vs a visible volumetric one
+# under the altar fires and the skylight beam.
+render "ch13-fshadow-opq" "$ROOT/scenes/12-molten-oracle.py" \
+       --size 960x540 --spp 96 --opaque-shadows
+render "ch13-fshadow-vol" "$ROOT/scenes/12-molten-oracle.py" \
+       --size 960x540 --spp 96
+python3 "$COMPOSE" strip "$FIG/ch13-flame-shadow.png" --label-size 26 \
+  "$RAW/ch13-fshadow-opq.png|旧口径（--opaque-shadows，烟柱不挡光）" \
+  "$RAW/ch13-fshadow-vol.png|体积阴影（默认，烟柱投影）"
+
 # -------------------------------------------------------- ch14-anatomy.png
 # Water close-up (checker lake bed, sun sphere) in three variants: flat
 # mirror (wave_amp 0), default waves, no absorption. Temp scenes inline.

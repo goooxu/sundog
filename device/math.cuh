@@ -118,6 +118,15 @@ SD_HD Affine mul(const Affine& a, const Affine& b) {  // a ∘ b (b applied firs
   return r;
 }
 
+// Sign of det(M) from the transformed unit axes: cross products of world
+// vectors pick up the determinant sign that inverse-transpose normals do
+// not. NEE light frames (scene_build.cpp) and mesh-light sampling
+// (capi_render.cpp mNgSign) must share this exact convention or mirrored
+// emitters flip their front side relative to each other.
+SD_HD float detSign3(float3 ux, float3 uy, float3 uz) {
+  return dot(uy, cross(uz, ux)) < 0.0f ? -1.0f : 1.0f;
+}
+
 SD_HD Affine affineScale(float3 s) {
   return {{s.x, 0, 0, 0, 0, s.y, 0, 0, 0, 0, s.z, 0}};
 }

@@ -119,6 +119,61 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
       }
     }
 
+    // ---- mesh area lights: world-space triangle CDFs ----
+    // Parse time only registered placeholders (the OBJ was not loaded yet);
+    // patch the triangle geometry into a render-local COPY of the light list
+    // — the handle's scene.lights stays pure parse state, so no render-scoped
+    // device pointer can dangle into a later render. Transforms are final
+    // here: dynamic NEE mesh lights are rejected at parse time
+    // (scene_build.cpp) and physics never moves statics.
+    struct MeshLightData {
+      CudaBuffer worldPos, cdf;
+    };
+    std::vector<MeshLightData> meshLightBufs;  // alive for the render scope
+    std::vector<LightDesc> lights = scene.lights;
+    for (const SceneObject& o : scene.objects) {
+      if (o.geomKind != GK_MESH || o.lightId < 0) continue;
+      const GpuMesh& m = meshes[o.meshId];
+      std::vector<float3> wp(m.hostPositions.size());
+      for (size_t i = 0; i < wp.size(); i++)
+        wp[i] = o.xform.applyPoint(m.hostPositions[i]);
+      // double accumulation: many small triangles, keep the prefix exact.
+      // Known numeric edge: a triangle whose area is below ~1 ULP of the
+      // running total rounds to an empty CDF interval and is never
+      // NEE-selected, while the hit-side pdf still folds it into the total
+      // area — a negative bias bounded by the sliver's own ~1e-7 relative
+      // emission. Accepted; not worth per-triangle pdf plumbing.
+      std::vector<float> cdf(m.numTris + 1, 0.0f);
+      double total = 0.0;
+      for (size_t t = 0; t < m.numTris; t++) {
+        const uint3& tri = m.hostIndices[t];
+        total += 0.5 * (double)length(cross(wp[tri.y] - wp[tri.x],
+                                            wp[tri.z] - wp[tri.x]));
+        cdf[t + 1] = (float)total;
+      }
+      if (!(total > 0.0))
+        throw std::runtime_error("mesh NEE light has zero surface area: " +
+                                 scene.meshes[o.meshId].objFile);
+      for (size_t t = 1; t < m.numTris; t++) cdf[t] = (float)(cdf[t] / total);
+      cdf[m.numTris] = 1.0f;  // exact upper bound for the binary search
+      // Same sign convention as addObjectDerived's light frames (math.cuh).
+      float ngSign = detSign3(o.xform.applyVector(f3(1, 0, 0)),
+                              o.xform.applyVector(f3(0, 1, 0)),
+                              o.xform.applyVector(f3(0, 0, 1)));
+      MeshLightData mld;
+      mld.worldPos.upload(wp);
+      mld.cdf.upload(cdf);
+      LightDesc& ld = lights[o.lightId];
+      ld.mPositions = mld.worldPos.as<float3>();
+      ld.mIndices = m.indices.as<uint3>();
+      ld.mUvs = m.uvs.ptr ? m.uvs.as<float2>() : nullptr;
+      ld.mCdf = mld.cdf.as<float>();
+      ld.mNumTris = (int)m.numTris;
+      ld.area = (float)total;
+      ld.mNgSign = ngSign;
+      meshLightBufs.push_back(std::move(mld));
+    }
+
     // ---- acceleration structures ----
     auto tGas = Clock::now();
     std::vector<Gas> quadricGas(GK_MESH);
@@ -140,7 +195,7 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     CudaBuffer texBuf, matBuf, lightBuf, flameBuf, rayCounter;
     texBuf.upload(texDescs);
     matBuf.upload(scene.materials);
-    if (!scene.lights.empty()) lightBuf.upload(scene.lights);
+    if (!lights.empty()) lightBuf.upload(lights);
     if (!scene.flames.empty()) flameBuf.upload(scene.flames);
     rayCounter.allocZero(sizeof(unsigned long long));
 
@@ -163,7 +218,7 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     params.textures = texBuf.as<TextureDesc>();
     params.materials = matBuf.as<MaterialDesc>();
     params.lights = lightBuf.ptr ? lightBuf.as<LightDesc>() : nullptr;
-    params.numLights = (int)scene.lights.size();
+    params.numLights = (int)lights.size();
     params.flames = flameBuf.ptr ? flameBuf.as<FlameDesc>() : nullptr;
     params.numFlames = (int)scene.flames.size();
     params.handle = ias.handle;

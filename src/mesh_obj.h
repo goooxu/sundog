@@ -16,6 +16,7 @@ struct GpuMesh {
   size_t numVerts = 0;
   size_t numTris = 0;
   std::vector<float3> hostPositions;  // kept for physics convex cooking
+  std::vector<uint3> hostIndices;     // kept for mesh-light CDF build
 };
 
 // Loads, optionally computes area-weighted smooth normals, uploads.

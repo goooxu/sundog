@@ -177,6 +177,30 @@ s.emissive("glow", color=[1, 1, 1])
 s.add("disk", "glow", scale(2, 1, 3), nee=False)
 s.validate()
 
+s = minimal()  # an emissive mesh is an NEE light — textured included
+s.texture("screen", "image", file="runes.png")
+s.emissive("glow", texture="screen", intensity=3.0)
+s.add(s.mesh("bot", "bot.obj", usemtl="Screen"), "glow", scale(2, 1, 3))
+s.validate()  # no uniform-scale rule for meshes; textured is fine
+
+s = minimal()  # dynamic rigid body + emissive mesh + default nee: rejected
+s.physics(stop_time=0.5)
+s.emissive("glow", color=[1, 1, 1])
+s.add(s.mesh("bot2", "bot.obj"), "glow", physics=rigid_body())
+expect_error(s.validate, "dynamic body cannot", "dynamic mesh NEE light")
+
+s = minimal()  # cutout + NEE light: MIS sides would disagree in the holes
+s.texture("holes", "image", file="runes.png")
+s.emissive("glow", color=[1, 1, 1])
+s.add("rect", "glow", cutout="holes")
+expect_error(s.validate, "alpha-cutout", "cutout NEE light rejected")
+
+s = minimal()  # nee=False keeps cutout emitters legal (BSDF-only)
+s.texture("holes", "image", file="runes.png")
+s.emissive("glow", color=[1, 1, 1])
+s.add("rect", "glow", cutout="holes", nee=False)
+s.validate()
+
 s = minimal()
 s.add("sphere", "grey", physics=rigid_body())
 expect_error(s.validate, "no physics block", "object physics without block")

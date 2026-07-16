@@ -7,7 +7,10 @@
 // deterministic; the march start is jittered from the per-sample PCG stream.
 //
 // Flames never enter the OptiX scene graph: each is bounded by an upright
-// cylinder that raygen intersects analytically before marching.
+// cylinder that raygen intersects analytically before marching. Radiance
+// segments march emission + transmittance (marchFlames); NEE shadow segments
+// march transmittance only (flameTransmittance), gated by transparentShadows,
+// with the light's owning flame exempted (LightDesc.flameId).
 #ifndef SUNDOG_VOLUME_CUH
 #define SUNDOG_VOLUME_CUH
 
@@ -109,6 +112,44 @@ SD_HD float3 marchFlames(const FlameDesc* flames, int numFlames, float3 o, float
     trans *= tLocal;
   }
   return Lv;
+}
+
+// Transmittance of all flames along [1e-4, tEnd] of the segment o + t*d
+// (d unit length) — the shadow-ray counterpart of marchFlames: the same
+// 32-step jittered march, emission ignored. skipFlame (-1 = none) exempts a
+// light's owning flame so flame-embedded lights do not self-shadow
+// (scene_build.cpp calibrates their intensity as already-escaped emission).
+// Draw contract matches marchFlames: exactly one rnd() per non-skipped flame
+// whose bounding cylinder the segment enters — scenes without flames draw
+// nothing, keeping their RNG streams bit-identical.
+// The inner loop mirrors marchFlames' transmittance track bit-for-bit
+// (per-step expf, same break); tests/host/test_volume.cpp pins the two
+// marchers to the same discretization — do not "optimize" one without the
+// other.
+SD_HD float flameTransmittance(const FlameDesc* flames, int numFlames,
+                               float3 o, float3 d, float tEnd, Pcg32& rng,
+                               int skipFlame) {
+  const int STEPS = 32;
+  float tr = 1.0f;
+  for (int i = 0; i < numFlames; i++) {
+    if (i == skipFlame) continue;
+    const FlameDesc& fl = flames[i];
+    float t0 = 1e-4f, t1 = tEnd;
+    if (!clipFlameBounds(fl, o, d, t0, t1)) continue;
+    float dt = (t1 - t0) / STEPS;
+    float jitter = rng.rnd();
+    float tLocal = 1.0f;
+    for (int k = 0; k < STEPS; k++) {
+      float3 p = o + (t0 + (k + jitter) * dt) * d;
+      float sigma;
+      float3 eps;
+      flameField(fl, p, sigma, eps);
+      tLocal *= expf(-sigma * dt);
+      if (tLocal < 1e-4f) break;
+    }
+    tr *= tLocal;
+  }
+  return tr;
 }
 
 }  // namespace sd

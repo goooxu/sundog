@@ -65,7 +65,8 @@ static __forceinline__ __device__ HitInfo traceRadiance(float3 o, float3 d) {
 
 // Straight-line transmittance toward the light: f3(0) = occluded, f3(1) =
 // clear, fractional through glass/water (Fresnel per interface, Beer-Lambert
-// per medium segment; the ray is not bent — see report ch16).
+// per medium segment; the ray is not bent — see report ch16). Flame volumes
+// are not in the BVH — the caller folds in flameTransmittance separately.
 static __forceinline__ __device__ float3 traceShadow(float3 o, float3 d, float tmax) {
   unsigned p0 = 0;
   unsigned p1 = __float_as_uint(1.0f);
@@ -171,6 +172,20 @@ static __forceinline__ __device__ ShadePoint triShadePoint(const HitRecordData* 
     sp.v = bc.y;
   }
   sp.frontface = dot(ng, optixGetWorldRayDirection()) < 0.0f;
+  // MIS consistency for mesh area lights: NEE samples them with the sampled
+  // triangle's GEOMETRIC normal in the pdf, so an emitter hit must measure
+  // its pdf with the geometric normal too — pack ng instead of the smooth
+  // normal. Safe because emissive hits terminate the path (raygen breaks;
+  // the normal is never used for scattering there). Gated on the RESOLVED
+  // side being emissive: a lambert back face of a one-sided mesh light keeps
+  // smooth shading and continues bouncing. Known cost: a mesh light as first
+  // hit writes the faceted normal into the normal AOV (all 8 payload
+  // registers are in use — no room to carry both normals).
+  if (rec->lightId >= 0) {
+    int sideMat = sp.frontface ? rec->matFront : rec->matBack;
+    if (sideMat != (int)MAT_NONE && params.materials[sideMat].kind == MT_EMISSIVE)
+      sp.nFront = ng;
+  }
   return sp;
 }
 
@@ -427,7 +442,8 @@ extern "C" __global__ void __raygen__render() {
           float w = 1.0f;
           if (!specularBounce && hit.lightId >= 0 &&
               params.numLights > 0) {
-            float pdfL = lightPdfSolidAngle(params.lights[hit.lightId], prevX, x) /
+            float pdfL = lightPdfSolidAngle(params.lights[hit.lightId], prevX,
+                                            x, ns) /
                          nStrat;
             w = prevPdf / (prevPdf + pdfL);
           }
@@ -447,8 +463,23 @@ extern "C" __global__ void __raygen__render() {
         float cosS = ls.valid ? dot(ls.wi, ns) : 0.0f;
         if (ls.valid && cosS > 0.0f) {
           raysTraced++;
-          float3 tr = traceShadow(offsetRay(x, ns), ls.wi, ls.dist * 0.999f);
+          float3 so = offsetRay(x, ns);
+          float tmaxS = ls.dist * 0.999f;
+          float3 tr = traceShadow(so, ls.wi, tmaxS);
           if (maxComp(tr) > 0.0f) {
+            // Flame volumes attenuate NEE like glass/water do (ch16), via a
+            // transmittance-only march over the same segment (ch13). Placed
+            // after the occlusion early-out: an occluded ray contributes
+            // nothing regardless, and whether ANY accepting hit exists on a
+            // fixed segment is deterministic (independent of anyhit order),
+            // so the conditional rnd() draws stay a pure function of
+            // scene + segment — re-renders remain bit-identical. The owning
+            // flame of a flame-embedded light is exempt (LightDesc.flameId).
+            if (params.numFlames > 0 && params.transparentShadows) {
+              int skipFl = (k < params.numLights) ? params.lights[k].flameId : -1;
+              tr = tr * flameTransmittance(params.flames, params.numFlames,
+                                           so, ls.wi, tmaxS, rng, skipFl);
+            }
             float pdfLe = (ls.isDelta ? 1.0f : ls.pdf) / nStrat;
             float3 f = bsdfEval(mat, albedo, -d, ls.wi, ns);
             float w = 1.0f;

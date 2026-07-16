@@ -19,8 +19,8 @@ struct LightSample {
 };
 
 // x: shading point (world). Uniform pick over lights happens in the caller.
-// textures: for textured rect/disk emitters (Li must match the emitter-hit
-// evaluation exactly or MIS is biased).
+// textures: for textured rect/disk/mesh emitters (Li must match the
+// emitter-hit evaluation exactly or MIS is biased).
 SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, Pcg32& rng,
                               const TextureDesc* textures) {
   LightSample s;
@@ -91,6 +91,68 @@ SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, Pcg32& rng,
       return s;
     }
 
+    case LT_MESH: {
+      // Triangle proportional to world-space area: binary search the CDF for
+      // the interval [cdf[i], cdf[i+1]) containing u. Zero-area triangles
+      // have empty intervals and are never selected.
+      float uc = rng.rnd();
+      int lo = 0, hi = lt.mNumTris;  // invariant: cdf[lo] <= uc < cdf[hi]
+      while (lo + 1 < hi) {
+        int mid = (lo + hi) >> 1;
+        if (lt.mCdf[mid] <= uc) lo = mid; else hi = mid;
+      }
+      uint3 tri = lt.mIndices[lo];
+      float3 p0 = lt.mPositions[tri.x];
+      float3 p1 = lt.mPositions[tri.y];
+      float3 p2 = lt.mPositions[tri.z];
+      // Uniform barycentrics (sqrt trick), in the SAME (bx, by) weight/vertex
+      // association as triShadePoint (device/programs.cu): weights
+      // (1-bx-by, bx, by) on (tri.x, tri.y, tri.z).
+      float2 r = rng.rnd2();
+      float su = sqrtf(r.x);
+      float bx = su * (1.0f - r.y);
+      float by = su * r.y;
+      float3 p = p0 * (1.0f - bx - by) + p1 * bx + p2 * by;
+      // Geometric normal from WORLD edges; the cross product picks up
+      // sign(det(M)) that the device inverse-transpose normal does not —
+      // mNgSign flips it back so both MIS sides share one front convention.
+      float3 ngU = cross(p1 - p0, p2 - p0);
+      float ngL2 = length2(ngU);
+      if (ngL2 < 1e-20f) return s;  // degenerate triangle
+      float3 ng = ngU * (lt.mNgSign / sqrtf(ngL2));
+      float3 to = p - x;
+      float d2 = length2(to);
+      if (d2 < 1e-10f) return s;
+      float dist = sqrtf(d2);
+      float3 wi = to / dist;
+      float cosL = -dot(wi, ng);            // light faces the shading point?
+      if (!lt.twoSided && cosL <= 0.0f) return s;
+      cosL = fabsf(cosL);
+      if (cosL < 1e-6f) return s;
+      s.wi = wi;
+      s.dist = dist;
+      s.Li = lt.L;
+      if (lt.texId >= 0 && textures) {
+        // uv interpolation matches triShadePoint bit-for-bit: same buffers,
+        // same weights; null uvs -> barycentrics, exactly like the hit side.
+        float tu, tv;
+        if (lt.mUvs) {
+          float2 t = lt.mUvs[tri.x] * (1.0f - bx - by) +
+                     lt.mUvs[tri.y] * bx + lt.mUvs[tri.z] * by;
+          tu = t.x;
+          tv = t.y;
+        } else {
+          tu = bx;
+          tv = by;
+        }
+        float4 c = evalTexture(textures[lt.texId], tu, tv);
+        s.Li = lt.L * f3(c.x, c.y, c.z);
+      }
+      s.pdf = d2 / (cosL * lt.area);        // uniform-area pdf -> solid angle
+      s.valid = true;
+      return s;
+    }
+
     case LT_POINT: {
       s.isDelta = true;
       // Soft point light: sample a disk of radius r facing x.
@@ -128,15 +190,25 @@ SD_HD LightSample sampleLight(const LightDesc& lt, float3 x, Pcg32& rng,
 // Solid-angle pdf of NEE producing direction (hitP - from) for area light lt.
 // Used for MIS weighting when a BSDF sample hits an emitter. Delta lights
 // return 0 (BSDF rays cannot hit them).
-SD_HD float lightPdfSolidAngle(const LightDesc& lt, float3 from, float3 hitP) {
+// nHit: surface normal at hitP as packed by closest-hit; only LT_MESH reads
+// it (the hit triangle's GEOMETRIC normal — triShadePoint packs ng for
+// registered emissive mesh hits so both MIS sides use the same cosine; the
+// analytic kinds keep using the descriptor's own frame).
+SD_HD float lightPdfSolidAngle(const LightDesc& lt, float3 from, float3 hitP,
+                               float3 nHit) {
   switch (lt.kind) {
     case LT_RECT:
-    case LT_DISK: {
+    case LT_DISK:
+    case LT_MESH: {
+      // One area->solid-angle conversion, three normal sources: rect/disk
+      // carry a constant frame normal; a mesh light's cosine comes from the
+      // hit triangle's geometric normal in the payload (fabsf makes the
+      // toward-incident-side flip irrelevant).
       float3 to = hitP - from;
       float d2 = length2(to);
       if (d2 < 1e-10f) return 0.0f;
       float dist = sqrtf(d2);
-      float cosL = fabsf(dot(to / dist, lt.n));
+      float cosL = fabsf(dot(to / dist, lt.kind == LT_MESH ? nHit : lt.n));
       if (cosL < 1e-6f) return 0.0f;
       return d2 / (cosL * lt.area);
     }

@@ -12,7 +12,7 @@ namespace sd {
 enum GeomKind : int { GK_SPHERE = 0, GK_RECT, GK_DISK, GK_CYLINDER, GK_PARABOLA, GK_MESH, GK_COUNT };
 enum TexKind : int { TX_SOLID = 0, TX_IMAGE, TX_CHECKER, TX_GRID };
 enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE, MT_WATER };
-enum LightKind : int { LT_RECT = 0, LT_DISK, LT_SPHERE, LT_POINT, LT_DISTANT };
+enum LightKind : int { LT_RECT = 0, LT_DISK, LT_SPHERE, LT_POINT, LT_DISTANT, LT_MESH };
 enum BgKind : int { BG_SOLID = 0, BG_GRADIENT, BG_ENVMAP };
 
 constexpr uint16_t MAT_NONE = 0xFFFF;  // pass-through face (no material)
@@ -48,8 +48,25 @@ struct LightDesc {
   float radius;  // sphere/point
   float area;    // rect/disk world-space area
   float3 dir;    // distant: unit direction the light travels (from light)
-  int twoSided;  // rect/disk emitters
-  int texId;     // rect/disk emitters with a texture: Li = tex(uv) * L; -1 = none
+  int twoSided;  // rect/disk/mesh emitters
+  int texId;     // rect/disk/mesh emitters with a texture: Li = tex(uv) * L; -1 = none
+  int flameId;   // flame-embedded lights: owning flame index, -1 = none. The
+                 // NEE flame shadow march skips the owner so a flame does not
+                 // extinguish its own lights (their intensity already stands
+                 // for the emission that escaped the volume).
+  // LT_MESH (emissive triangle mesh). Geometry is patched at RENDER time —
+  // parse registers a placeholder (kind + emission only) because OBJ files
+  // load in sundog_render, not at scene build (src/capi_render.cpp). `area`
+  // above holds the total world-space triangle area.
+  float3* mPositions;  // world-space vertices (host-transformed private copy)
+  uint3* mIndices;     // shared with the mesh's GAS index buffer
+  float2* mUvs;        // shared per-vertex uvs; null -> barycentric uv,
+                       // matching the triShadePoint fallback exactly
+  float* mCdf;         // mNumTris+1 prefix CDF over triangle areas, [0]=0, [n]=1
+  int mNumTris;
+  float mNgSign;       // sign(det(xform)): aligns cross(e1,e2) of the world
+                       // verts with the device inverse-transpose normal under
+                       // mirroring (same role as addObjectDerived's detSign)
 };
 
 struct BgDesc {

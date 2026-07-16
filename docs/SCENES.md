@@ -78,8 +78,10 @@ gamma) for numeric experiments like the white-furnace test where the PNG
 must be a direct linear readout.
 
 `transparent_shadows` (default true) lets shadow rays transmit through
-glass/water with Fresnel + Beer–Lambert attenuation; `false` restores the
-legacy binary occlusion (`--opaque-shadows`, comparison figures only).
+glass/water with Fresnel + Beer–Lambert attenuation, and march flame volumes
+for their transmittance (flames cast shadows; a light's owning flame is
+exempt); `false` restores the legacy binary occlusion with shadow-blind
+flames (`--opaque-shadows`, comparison figures only).
 
 ### `s.camera(lookfrom, lookat, up, vfov, aperture, focus_dist)`
 
@@ -135,9 +137,12 @@ Typed helpers (each returns the material name):
   全内反射挡住），水下能收到直接光。
 - `s.emissive(name, color | texture, intensity, two_sided)` — `two_sided`
   defaults to false (only the front face emits). Emissive `rect`/`disk`/
-  `sphere` objects are automatically sampled as area lights (unless
-  `nee=False`). Sphere/disk area lights require uniform scale. Textured
-  emissives are supported as NEE lights for `rect`/`disk`; a textured
+  `sphere`/`mesh:NAME` objects are automatically sampled as area lights
+  (unless `nee=False`). Sphere/disk area lights require uniform scale; mesh
+  area lights sample triangles proportional to world-space area and accept
+  any transform, non-uniform scale included. Textured emissives are
+  supported as NEE lights for `rect`/`disk`/`mesh:NAME` (mesh uvs are
+  per-vertex and interpolate identically on both MIS sides); a textured
   emissive `sphere` must use `nee=False` (its uv frame is object-space and
   cannot be light-sampled).
 
@@ -183,6 +188,12 @@ Canonical shapes (object space):
 | `cylinder` | x^2+z^2=1, y in [-1,1], **open ends** | outside | u: azimuth, v: height |
 | `parabola` | y = (x^2+z^2)/2, r<=1 (focus at (0,0.5,0)) | **convex underside** | u: azimuth, v: radius |
 | `mesh:NAME` | triangles from `s.mesh(NAME, …)` | winding side | OBJ `vt` per-vertex; barycentric fallback without `vt` |
+
+An emissive mesh auto-registers as an NEE area light (see `s.emissive`
+above); one-sided emission follows the winding-side front face — set
+`two_sided=True` on the material to emit from both. A dynamic rigid body
+cannot also be an NEE light (same rule as the other shapes): set
+`nee=False` or keep it static.
 
 To make a *concave* parabola reflector (dish), put the mirror on
 `material_back` (the bowl side) and set `material=None`… or rotate the
@@ -234,7 +245,12 @@ s.flame(base=[0, 0.12, 0], height=1.7, radius=0.5,
   暖色点光（轴上 0.35H/0.70H 处，半径 0.3R 软阴影），经常规 NEE 照亮场景。
   体积发射本身被 BSDF 路径偶然穿过时也会记入，与点光有轻微能量重复——
   火焰立体角小、σ 小，量级可忽略，此为如实声明的工程近似
-- 限制：阴影线不穿越体积衰减（火焰是光学薄介质）；火焰不写 AOV 引导层
+- **体积阴影**：NEE 阴影线按火焰透射率衰减——火焰投影、纯吸收烟柱
+  （`intensity=0`）遮光；内嵌点光对**自己宿主**的火焰豁免（其
+  `light_intensity` 已按逃逸后的发射校准，见报告第 13 章 §13.6），穿越
+  其他火焰照常衰减。随 `transparent_shadows` 门控（`--opaque-shadows`
+  同时关闭表面透射与体积衰减）
+- 限制：无散射（烟雾类介质渲不了）；火焰不写 AOV 引导层
 
 ### `s.physics(...)` + per-object opt-in（PhysX GPU 刚体沉降）
 
@@ -294,9 +310,11 @@ SceneError: objects[17] (12-molten-oracle.py:196): disk area light requires unif
 
 Checked: shape/texture/material/tonemap enums, unknown field names (typo
 guard), references to unregistered materials/textures/meshes, double-null
-faces, area-light uniform-scale rules, the textured-emissive-sphere
-`nee=False` rule, physics shape/dynamic constraints, and numeric domains
-(flame/envmap/absorb/wave parameters).
+faces, area-light rules (sphere/disk uniform scale; the textured-emissive-
+sphere `nee=False` rule; a dynamic body cannot be an NEE light — emissive
+meshes included; an alpha-cutout object cannot be an NEE light — NEE would
+sample emission inside the holes), physics shape/dynamic constraints, and
+numeric domains (flame/envmap/absorb/wave parameters).
 
 ## Determinism & reproducibility
 

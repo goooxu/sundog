@@ -76,30 +76,37 @@ void addObjectDerived(Scene& s, SceneObject& so) {
       sceneFail("physics: thickness must be positive");
   }
 
-  // Auto-register emissive rect/disk/sphere objects as NEE area lights.
+  // Auto-register emissive rect/disk/sphere/mesh objects as NEE area lights.
   uint16_t emId = MAT_NONE;
   if (so.matFront != MAT_NONE && s.materials[so.matFront].kind == MT_EMISSIVE)
     emId = so.matFront;
   bool registersLight =
       emId != MAT_NONE && so.nee &&
-      (so.geomKind == GK_RECT || so.geomKind == GK_DISK || so.geomKind == GK_SPHERE);
+      (so.geomKind == GK_RECT || so.geomKind == GK_DISK ||
+       so.geomKind == GK_SPHERE || so.geomKind == GK_MESH);
   // Checked before the light is pushed so a rejected add leaves no orphan
   // light behind (the old all-or-nothing loader could afford to check after).
   if (so.physics.dynamic && registersLight)
     sceneFail("physics: a dynamic object cannot be an NEE area light (the light "
               "frame is baked at parse time); set nee:false or keep it static");
+  // NEE samples the full geometric area, but cutout holes pass BSDF rays
+  // through — the two MIS sides would disagree (positive bias). Applies to
+  // every light shape, not just meshes.
+  if (so.cutoutTexId >= 0 && registersLight)
+    sceneFail("an alpha-cutout object cannot be an NEE area light (NEE would "
+              "sample emission inside the holes); set nee:false");
   if (registersLight) {
     const MaterialDesc& em = s.materials[emId];
     LightDesc ld{};
     ld.texId = -1;
+    ld.flameId = -1;
     ld.p = so.xform.applyPoint(f3(0, 0, 0));
     float3 ux = so.xform.applyVector(f3(1, 0, 0));
     float3 uy = so.xform.applyVector(f3(0, 1, 0));
     float3 uz = so.xform.applyVector(f3(0, 0, 1));
-    // Sign of det(M): cross(uz,ux) picks up the determinant sign while the
-    // device normal (inverse-transpose) does not — flip to stay consistent
-    // under mirroring transforms.
-    float detSign = dot(uy, cross(uz, ux)) < 0.0f ? -1.0f : 1.0f;
+    // Mirroring transforms: flip the light normal to stay consistent with
+    // the device's inverse-transpose convention (shared helper, math.cuh).
+    float detSign = detSign3(ux, uy, uz);
     ld.L = em.color * em.intensity;
     ld.twoSided = em.twoSided;
     if (em.texId >= 0) {
@@ -124,13 +131,20 @@ void addObjectDerived(Scene& s, SceneObject& so) {
       ld.v = uz;
       ld.n = normalize(cross(uz, ux)) * detSign;
       ld.area = SD_PI * ru * rz;
-    } else {
+    } else if (so.geomKind == GK_SPHERE) {
       float rx = length(ux), rz = length(uz);
       float ry = length(so.xform.applyVector(f3(0, 1, 0)));
       if (fabsf(rx - ry) > 1e-3f * rx || fabsf(rx - rz) > 1e-3f * rx)
         sceneFail("sphere NEE light requires uniform scale; set nee:false");
       ld.kind = LT_SPHERE;
       ld.radius = rx;
+    } else {
+      // GK_MESH: placeholder — kind + emission only. The OBJ has not been
+      // loaded yet (files load in sundog_render), so the triangle geometry
+      // (world-space CDF, device pointers, total area) is patched at render
+      // time before the light-buffer upload (src/capi_render.cpp). The
+      // light-list slot and the object's lightId back-link are frozen here.
+      ld.kind = LT_MESH;
     }
     so.lightId = (int)s.lights.size();
     s.lights.push_back(ld);
@@ -147,12 +161,16 @@ void addFlameDerived(Scene& s, const FlameDesc& fd, float lightIntensity) {
   // lights (soft shadows via radius) make it illuminate the scene through
   // the regular NEE machinery. Documented approximation: BSDF paths that
   // happen to cross the volume add a small extra on top of these lights.
+  // The lights carry their owning flame's index (flameId) so the NEE flame
+  // shadow march does not extinguish them inside their own volume:
+  // lightIntensity calibrates the emission that already escaped the flame.
   const float frac[2] = {0.65f, 0.35f};
   const float hfac[2] = {0.35f, 0.70f};
   const float3 warm[2] = {f3(1.0f, 0.50f, 0.15f), f3(1.0f, 0.62f, 0.25f)};
   for (int k = 0; k < 2; k++) {
     LightDesc ld{};
     ld.texId = -1;
+    ld.flameId = (int)s.flames.size();
     ld.kind = LT_POINT;
     ld.p = fd.base + f3(0.0f, hfac[k] * fd.height, 0.0f);
     ld.radius = 0.3f * fd.radius;

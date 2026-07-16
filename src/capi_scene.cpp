@@ -405,6 +405,7 @@ extern "C" int sundog_add_point_light(sundog_scene* h, const double position[3],
   if (!position || !intensity) sceneFail("point light: position and intensity are required");
   LightDesc ld{};
   ld.texId = -1;
+  ld.flameId = -1;
   ld.kind = LT_POINT;
   ld.p = nf3(position, f3(0.0f));
   ld.radius = nf(radius, 0.0f);
@@ -422,6 +423,7 @@ extern "C" int sundog_add_distant_light(sundog_scene* h, const double direction[
   if (!direction || !radiance) sceneFail("distant light: direction and radiance are required");
   LightDesc ld{};
   ld.texId = -1;
+  ld.flameId = -1;
   ld.kind = LT_DISTANT;
   ld.dir = normalize(nf3(direction, f3(0.0f)));
   ld.L = nf3(radiance, f3(0.0f));

@@ -115,6 +115,7 @@ GpuMesh loadObjMesh(const std::string& path, bool smoothNormals,
   gm.numVerts = positions.size();
   gm.numTris = indices.size();
   gm.hostPositions = positions;
+  gm.hostIndices = indices;
   gm.positions.upload(positions);
   gm.indices.upload(indices);
   if (allHaveUv) gm.uvs.upload(uvs);

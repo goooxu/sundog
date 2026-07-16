@@ -76,7 +76,7 @@
 
 小节：
 1. 递归展开：L = L_e + ∫f L → 路径积分观点；吞吐量 β 的迭代维护 β ← β·f·cosθ/p（对账 raygen 主循环 `beta *= bs.weight`（device/programs.cu））
-2. 为什么纯 BSDF 采样打不中小灯——NEE：单独采样光源、按立体角 pdf 加权、shadow ray 验可见性（对账 NEE 段）；delta 灯（点光/平行光）为什么只能 NEE
+2. 为什么纯 BSDF 采样打不中小灯——NEE：单独采样光源、按立体角 pdf 加权、shadow ray 验可见性（对账 NEE 段）；delta 灯（点光/平行光）为什么只能 NEE；子节·三角网格光——发光网格缺席=萤火虫案例回收；两级采样（世界空间面积前缀 CDF 二分 + 重心 √ 变换，double 累加防尾部失真）；p_ω = d²/(cosθ_g·A_total) 换元、cosθ_g 恒用几何法线；两侧同口径的换法线技巧（发光命中终止路径 → closest-hit 对已登记发光网格打包几何法线；按命中面材质门控；法线 AOV 代价如实入账；mNgSign 镜像翻正与 detSign 同源）；纹理 Li/单双面老规矩新对象（同 buffer 同权重逐位一致；球灯纹理限制不适用于网格）（对账 `sampleLight()` LT_MESH / `lightPdfSolidAngle()`（device/light_sample.cuh）、`triShadePoint()`（device/programs.cu）、CDF 构建段（src/capi_render.cpp）、`addObjectDerived()`（src/scene_build.cpp））
 3. 双重计数问题与 MIS——同一贡献两条获取路径；balance heuristic w = p_a/(p_a+p_b) 的直觉与推导（证明加权后无偏）；对账：NEE 侧 `w = pdfLe/(pdfLe+pdfB)`、发光体命中侧 `w = prevPdf/(prevPdf+pdfL)`，两式互补
 4. 俄罗斯轮盘——以概率 q 存活、除以 q 补偿，期望不变的两行证明；sundog depth≥4 启动、q=clamp(maxComp(β))（对账 RR 段）
 5. firefly 与 clamp——为什么间接光会出孤立亮点；clamp 引入可控偏差换方差（对账 `clampVal` 仅 depth≥1）
@@ -241,16 +241,18 @@
 **回答**：光穿过"会发光的空气"时发生了什么？没有解析解的积分怎么算？一团火的形状从哪来？
 
 小节：
-1. 从表面到介质——"表面之间免费旅行"假设的失效；参与介质三种事件（吸收/发射/散射）；sundog 取发射+吸收舍散射（光学薄近似），边界如实（烟雾不在此列、阴影线不穿介质）（对账 device/volume.cuh 头注释）
+1. 从表面到介质——"表面之间免费旅行"假设的失效；参与介质三种事件（吸收/发射/散射）；sundog 取发射+吸收舍散射（光学薄近似），边界如实（烟雾那样散射主导的介质不在此列；阴影线的体积透射见第 6 节）（对账 device/volume.cuh 头注释）
 2. 辐射传输——dL/dt = −σL + ε 逐项推导；Beer–Lambert 透射率；完整解与路径循环的两笔账拼接（对账 raygen 的 marchFlames 调用段（device/programs.cu））
 3. 光线行进——32 步固定求积、抖动起点化带状伪影为噪声（PCG 流→决定性）、包围圆柱解析剪枝"不穿火不付费"（对账 `clipFlameBounds()`）；07 实测引 BENCHMARKS、golden 全 inf 零扰动
 4. 程序化火焰场——hash→值噪声→fbm 三层构造；泪滴轮廓极值/归一化推导；y 压缩噪声扰边成火舌；heat 的 1/2/3 次幂发射梯度（对账 `hashU()/vnoise()/fbm3()/flameField()`）
-5. 照明与工程记账——体积发射无面积 pdf 不可 NEE；内嵌双点光近似（0.35H/0.70H、0.3R 软阴影、65/35 分摊）；能量轻微重复的如实定量讨论；决定性口径不破
+5. 照明与工程记账——体积发射无面积 pdf 不可 NEE；内嵌双点光近似（0.35H/0.70H、0.3R 软阴影、65/35 分摊）；能量轻微重复的如实定量讨论；light_intensity = 逃逸后发射的语义推论（铺垫第 6 节宿主豁免）；决定性口径不破
+6. 阴影线的体积透射——12 号烟柱不投影的物理缺口；NEE 可见性因子 T = T_surf（第 16 章）× T_vol 的乘积推广；ε=0 的透射专用行进复用 clipFlameBounds、与 marchFlames 透射轨道逐位同离散化（test_volume.cpp 克隆流交叉钉死）；抖动的决定性两层账（裁剪早退后才抽 → 无火焰场景流照旧；遮挡早退内行进 → 条件抽取仍是纯函数）；宿主火焰豁免 = 拒绝双重记账（LightDesc.flameId 回链）；--opaque-shadows 同关两套透射保持旧口径对照（对账 `flameTransmittance()`（device/volume.cuh）、raygen NEE 分支（device/programs.cu）、`addFlameDerived()`（src/scene_build.cpp））
 
 图：
 - `figures/ch13-radiative-transfer.svg`：介质微元账目 + 透射率衰减曲线
 - `figures/ch13-flame-field.svg`：泪滴轮廓/fbm 扰边/发射梯度三层解剖
 - `figures/ch13-noise-anatomy.png`：火焰特写三联（noise_scale 0/1.5/3）
+- `figures/ch13-flame-shadow.png`：12 号场景对比双联（--opaque-shadows vs 默认，烟柱投影）
 - 复用 `../gallery/07-campfire.png` 交叉引用（正文未内嵌，画廊链接）
 
 ---
@@ -303,7 +305,7 @@
 2. 直线透射近似——逐界面菲涅尔（eta/f0/余弦约定回链第 5 章；backface TIR 判全遮挡 = Snell 窗口自然涌现，半角 asin(1/1.33)≈48.8°）；符号距离法 Beer–Lambert：Σ(出射 σt) − Σ(入射 σt) 的序无关性证明与"起点在介质内"的自然覆盖（对账 shadowAnyhit()（device/programs.cu））
 3. OptiX 落地——shadow payload 从 1 bit 到 5 寄存器（p0 可见性 + p1 菲涅尔连乘 + p2-4 逐通道符号光学深度）；统一 shadow anyhit 与实例三态分流（opaque/masked/transmissive）；REQUIRE_SINGLE_ANYHIT_CALL 从性能项升级为正确性前提（对账 traceShadow()（device/programs.cu）、buildSbt()（src/pipeline.cpp）、buildIas()（src/accel.cpp））
 4. 嵌套介质栈与相对 IOR——单变量为什么算错水中玻璃；LIFO 栈的进出与溢出退化；η = n_外/n_内 的按栈选取、Schlick 余弦泛化为"低折射率侧"；玻璃球⊃水球⊃气泡的走读（对账 raygen 介质栈段与 bsdfSample() 的 etaExt（device/bsdf.cuh））
-5. 偏差与记账——四项文档化近似（不折弯：焦散仍靠 BSDF；界面对真空；平面法线；嵌套区间双重衰减）；实测：05 号 4096 玻璃牛的 anyhit 代价（约 11% 吞吐）、smoke/02/04 三场景逐字节不变、tier B 降噪 PSNR 逐位不变；体积火焰阴影仍不衰减（与表面透射两回事，回链 13 章）；决定性（零随机数消耗）
+5. 偏差与记账——四项文档化近似（不折弯：焦散仍靠 BSDF；界面对真空；平面法线；嵌套区间双重衰减）；实测：05 号 4096 玻璃牛的 anyhit 代价（约 11% 吞吐）、smoke/02/04 三场景逐字节不变、tier B 降噪 PSNR 逐位不变；两套透射机制在阴影线上会师（anyhit 表面透射 × 火焰体积行进，回链 13 章 §13.6；--opaque-shadows 同关两者）；决定性（表面项零随机数消耗；体积项抽取仅发生在穿柱段）
 
 图：
 - `figures/ch16-shadow-transmit.svg`：阴影线穿介质的符号距离记账解剖（入/出成对、起点在水中的不成对情形）
@@ -347,6 +349,7 @@
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
 | ch12-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 | ch13-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
+| ch13-flame-shadow.png | 烟柱投影对比双联 | 12-molten-oracle 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
 | ch14-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
 | ch15-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
 | ch16-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |

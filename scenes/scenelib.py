@@ -450,9 +450,14 @@ class Scene(object):
             is_light = (front is not None and front in self._materials
                         and self._materials[front]["type"] == "emissive"
                         and o.get("nee", True) is not False
-                        and shape in ("rect", "disk", "sphere"))
+                        and (shape in ("rect", "disk", "sphere")
+                             or shape.startswith("mesh:")))
             if is_light:
                 sx, sy, sz = self._scale_product(o)
+                if "cutout" in o:
+                    self._err(key, "an alpha-cutout object cannot be an NEE "
+                                   "area light (NEE would sample emission "
+                                   "inside the holes) — set nee=False")
                 if shape == "sphere" and "texture" in self._materials[front]:
                     self._err(key, "a textured emissive sphere cannot be an "
                                    "NEE light — set nee=False")

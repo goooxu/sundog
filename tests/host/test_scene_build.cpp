@@ -242,6 +242,9 @@ static void testFeaturesEquivalent() {
   CHECK(s.lights[2].kind == LT_DISTANT);
   CHECK_NEAR(length(s.lights[2].dir), 1.0, 1e-5);  // normalized on load
   CHECK(s.lights[2].dir.y < 0.0f);
+  // no flame in this scene: every light is unowned
+  CHECK(s.lights[0].flameId == -1 && s.lights[1].flameId == -1 &&
+        s.lights[2].flameId == -1);
   CHECK_NEAR(s.camera.aperture, 0.02, 1e-6);
   sundog_scene_destroy(h);
 }
@@ -461,6 +464,13 @@ static void testFlames() {
   CHECK_NEAR(s.lights[1].p.y, 0.2 + 0.70 * 1.5, 1e-5);
   CHECK_NEAR(s.lights[0].radius, 0.12, 1e-6);  // 0.3 * radius
   CHECK(s.lights[0].L.x > s.lights[1].L.x);    // 0.65/0.35 split
+  // Embedded lights back-link to their owning flame (self-shadow exemption).
+  CHECK(s.lights[0].flameId == 0 && s.lights[1].flameId == 0);
+  // A second flame's lights point at flame 1.
+  CHECK(sundog_add_flame(h, D3(-2, 0, 1), 1.0, 0.3, kNaN, kNaN, kNaN, -1,
+                         kNaN) == 1);
+  CHECK(s.lights.size() == 4);
+  CHECK(s.lights[2].flameId == 1 && s.lights[3].flameId == 1);
   sundog_scene_destroy(h);
 
   // defaults
@@ -538,20 +548,31 @@ static void testEnvmap() {
 // makes violating call orders an API error, not a silent reorder.
 static void testLightOrderAndPhases() {
   sundog_scene* h = freshMini();
+  int mesh = sundog_add_mesh(h, "../assets/sparky.obj", -1, "EmitYellow");
+  CHECK(mesh == 0);
   int em = sundog_add_material_emissive(h, D3(1, 1, 1), -1, 4.0, -1);
   sundog_xform_step us[1] = {{SUNDOG_XF_SCALE, 1, 1, 1}};
   CHECK(sundog_add_object(h, SUNDOG_GK_RECT, -1, em, SUNDOG_MAT_DEFAULT, -1,
+                          us, 1, -1, nullptr) >= 0);
+  CHECK(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em, SUNDOG_MAT_DEFAULT, -1,
                           us, 1, -1, nullptr) >= 0);
   CHECK(sundog_add_flame(h, D3(0, 0, 0), 1, 0.5, kNaN, kNaN, kNaN, -1, kNaN)
         == 0);
   CHECK(sundog_add_point_light(h, D3(0, 5, 0), D3(10, 10, 10), kNaN) >= 0);
   const Scene& s = h->scene;
-  CHECK_MSG(s.lights.size() == 4, "light order: %zu lights", s.lights.size());
-  CHECK(s.lights[0].kind == LT_RECT);    // NEE area light first
-  CHECK(s.lights[1].kind == LT_POINT);   // flame light 1
-  CHECK(s.lights[2].kind == LT_POINT);   // flame light 2
-  CHECK(s.lights[3].kind == LT_POINT);   // explicit light last
-  CHECK_NEAR(s.lights[3].p.y, 5.0, 1e-6);
+  CHECK_MSG(s.lights.size() == 5, "light order: %zu lights", s.lights.size());
+  CHECK(s.lights[0].kind == LT_RECT);    // NEE area lights first,
+  CHECK(s.lights[1].kind == LT_MESH);    // in object order
+  CHECK(s.lights[2].kind == LT_POINT);   // flame light 1
+  CHECK(s.lights[3].kind == LT_POINT);   // flame light 2
+  CHECK(s.lights[4].kind == LT_POINT);   // explicit light last
+  CHECK_NEAR(s.lights[4].p.y, 5.0, 1e-6);
+  // flameId back-links: only the embedded flame lights carry an owner. Pins
+  // every construction site against the LightDesc{} zero-init trap (0 is a
+  // valid flame index; a forgotten assignment would silently self-exempt).
+  CHECK(s.lights[0].flameId == -1 && s.lights[1].flameId == -1);
+  CHECK(s.lights[2].flameId == 0 && s.lights[3].flameId == 0);
+  CHECK(s.lights[4].flameId == -1);
 
   // phase guard: config/objects/flames after a later phase are rejected
   expectAddFail(sundog_add_object(h, SUNDOG_GK_SPHERE, -1, 0,
@@ -563,6 +584,82 @@ static void testLightOrderAndPhases() {
                                   -1), "render settings after lights");
   expectAddFail(sundog_add_material_lambert(h, nullptr, -1),
                 "material after lights");
+  sundog_scene_destroy(h);
+}
+
+// Emissive meshes auto-register as NEE lights. Build time only records a
+// placeholder (kind + emission): the OBJ loads in sundog_render, so triangle
+// geometry (world CDF, pointers, area) is patched there — these tests assert
+// registration, not sampling data.
+static void testMeshLights() {
+  sundog_scene* h = freshMini();
+  int mesh = sundog_add_mesh(h, "../assets/sparky.obj", -1, "EmitYellow");
+  int tex = sundog_add_texture_image(h, "textures/spot_texture.png", -1);
+  int em = sundog_add_material_emissive(h, D3(1.0, 0.85, 0.2), -1, 6.0, -1);
+  int temEm = sundog_add_material_emissive(h, nullptr, tex, 3.0, -1);
+  CHECK(mesh == 0 && tex == 0 && em >= 0 && temEm >= 0);
+
+  // non-uniform scale is fine for mesh lights (areas come from world verts)
+  sundog_xform_step pose[2] = {{SUNDOG_XF_SCALE, 2, 1, 3},
+                               {SUNDOG_XF_TRANSLATE, 0, 1, 0}};
+  CHECK(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em, SUNDOG_MAT_DEFAULT, -1,
+                          pose, 2, -1, nullptr) >= 0);
+  const Scene& s = h->scene;
+  CHECK(s.lights.size() == 1);
+  CHECK(s.lights[0].kind == LT_MESH);
+  CHECK(s.objects.back().lightId == 0);
+  CHECK_NEAR(s.lights[0].L.x, 6.0, 1e-5);      // color 1.0 * intensity 6
+  CHECK(s.lights[0].texId == -1);
+  CHECK(s.lights[0].flameId == -1);
+  CHECK(s.lights[0].mNumTris == 0);            // placeholder until render
+  CHECK(s.lights[0].mPositions == nullptr);
+
+  // a textured emissive MESH is a valid NEE light (per-vertex uvs are
+  // stable — do not copy the textured-sphere rejection)
+  CHECK(sundog_add_object(h, SUNDOG_GK_MESH, mesh, temEm, SUNDOG_MAT_DEFAULT,
+                          -1, pose, 2, -1, nullptr) >= 0);
+  CHECK(s.lights.size() == 2);
+  CHECK(s.lights[1].kind == LT_MESH);
+  CHECK(s.lights[1].texId == tex);
+  CHECK_NEAR(s.lights[1].L.x, 3.0, 1e-5);      // Li = tex(uv) * intensity
+
+  // nee=0 opts out: no light, no back-link
+  CHECK(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em, SUNDOG_MAT_DEFAULT, -1,
+                          pose, 2, 0, nullptr) >= 0);
+  CHECK(s.lights.size() == 2);
+  CHECK(s.objects.back().lightId == -1);
+
+  // cutout + NEE light rejected on ANY shape (NEE would sample emission
+  // inside the holes — the MIS sides would disagree); nee=0 keeps it legal
+  expectAddFail(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em,
+                                  SUNDOG_MAT_DEFAULT, tex, pose, 2, -1,
+                                  nullptr),
+                "cutout mesh NEE light rejected");
+  expectAddFail(sundog_add_object(h, SUNDOG_GK_RECT, -1, em,
+                                  SUNDOG_MAT_DEFAULT, tex, pose, 2, -1,
+                                  nullptr),
+                "cutout rect NEE light rejected");
+  CHECK(s.lights.size() == 2);  // no orphan lights from the rejections
+  CHECK(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em, SUNDOG_MAT_DEFAULT,
+                          tex, pose, 2, 0, nullptr) >= 0);
+  CHECK(s.objects.back().lightId == -1);
+  sundog_scene_destroy(h);
+
+  // dynamic emissive mesh + nee is rejected BEFORE the light is pushed
+  h = freshMini();
+  CHECK(sundog_set_physics(h, nullptr, kNaN, kNaN, kNaN, kNaN, -1, -1, kNaN,
+                           kNaN) == SUNDOG_OK);
+  mesh = sundog_add_mesh(h, "../assets/spot.obj", -1, nullptr);
+  em = sundog_add_material_emissive(h, nullptr, -1, 5.0, -1);
+  sundog_physics_body dyn{};
+  dyn.dynamic = 1;
+  dyn.density = kNaN; dyn.friction = kNaN; dyn.restitution = kNaN;
+  dyn.thickness = kNaN;
+  expectAddFail(sundog_add_object(h, SUNDOG_GK_MESH, mesh, em,
+                                  SUNDOG_MAT_DEFAULT, -1, nullptr, 0, -1,
+                                  &dyn),
+                "dynamic mesh NEE light rejected");
+  CHECK(h->scene.lights.empty());              // no orphan light
   sundog_scene_destroy(h);
 }
 
@@ -617,6 +714,7 @@ int main() {
   testWater();
   testEnvmap();
   testLightOrderAndPhases();
+  testMeshLights();
   testDetSignUnderMirror();
   testMaterialCap();
   testMakeCamera();
