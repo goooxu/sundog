@@ -36,7 +36,7 @@
 | ⑥ 遍历/求交/着色 | `optixTrace` / `optixReportIntersection` / `optixIgnoreIntersection` | device/programs.cu | 9.2、9.3、9.5 节；第 6 章 |
 | ⑦ 降噪 | `optixDenoiserInvoke` | src/denoise.cpp | 第 10 章 |
 
-带 `physics` 块的场景（如画廊 06 号）在 ① 与 ② 之间还有一步：PhysX GPU 刚体模拟把场景声明的初始条件推演成最终位姿再烘焙回变换，之后的六步对此毫无感知——见[第 17 章·物理装载](17-physics.md)。
+带 `physics` 块的场景（如画廊 06 号）在 ① 与 ② 之间还有一步：PhysX GPU 刚体模拟把场景声明的初始条件推演成最终位姿再烘焙回变换，之后的六步对此毫无感知——见[第 18 章·物理装载](18-physics.md)。
 
 ## 9.2 程序模型：五种程序与一次 trace 的时序
 

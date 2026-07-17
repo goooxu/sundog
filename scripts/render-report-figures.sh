@@ -271,21 +271,21 @@ python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
   "$RAW/ch09-albedo.png|albedo AOV" \
   "$RAW/ch09-normal.png|normal AOV"
 
-# --------------------------------------------------- ch17-freeze-sequence.png
+# --------------------------------------------------- ch18-freeze-sequence.png
 # 06-spot-cascade frozen at four instants plus the settled state: the same
 # initial conditions, different --physics-time. Small panels, modest spp.
 for t in 0.3 0.7 1.0 1.4; do
-  render "ch17-freeze-$t" "$ROOT/scenes/06-spot-cascade.py" \
+  render "ch18-freeze-$t" "$ROOT/scenes/06-spot-cascade.py" \
          --size 480x270 --spp 24 --physics-time "$t"
 done
-render "ch17-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
+render "ch18-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
        --size 480x270 --spp 24
-python3 "$COMPOSE" strip "$FIG/ch17-freeze-sequence.png" --label-size 20 \
-  "$RAW/ch17-freeze-0.3.png|t = 0.3 s" \
-  "$RAW/ch17-freeze-0.7.png|t = 0.7 s" \
-  "$RAW/ch17-freeze-1.0.png|t = 1.0 s（画廊主图）" \
-  "$RAW/ch17-freeze-1.4.png|t = 1.4 s" \
-  "$RAW/ch17-freeze-settled.png|沉降静止 · 8.75 s"
+python3 "$COMPOSE" strip "$FIG/ch18-freeze-sequence.png" --label-size 20 \
+  "$RAW/ch18-freeze-0.3.png|t = 0.3 s" \
+  "$RAW/ch18-freeze-0.7.png|t = 0.7 s" \
+  "$RAW/ch18-freeze-1.0.png|t = 1.0 s（画廊主图）" \
+  "$RAW/ch18-freeze-1.4.png|t = 1.4 s" \
+  "$RAW/ch18-freeze-settled.png|沉降静止 · 8.75 s"
 
 # --------------------------------------------------- ch12-noise-anatomy.png
 # Flame close-up at noise_scale 0 / 1.5 / 3: smooth teardrop profile -> mild
@@ -431,6 +431,15 @@ render "ch16-frosted-ladder" \
 python3 "$COMPOSE" ladder "$FIG/ch16-frosted-ladder.png" \
   "$RAW/ch16-frosted-ladder.png" "磨砂玻璃 · 256 spp" \
   "roughness 0" "roughness 0.05" "roughness 0.15" \
+  "roughness 0.3" "roughness 0.6"
+
+# ----------------------------------------------------- ch17-toy-ladder.png
+# Scene 14 as-is: five plastic Sparkys, coat roughness 0.03 -> 0.6 — the
+# tube reflection streak smearing from clear-coat line to matte bloom.
+render "ch17-toy-ladder" "$ROOT/scenes/14-toy-factory.py" --spp 384
+python3 "$COMPOSE" ladder "$FIG/ch17-toy-ladder.png" \
+  "$RAW/ch17-toy-ladder.png" "塑料涂层 · 384 spp" \
+  "roughness 0.03" "roughness 0.08" "roughness 0.15" \
   "roughness 0.3" "roughness 0.6"
 
 echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"

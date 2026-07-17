@@ -255,6 +255,78 @@ def chart_fresnel():
     save(fig, "ch05-fresnel-curves.png")
 
 
+# ---------------------------------------------------------------- chart 5 ---
+# ch17-coupling-energy.png: hemispherical albedo of the plastic BSDF under
+# the three viable diffuse-coupling candidates of report ch17 (white base,
+# coat roughness 0.15). The GGX+Schlick coat integral mirrors plasticTerms()
+# (device/bsdf.cuh): stable-form D, height-correlated Smith G, VNDF-free MC
+# over a shared uniform-hemisphere sample set (deterministic seed).
+
+
+def _plastic_coat_albedo(cos_o, eta=1.5, roughness=0.15, n=200_000):
+    """E_spec(theta_o) = int f_coat * cos dwi over the upper hemisphere."""
+    alpha = roughness * roughness
+    rng = np.random.default_rng(20260717)
+    # one shared sample set across angles keeps the curves smooth
+    u1, u2 = rng.random(n), rng.random(n)
+    z = u1                                  # uniform hemisphere in cos
+    r = np.sqrt(np.maximum(0.0, 1.0 - z * z))
+    phi = 2.0 * np.pi * u2
+    li = np.stack([r * np.cos(phi), r * np.sin(phi), z], axis=1)
+
+    def lam(c2):
+        t2 = (1.0 - c2) / np.maximum(c2, 1e-12)
+        return 0.5 * (-1.0 + np.sqrt(1.0 + alpha * alpha * t2))
+
+    out = []
+    for co in np.atleast_1d(cos_o):
+        lo = np.array([np.sqrt(max(0.0, 1.0 - co * co)), 0.0, co])
+        h = lo[None, :] + li
+        h /= np.linalg.norm(h, axis=1, keepdims=True)
+        c2 = h[:, 2] ** 2
+        k = alpha * alpha * c2 + (1.0 - c2)          # ggxD stable grouping
+        d = alpha * alpha / (np.pi * k * k)
+        f = fresnel_schlick(np.einsum("j,ij->i", lo, h), eta)
+        g = 1.0 / (1.0 + lam(co * co) + lam(z * z))
+        fspec = f * d * g / (4.0 * co * z)
+        out.append(2.0 * np.pi * np.mean(fspec * z))  # uniform-hemisphere MC
+    return np.array(out)
+
+
+def chart_plastic():
+    eta, albedo = 1.5, 1.0
+    f0 = ((eta - 1.0) / (eta + 1.0)) ** 2
+    fbar = f0 + (1.0 - f0) / 21.0                     # hemispheric Schlick mean
+    theta = np.linspace(0.0, 89.0, 46)
+    cos_o = np.cos(np.radians(theta))
+    e_spec = _plastic_coat_albedo(cos_o)
+
+    e_a = e_spec + albedo                             # (a) uncoupled
+    e_c = e_spec + albedo * (1.0 - f0)                # (c) constant 1-F0
+    e_d = e_spec + albedo * (1.0 - fresnel_schlick(cos_o, eta)) * (1.0 - fbar)
+
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.grid(True, axis="y")
+    ax.axhline(1.0, color=INK_MUTED, lw=1.4, ls=":", zorder=2)
+    ax.plot(theta, e_a, lw=2.0, ls="--", color=SECONDARY, zorder=3,
+            label="(a) uncoupled: over budget everywhere")
+    ax.plot(theta, e_c, lw=2.0, ls="-.", color="#DC2626", zorder=3,
+            label="(c) constant 1-F0: blows past 1 at grazing")
+    ax.plot(theta, e_d, lw=2.4, color=PRIMARY, zorder=4,
+            label="(d) bidirectional (1-F)(1-F): <= 1 at every angle")
+    ax.annotate("energy budget = 1", xy=(4, 1.0), xytext=(4, 1.06),
+                fontsize=12, color=INK_MUTED)
+
+    ax.set_xlim(0, 89)
+    ax.set_ylim(0, 1.75)
+    ax.set_xticks(np.arange(0, 90, 15))
+    ax.set_xlabel("Angle of incidence (degrees)")
+    ax.set_ylabel("Hemispherical albedo E")
+    ax.set_title("Plastic diffuse coupling: white base, coat roughness 0.15")
+    ax.legend(loc="upper left", bbox_to_anchor=(0.02, 0.98))
+    save(fig, "ch17-coupling-energy.png")
+
+
 # ---------------------------------------------------------------- chart 3 ---
 
 ACES_IN = np.array([[0.59719, 0.35458, 0.04823],
@@ -385,8 +457,8 @@ def main():
     ap.add_argument("--build-dir", type=Path,
                     default=Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")))
     ap.add_argument("--work-dir", type=Path, default=Path("/tmp/report-charts"))
-    ap.add_argument("--only", default="convergence,fresnel,env,aces",
-                    help="comma list: convergence,fresnel,env,aces")
+    ap.add_argument("--only", default="convergence,fresnel,env,aces,plastic",
+                    help="comma list: convergence,fresnel,env,aces,plastic")
     args = ap.parse_args()
     only = set(args.only.split(","))
 
@@ -408,6 +480,8 @@ def main():
         chart_env()
     if "aces" in only:
         chart_aces()
+    if "plastic" in only:
+        chart_plastic()
 
 
 if __name__ == "__main__":

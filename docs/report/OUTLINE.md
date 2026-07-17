@@ -316,7 +316,25 @@
 
 ---
 
-## 17-physics.md 物理装载：PhysX GPU 刚体模拟
+## 17-plastic.md 塑料：涂层直觉与首个双瓣混合 BSDF
+
+**回答**：有色底 + 白高光的日常材质为什么天生两层？两个同半球波瓣怎么共享一套 sample/eval/pdf 而互不欠账？第 16 章的 G/G₁ 权重化简为什么到这里恰好失效？
+
+小节：
+1. 清单上的空档——lambert 无高光、金属高光即本色、玻璃无底色；涂层物理直觉（电介质罩漫反射底，4% 白高光浮在颜色上面）；模型 = 第 16 章反射瓣 + 第 5 章朗伯相加；F₀ 恒从 m.ior（不透明、不入介质栈、正反同式、eta 参数有意忽略的文档化近似）；14 号场景对读（对账 `plasticTerms()`（device/bsdf.cuh））
+2. 菲涅尔耦合四候选——不耦合/高光补/常数补/双向 (1-F(cos_o))(1-F(cos_i)) 的能量与互易对照表；(d) 的守恒机制（掠射处漫反射自动归零）；半球 Schlick 均值 F̄ = F₀+(1-F₀)/21 的积分推导与"白色比朗伯暗约 10%"的如实记账（对账 `plasticTerms()` 的 fDiff 与 `plastic()` docstring（scenes/scenelib.py））
+3. 混合 pdf 记账——常数 0.5 瓣选硬币的三重理由（权重硬上界/bsdfPdf 无 albedo 签名/两侧不可能失配）；抽取序与 16 章刻意相反（硬币先、方向后，恒 3 抽分支无关的强决定性契约）；混合边际 pdf 的全概率直觉与三消费点一致（bs.pdf→发光命中 MIS、bsdfPdf→NEE pdfB、eval 两瓣和）；plasticTerms 单一助手的结构性封死（对账 `bsdfSample()`/`bsdfPdf()`/`bsdfEval()` 的 MT_PLASTIC 分支（device/bsdf.cuh））
+4. 捷径失效与上界 2——16 章两瓣异半球→pdf 逐向退化单项→F 约掉→G/G₁；塑料同半球→pdf 恒两项→无消去→全式权重；mediant 上界证明 w ≤ 2；涂层 1e-3 钳制永不 delta 的决策（delta+漫反射混合需要半 delta 旗标穿透四处记账，不值得；bsdfIsDelta 恒 false、NEE 永远可连）
+5. 数值审计与加法性——主机端 6 组 × 20 万样本 weight/pdf 三方零失配、权重峰值 1.84 < 2、全角度能量 ≤ 1（垂直入射 E≈0.908 对上理论 0.87a+0.04；高粗糙度掠射的 G/G₁ 单次散射损失照旧）；枚举尾部追加 + raygen 白名单零改动 → 既有 7 golden 逐字节不变的机器证明；14 号入列第 8 张 golden 三连跑
+
+图：
+- `figures/ch17-toy-ladder.png`：玩具工厂涂层阶梯（14 号场景，粗糙度 0.03→0.6 的灯管反射条渐糊）
+- `figures/ch17-coupling-energy.png`：三种耦合的半球反照率随入射角曲线（唯 (d) 全程 ≤ 1）
+- 复用 `../gallery/14-toy-factory.png` 交叉引用（正文未内嵌，画廊链接）
+
+---
+
+## 18-physics.md 物理装载：PhysX GPU 刚体模拟
 
 **回答**：512 只堆叠奶牛的位姿从哪来？刚体模拟怎么与渲染共用一块 GPU，又怎么保持逐位可复现？
 
@@ -328,9 +346,9 @@
 5. 两种停机：沉降与定格——stop_time/--physics-time、画廊 06 主图 t=1.0 s、决定性四要素与双渲 sha256 实测；06 不进 golden
 
 图：
-- `figures/ch17-physics-pipeline.svg`：装载管线与 PhysX 模块边界
-- `figures/ch17-trs-bake.svg`：T·R·S 分解/烘焙示意
-- `figures/ch17-freeze-sequence.png`：t=0.3/0.7/1.0/1.4 + 沉降态五联
+- `figures/ch18-physics-pipeline.svg`：装载管线与 PhysX 模块边界
+- `figures/ch18-trs-bake.svg`：T·R·S 分解/烘焙示意
+- `figures/ch18-freeze-sequence.png`：t=0.3/0.7/1.0/1.4 + 沉降态五联
 - 复用 `../gallery/06-spot-cascade.png` 交叉引用（正文未内嵌，画廊链接）
 
 ---
@@ -366,13 +384,14 @@
 | ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
 | ch06-primitives.png | 5 原语同框 | features.py 256spp |
 | ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
-| ch17-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
+| ch18-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
 | ch12-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
 | ch12-flame-shadow.png | 烟柱投影对比双联 | 12-molten-oracle 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
 | ch13-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
 | ch14-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
 | ch15-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
 | ch16-frosted-ladder.png | 磨砂玻璃阶梯（5 球 roughness 0→0.6） | 新建 figures/src/frosted-ladder.py（仿 roughness-ladder，HDR 天空 + 棋盘地面），256spp，compose ladder |
+| ch17-toy-ladder.png | 玩具工厂涂层阶梯 | 14-toy-factory --size 960x540 --spp 384，compose ladder 单图配注 |
 | ch15-snell-window.png | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
@@ -385,6 +404,7 @@
 | ch05-fresnel-curves.png | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
 | ch14-env-luminance.png | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |
 | ch01-aces-curve.png | 截断折线 vs ACES S 曲线（对数横轴，标注 toe/肩/0.18/1.0） | 纯计算：gen-report-charts.py 复算 Hill 拟合 |
+| ch17-coupling-energy.png | 塑料三种耦合的半球反照率 E(θ) 曲线 | 纯计算：gen-report-charts.py 复算 GGX+Schlick 半球积分（albedo=1，roughness 0.15） |
 
 风格：白底、单一强调色系（蓝 #2563EB 主色、灰网格线）、中文标签（若字体缺中文则英文标签）、300 dpi 导出后≤1600px 宽。
 
@@ -396,7 +416,7 @@ ch04-mis-weights, ch05-microfacet, ch05-snell, ch06-ray-quadric,
 ch06-barycentric, ch06-parabola-focus, ch07-instancing,
 ch07-normal-transform, ch08-bvh, ch08-slab, ch08-two-level,
 ch09-app-flow, ch09-optix-pipeline, ch09-sbt, ch10-stratified,
-ch17-physics-pipeline, ch17-trs-bake, ch12-radiative-transfer,
+ch18-physics-pipeline, ch18-trs-bake, ch12-radiative-transfer,
 ch12-flame-field, ch13-water-layers, ch13-glitter,
 ch14-equirect-mapping, ch14-env-cdf,
 ch15-shadow-transmit, ch15-medium-stack, ch16-halfvec-refraction,
