@@ -3,7 +3,7 @@
 # All meshes and textures are committed in-tree (assets/, scenes/textures/;
 # provenance in assets/LICENSES.md) — the only download left is the 20 MB
 # sunny-sky HDRI "Kloofendal 48d Partly Cloudy (Pure Sky)" (Poly Haven,
-# CC0 1.0), needed by scenes 10/11/12. Safe to re-run: exits early if valid.
+# CC0 1.0), needed by scenes 10/11/12/15. Safe to re-run: exits early if valid.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -40,15 +40,40 @@ mkdir -p "$GALLERY"
 
 RENDERED=()  # image stems, in display order
 
+# JOBS>1 runs renders as a background pool, round-robin over the visible
+# GPUs (multi-GPU boxes; JOBS=1 keeps the classic serial behavior). Output
+# files are per-stem so parallel renders never collide; failures surface in
+# the post-wait verification pass, since a fail() inside a background job
+# cannot abort the parent.
+JOBS="${JOBS:-1}"
+NGPU="$(nvidia-smi -L 2>/dev/null | wc -l)"; [ "$NGPU" -ge 1 ] || NGPU=1
+SLOT=0
+
 render() { # render STEM SCENE SPP EXTRA_ARGS...
   local stem="$1" scene="$2" spp="$3"; shift 3
   echo "== $stem ($SIZE, $spp spp) =="
-  python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
-            --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@"
-  [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
+  if [ "$JOBS" -gt 1 ]; then
+    CUDA_VISIBLE_DEVICES="$((SLOT % NGPU))" \
+      python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
+              --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@" &
+    SLOT=$((SLOT + 1))
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n || true; done
+  else
+    python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
+              --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@"
+    [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
+  fi
   RENDERED+=("$stem")
 }
 
+# Sections: scenes (the per-scene catalog), hero (the 2K flagship), compare
+# (the feature ON/OFF pairs). SECTIONS=hero,compare renders incrementally —
+# the GALLERY.md generator reads whatever renders exist in out/gallery, so
+# catalog entries rendered on a previous run (and their stats) are kept.
+SECTIONS="${SECTIONS:-scenes,hero,compare}"
+has() { case ",$SECTIONS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+
+if has scenes; then
 for entry in "${ENTRIES[@]}"; do
   name="${entry%%:*}"; spp="${entry##*:}"
   scene="$ROOT/scenes/$name.py"
@@ -71,14 +96,217 @@ for entry in "${ENTRIES[@]}"; do
     render "09-ember-shore-spp16-raw"      "$scene" 16 --no-denoise
   fi
 done
+fi
 
-[ "${#RENDERED[@]}" -gt 0 ] || fail "no scenes rendered (scenes/ empty?)"
+# ---- flagship demo (class 1): every feature in one 2K frame ---------------
+if has hero && [ -f "$ROOT/scenes/15-assembly-hall.py" ]; then
+  SIZE=2560x1440 render "15-assembly-hall" "$ROOT/scenes/15-assembly-hall.py" \
+    768 --no-denoise
+fi
+
+wait || true
+for stem in "${RENDERED[@]}"; do
+  [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
+done
+
+# ---- feature ON/OFF comparison pairs (class 2): 1080p, same scene, same
+# camera, one switch apart. Plain pairs flip a CLI switch; variant pairs
+# load the scene via runpy and mutate s.doc (original scenes untouched —
+# the render-report-figures.sh recipe). Serial: each frame is sub-second.
+CMP="$GALLERY/compare"
+CMP_STEMS=()
+
+cr() { # cr STEM SCENE EXTRA_ARGS...
+  local stem="$1" scene="$2"; shift 2
+  echo "== compare/$stem (1920x1080) =="
+  python3 "$scene" --out "$CMP/$stem.png" --size 1920x1080 --quiet "$@"
+  [ -s "$CMP/$stem.png" ] || fail "empty compare output for $stem"
+  CMP_STEMS+=("$stem")
+}
+
+if has compare; then
+mkdir -p "$CMP"
+
+# 1. transparent shadows: glass caustic alley, boolean occlusion vs Fresnel
+#    + Beer-Lambert transmission (no flames in 11, so the switch is pure)
+cr transparent-shadows-on  "$ROOT/scenes/11-glasswork.py" --spp 512 --no-denoise
+cr transparent-shadows-off "$ROOT/scenes/11-glasswork.py" --spp 512 --no-denoise \
+   --opaque-shadows
+
+# 2. flame volumetric shadow: the cover smoke column under the dome light
+#    (--opaque-shadows also disables transparent shadows; the visible delta
+#    in this framing is the smoke column's shadow)
+cr flame-shadow-on  "$ROOT/scenes/12-molten-oracle.py" --spp 512 --no-denoise
+cr flame-shadow-off "$ROOT/scenes/12-molten-oracle.py" --spp 512 --no-denoise \
+   --opaque-shadows
+
+# 3. env-map importance sampling: equal-spp sun-lit scene, uniform-sphere
+#    NEE vs 2D-CDF importance sampling
+cr env-importance-on "$ROOT/scenes/10-suncatcher.py" --spp 64 --no-denoise
+echo "== compare/env-importance-off (variant) =="
+python3 - "$ROOT" "$CMP/env-importance-off.png" <<'PY'
+import os, runpy, sys
+root, out = sys.argv[1:]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "10-suncatcher.py"))
+s = g["s"]
+s.doc["background"]["importance"] = False
+s.run(out=out, argv=["--size", "1920x1080", "--spp", "64",
+                     "--no-denoise", "--quiet"], base_dir=scenes)
+PY
+[ -s "$CMP/env-importance-off.png" ] || fail "empty env-importance-off"
+CMP_STEMS+=("env-importance-off")
+
+# 4. AI denoiser: 16 spp raw Monte Carlo vs the same 16 spp denoised
+cr ai-denoise-on  "$ROOT/scenes/09-ember-shore.py" --spp 16 --denoise
+cr ai-denoise-off "$ROOT/scenes/09-ember-shore.py" --spp 16 --no-denoise
+
+# 5. mesh NEE lights: scene 03 at night — explicit lights removed and the
+#    sky dimmed so Sparky's screens are the only light source. BOTH sides
+#    are this darkened variant; they differ only in nee on the screens.
+#    (In the stock daytime scene the sun drowns the screens' contribution.)
+for side in on off; do
+  echo "== compare/mesh-light-$side (night variant) =="
+  python3 - "$ROOT" "$CMP/mesh-light-$side.png" "$side" <<'PY'
+import os, runpy, sys
+root, out, side = sys.argv[1:]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "03-spot-atrium.py"))
+s = g["s"]
+# s.doc rebuilds its dict per access — whole-key swaps do not stick. Mutate
+# the Scene's own fields: clear the shared lights list in place, replace
+# the background attribute, and edit object dicts (shared references).
+s._lights[:] = []                        # no sun, no fill: screens only
+s._background = {"type": "gradient",
+                 "horizon": [0.010, 0.012, 0.02],
+                 "zenith": [0.002, 0.003, 0.006]}
+# boost the screens so the lighting difference reads at a glance
+# (material dicts are shared references — element edits stick)
+s.doc["materials"]["sparkyScreen"]["intensity"] = 24.0
+s.doc["materials"]["sparkyGlow"]["intensity"] = 36.0
+# equal-spp NEE comparisons are about VARIANCE, not brightness (the
+# estimator is unbiased either way) — so lift the exposure to make the
+# night readable and disable the firefly clamp on both sides, letting the
+# BSDF-only variance show itself honestly
+s.doc["render"]["exposure"] = 2.2
+s.doc["render"]["clamp"] = 0
+if side == "off":
+    n = 0
+    for o in s.doc["objects"]:
+        if o.get("material") in ("sparkyScreen", "sparkyGlow"):
+            o["nee"] = False
+            n += 1
+    assert n, "no emissive mesh groups found"
+s.run(out=out, argv=["--size", "1920x1080", "--spp", "256",
+                     "--no-denoise", "--quiet"], base_dir=scenes)
+PY
+  [ -s "$CMP/mesh-light-$side.png" ] || fail "empty mesh-light-$side"
+  CMP_STEMS+=("mesh-light-$side")
+done
+
+# 6. ACES tone mapping vs linear clamp: the campfire core
+cr aces-tonemap-on  "$ROOT/scenes/07-campfire.py" --spp 512 --no-denoise
+cr aces-tonemap-off "$ROOT/scenes/07-campfire.py" --spp 512 --no-denoise \
+   --tonemap clamp
+
+# 7. NEE: equal-spp Cornell, light sampling on vs BSDF-only paths
+cr nee-on "$ROOT/scenes/02-cornell-lume.py" --spp 64 --no-denoise
+echo "== compare/nee-off (variant) =="
+python3 - "$ROOT" "$CMP/nee-off.png" <<'PY'
+import os, runpy, sys
+root, out = sys.argv[1:]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "02-cornell-lume.py"))
+s = g["s"]
+doc = s.doc
+emissive = {k for k, m in doc["materials"].items() if m.get("type") == "emissive"}
+n = 0
+for o in doc["objects"]:
+    if o.get("material") in emissive:
+        o["nee"] = False
+        n += 1
+assert n, "no emissive objects found"
+s.run(out=out, argv=["--size", "1920x1080", "--spp", "64",
+                     "--no-denoise", "--quiet"], base_dir=scenes)
+PY
+[ -s "$CMP/nee-off.png" ] || fail "empty nee-off"
+CMP_STEMS+=("nee-off")
+
+# 8. rough dielectric: the frosted-veil screens at their ladder roughness
+#    vs every pane forced smooth (delta glass)
+cr frosted-glass-on "$ROOT/scenes/13-frosted-veil.py" --spp 512 --no-denoise
+echo "== compare/frosted-glass-off (variant) =="
+python3 - "$ROOT" "$CMP/frosted-glass-off.png" <<'PY'
+import os, runpy, sys
+root, out = sys.argv[1:]
+scenes = os.path.join(root, "scenes")
+sys.path.insert(0, scenes)
+g = runpy.run_path(os.path.join(scenes, "13-frosted-veil.py"))
+s = g["s"]
+n = 0
+for name, m in s.doc["materials"].items():
+    if name.startswith("frost") and m.get("type") == "dielectric":
+        m["roughness"] = 0.0
+        n += 1
+assert n == 5, "expected the five ladder panes"
+s.run(out=out, argv=["--size", "1920x1080", "--spp", "512",
+                     "--no-denoise", "--quiet"], base_dir=scenes)
+PY
+[ -s "$CMP/frosted-glass-off.png" ] || fail "empty frosted-glass-off"
+CMP_STEMS+=("frosted-glass-off")
+fi
 
 echo "== generating docs/GALLERY.md =="
-python3 - "$GALLERY" "$ROOT/docs/GALLERY.md" "${RENDERED[@]}" <<'PY'
+python3 - "$GALLERY" "$ROOT/docs/GALLERY.md" <<'PY'
 import json, sys, datetime, os
 
-gallery, out_md, *stems = sys.argv[1:]
+gallery, out_md = sys.argv[1:]
+
+# Display catalog (fixed order). The generator reads whatever renders exist
+# in out/gallery — entries whose PNG is missing are skipped with a warning,
+# so incremental SECTIONS runs keep previously rendered catalog entries.
+HERO = "15-assembly-hall"
+CATALOG = ["01-marble-run", "02-cornell-lume", "03-spot-atrium",
+           "04-parabolica", "05-spot-swarm", "06-spot-cascade",
+           "06-spot-cascade-settled", "07-campfire", "08-lakeside",
+           "09-ember-shore", "09-ember-shore-spp16-denoised",
+           "09-ember-shore-spp16-raw", "10-suncatcher", "11-glasswork",
+           "12-molten-oracle", "13-frosted-veil", "14-toy-factory"]
+
+# (key, title, blurb, footnote) — key maps to compare/KEY-{on,off}.png
+COMPARE = [
+    ("transparent-shadows", "透明阴影",
+     "开：阴影线沿直线穿过玻璃，逐界面菲涅尔 × Beer–Lambert 衰减——有色"
+     "玻璃投下透明彩影；关：布尔遮挡，玻璃投实心黑影。", "11 号场景 · 512 spp"),
+    ("flame-shadow", "火焰体积阴影",
+     "开：阴影线按火焰透射率衰减，黑烟柱在神光下投出体积阴影；关：阴影线"
+     "无视参与介质，烟柱下的地面光斑同亮（--opaque-shadows 同时关闭两类"
+     "透射阴影，此构图的可见差异来自烟柱）。", "12 号场景 · 512 spp"),
+    ("env-importance", "环境光重要性采样",
+     "同 64 spp：开——按亮度 × sinθ 的 2D CDF 直接命中小而炽烈的太阳，"
+     "硬影干净；关——均匀球面采样几乎永远打不中太阳，直射日光沦为噪声。",
+     "10 号场景 · 64 spp"),
+    ("ai-denoise", "OptiX AI 降噪",
+     "同 16 spp：体积火焰 + 波纹水面的重噪声被一次网络推理抹平"
+     "（HDR + albedo/normal 引导层）。", "09 号场景 · 16 spp"),
+    ("mesh-light", "网格 NEE 灯",
+     "同 256 spp 的深夜变体（撤去太阳与补光，Sparky 的发光屏是唯一光源）："
+     "开——发光网格按三角形面积 CDF 被 NEE 主动采样，屏光照明干净；"
+     "关——同样的发光网格只能被 BSDF 路径偶然撞中，照明塌暗、噪声爆炸。",
+     "03 号场景深夜变体 · 256 spp"),
+    ("aces-tonemap", "ACES 色调映射",
+     "开：高光沿肩部渐进滚降，火心保住层次与色相；关：线性截断，火心"
+     "撞墙成死白色块。", "07 号场景 · 512 spp"),
+    ("nee", "下一事件估计（NEE）",
+     "同 64 spp：开——每次弹跳主动向光源连线；关——只靠 BSDF 路径撞灯，"
+     "小光源下噪声爆炸。", "02 号场景 · 64 spp"),
+    ("frosted-glass", "粗糙电介质（磨砂玻璃）",
+     "开：五扇屏按粗糙度阶梯 0 → 0.6，屏后火苗逐扇糊成光晕；关：五扇"
+     "全部强制光滑，火苗扇扇清晰。", "13 号场景 · 512 spp"),
+]
 
 DESC = {
     "01-marble-run":
@@ -162,28 +390,87 @@ DESC = {
         "那只（出厂默认 0.15）被质检唤醒，纹理发光屏做网格 NEE 灯；其余四"
         "只睡眠，熄灭的深色高光泽屏幕同样是塑料。金属关节、玻璃头罩与胶质"
         "履带混搭成料；针孔相机成图（光圈盘采样的结构性伪影就此规避）。",
+
+    "15-assembly-hall":
+        "玩具工厂总装大厅：一帧收纳渲染器的全部能力。正午阳光从天窗涌进"
+        "大厅（HDR 环境光重要性采样），在混凝土地面铺出亮斑；熔炉的纯吸收"
+        "烟柱升入光束，在光斑里投下体积阴影（阴影线的火焰透射率）。熔炉角"
+        "燃着两簇发射型体积火焰，其中一簇只透过磨砂玻璃隔间显形为一团暖晕"
+        "（GGX 微表面透射）；传送带上糖果色塑料 Sparky 列队驶过（涂层双瓣"
+        "混合 BSDF），被质检唤醒的那只亮起纹理网格屏（NEE 网格灯），黄色"
+        "胶囊吉祥物在带边督工（塑料 + 发光天线顶灯），线尾一只 UV 纹理"
+        "Spot 等待装箱；右前方 PhysX GPU 把一箱玩具奶牛定格在倾泻半空"
+        "（--physics-time），左前的水冷池用 fbm 波纹与 Beer–Lambert 吸收"
+        "倒映整座大厅。金属桁架横贯屋顶，齿轮标志以 alpha 镂空圆盘悬挂——"
+        "spot、sparky、capsule_mascot 三份网格资产同框。",
 }
 
 lines = [
     "# sundog 画廊",
     "",
     f"由 `scripts/render-gallery.sh` 生成于 {datetime.date.today().isoformat()}。",
-    "正式图入库于 `docs/gallery/`（无损重压缩的 1080p PNG）；渲染原件在 "
-    "`out/gallery/`（不入库）。",
+    "正式图入库于 `docs/gallery/`（无损重压缩 PNG，旗舰 2K、其余 1080p）；"
+    "渲染原件在 `out/gallery/`（不入库）。",
     "",
 ]
 
-rows = []
-for stem in stems:
-    st = json.load(open(os.path.join(gallery, f"{stem}.stats.json")))
+def exists(rel):
+    return os.path.exists(os.path.join(gallery, rel))
+
+# ---- class 1: the flagship demo ----
+if exists(HERO + ".png"):
     lines += [
-        f"## {stem}",
+        "## 旗舰演示",
         "",
-        f"![{stem}](gallery/{stem}.png)",
+        f"![{HERO}](gallery/{HERO}.png)",
         "",
-        DESC.get(stem, ""),
+        DESC.get(HERO, ""),
         "",
     ]
+
+# ---- class 2: feature ON/OFF pairs ----
+have_cmp = [c for c in COMPARE if exists(f"compare/{c[0]}-on.png")
+            and exists(f"compare/{c[0]}-off.png")]
+if have_cmp:
+    lines += [
+        "## 特性对比",
+        "",
+        "同一场景、同一机位，一个开关之差——左列开、右列关。",
+        "",
+    ]
+    for key, title, blurb, note in have_cmp:
+        lines += [
+            f"### {title}",
+            "",
+            "| 开 | 关 |",
+            "|:---:|:---:|",
+            f"| ![{key}-on](gallery/compare/{key}-on.png) "
+            f"| ![{key}-off](gallery/compare/{key}-off.png) |",
+            "",
+            f"{blurb}（{note}）",
+            "",
+        ]
+
+# ---- full scene catalog + stats ----
+lines += ["## 全部场景", ""]
+rows = []
+for stem in [*CATALOG, HERO]:
+    if not exists(stem + ".png"):
+        print(f"WARNING: {stem}.png missing from out/gallery — skipped")
+        continue
+    if stem != HERO:  # the hero already opens the page
+        lines += [
+            f"### {stem}",
+            "",
+            f"![{stem}](gallery/{stem}.png)",
+            "",
+            DESC.get(stem, ""),
+            "",
+        ]
+    sp = os.path.join(gallery, f"{stem}.stats.json")
+    if not os.path.exists(sp):
+        continue
+    st = json.load(open(sp))
     t = st["timings_ms"]
     rows.append((
         stem, f'{st["width"]}x{st["height"]}', st["spp"],
@@ -201,7 +488,13 @@ lines += [
 ]
 for r in rows:
     lines.append("| " + " | ".join(str(c) for c in r) + " |")
-lines.append("")
+lines += [
+    "",
+    "> 口径注：15-assembly-hall 与 compare/ 对比图当前由 GB200"
+    "（DEVARCH=compute_100）渲染，统计数字不与上表其余行（RTX 5090 + "
+    "驱动 615.36 口径）比较；待分配到 5090 测试机后统一重渲复核。",
+    "",
+]
 
 with open(out_md, "w") as f:
     f.write("\n".join(lines))
@@ -213,19 +506,27 @@ PY
 # files from renamed scenes). Losslessly recompress via PIL when available
 # (stb PNGs are ~40% larger); fall back to a plain copy.
 mkdir -p "$ROOT/docs/gallery"
-if python3 -c 'import PIL' 2>/dev/null; then
-  python3 - "$GALLERY" "$ROOT/docs/gallery" "${RENDERED[@]}" << 'PY'
+SYNC=("${RENDERED[@]}")
+for stem in "${CMP_STEMS[@]:-}"; do
+  [ -n "$stem" ] && SYNC+=("compare/$stem")
+done
+if [ "${#SYNC[@]}" -gt 0 ] && python3 -c 'import PIL' 2>/dev/null; then
+  python3 - "$GALLERY" "$ROOT/docs/gallery" "${SYNC[@]}" << 'PY'
 import os, sys
 from PIL import Image
 src, dst, *stems = sys.argv[1:]
 for stem in stems:
     p = os.path.join(src, stem + ".png")
     out = os.path.join(dst, stem + ".png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     Image.open(p).convert("RGB").save(out, "PNG", optimize=True)
     print(f"optimized {stem}.png: {os.path.getsize(p)//1024} KB -> {os.path.getsize(out)//1024} KB")
 PY
 else
-  for stem in "${RENDERED[@]}"; do cp -v "$GALLERY/$stem.png" "$ROOT/docs/gallery/"; done
+  for stem in "${SYNC[@]}"; do
+    mkdir -p "$(dirname "$ROOT/docs/gallery/$stem")"
+    cp -v "$GALLERY/$stem.png" "$ROOT/docs/gallery/$stem.png"
+  done
 fi
 
-echo "render-gallery OK (${#RENDERED[@]} images in $GALLERY, synced to docs/gallery)"
+echo "render-gallery OK (${#SYNC[@]} images synced to docs/gallery)"
