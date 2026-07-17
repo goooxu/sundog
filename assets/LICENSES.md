@@ -9,7 +9,8 @@
 - **Texture:** `scenes/textures/spot_texture.png`（同一压缩包内的纹理图集，入库）。
 - **Terms:** **CC0 1.0 Universal** — dedicated to the public domain; no
   attribution required ("acknowledgement is appreciated").
-- **获取方式:** `scripts/fetch-assets.sh`（OBJ 不入库，按需重新下载；纹理入库）。
+- **获取方式:** 入库（`assets/spot.obj` + `scenes/textures/spot_texture.png`；
+  CC0 允许再分发，`fetch-assets.sh` 已不再下载网格）。
 - **Use in this project:** rendering demo/benchmark scenes for the sundog
   path tracer.
 
@@ -23,6 +24,16 @@
   （`assets/sparky.obj`、`assets/sparky.mtl`）。
 - **Use in this project:** `scenes/03-spot-atrium.py` 的多材质网格演示
   （usemtl 组过滤：玻璃头罩/发光屏幕/金属关节/塑料壳）。
+
+## capsule_mascot.obj / capsule_mascot.mtl — 胶囊吉祥物
+
+- **Origin:** AI 生成模型（项目作者提供，由生成式 3D 工具产出，与
+  sparky 同源做法；5,816 三角形、15 个 usemtl 材质组；无 vt/vn——UV
+  回退重心坐标、法线由加载器按需生成，MTL 的 Kd 仅作各组配色意图
+  参考，渲染器不读取）。
+- **Terms:** 项目自有资产，随仓库分发。
+- **获取方式:** 无外部下载源——OBJ/MTL 全部入库。
+- **Use in this project:** 暂未接入画廊场景（备用资产）。
 
 ## gear.png / runes.png — 封面场景程序化纹理
 

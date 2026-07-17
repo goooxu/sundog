@@ -1,11 +1,13 @@
 # render outputs
 out/
 
-# large assets (provenance in assets/LICENSES.md; re-download as needed)
+# large assets (provenance in assets/LICENSES.md); meshes are committed
+# in-tree, only the 20 MB sky HDRI stays download-on-demand
 assets/*.obj
 assets/*.hdr
-# sparky has no download source — committed in-tree
 !assets/sparky.obj
+!assets/spot.obj
+!assets/capsule_mascot.obj
 
 # build trees (dev box; on the test box builds go to /tmp/sundog-build)
 build*/

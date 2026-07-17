@@ -164,7 +164,7 @@ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
 场景用 Python 定义（`scenes/scenelib.py` 的 API），见
 [docs/SCENES.md](docs/SCENES.md)。示例场景在 `scenes/`（`smoke.py` 最小、
 `features.py` 全特性、`01…14` 画廊，其中 `06-spot-cascade`/`12-molten-oracle` 需要 PhysX GPU；
-`03/05/06/10/11/12/13` 的网格与 HDR 资产由 `scripts/fetch-assets.sh` 下载）。
+网格资产全部入库，仅 `10/11/12` 的 HDR 天空由 `scripts/fetch-assets.sh` 下载）。
 
 ## 测试
 
@@ -193,7 +193,7 @@ src/          host 端 C++（C 场景构建 ABI、渲染编排、accel、pipelin
 device/       CUDA/OptiX 设备代码（单 module）+ host 共享的类型/装配头
 extern/       第三方单头文件库（见 THIRD_PARTY.md）
 scenes/       Python 场景（自执行）+ scenelib.py + 纹理
-assets/       网格资产（spot.obj 按需下载、sparky.obj 入库；来源见 assets/LICENSES.md）
+assets/       网格资产（spot/sparky/capsule_mascot 全部入库；HDR 天空按需下载；来源见 assets/LICENSES.md）
 tests/        场景解析/scenelib 单测、img_compare 工具、golden 参考图
 scripts/      测试机引导 / 测试 / 基准 / 画廊脚本（本 README 上文）
 docs/         SCENES.md、GALLERY.md、BENCHMARKS.md；gallery/ 入库成图

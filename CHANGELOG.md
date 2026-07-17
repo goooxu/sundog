@@ -8,7 +8,15 @@
 
 ## [Unreleased]
 
-（暂无）
+### 变更
+
+- **网格资产全部入库**：`assets/spot.obj`（Keenan Crane 的 Spot，CC0 1.0
+  允许再分发，此前按需下载）与 `scenes/textures/spot_texture.png` 入库；
+  `scripts/fetch-assets.sh` 精简为只下载 20 MB 天空 HDRI（10/11/12 号
+  场景用）——克隆仓库即可渲染除此三景外的全部场景
+- 新增备用网格资产 `assets/capsule_mascot.obj/.mtl`（胶囊机器人吉祥物，
+  5,816 三角形、15 个 usemtl 组；AI 生成模型，项目作者提供，与 sparky
+  同源做法；暂未接入画廊场景）
 
 ## [0.15.0] - 2026-07-17 — 塑料：首个双瓣混合 BSDF
 
