@@ -104,10 +104,13 @@ for entry in "${ENTRIES[@]}"; do
 done
 fi
 
-# ---- flagship demo (class 1): every feature in one 2K frame ---------------
-if has hero && [ -f "$ROOT/scenes/15-assembly-hall.py" ]; then
-  SIZE=2560x1440 render "15-assembly-hall" "$ROOT/scenes/15-assembly-hall.py" \
-    768 --no-denoise
+# ---- flagship demos (class 1): the 2K cover scenes ------------------------
+HEROES=(15-assembly-hall 16-atelier 17-dusk-tide)
+if has hero; then
+  for h in "${HEROES[@]}"; do
+    [ -f "$ROOT/scenes/$h.py" ] || continue
+    SIZE=2560x1440 render "$h" "$ROOT/scenes/$h.py" 768 --no-denoise
+  done
 fi
 
 wait || true
@@ -274,7 +277,7 @@ gallery, out_md = sys.argv[1:]
 # Display catalog (fixed order). The generator reads whatever renders exist
 # in out/gallery — entries whose PNG is missing are skipped with a warning,
 # so incremental SECTIONS runs keep previously rendered catalog entries.
-HERO = "15-assembly-hall"
+HEROES = ["15-assembly-hall", "16-atelier", "17-dusk-tide"]
 CATALOG = ["01-marble-run", "02-cornell-lume", "03-spot-atrium",
            "04-parabolica", "05-spot-swarm", "06-spot-cascade",
            "06-spot-cascade-settled", "07-campfire", "08-lakeside",
@@ -410,6 +413,26 @@ DESC = {
         "（--physics-time），左前的水冷池用 fbm 波纹与 Beer–Lambert 吸收"
         "倒映整座大厅。金属桁架横贯屋顶，齿轮标志以 alpha 镂空圆盘悬挂——"
         "spot、sparky、capsule_mascot 三份网格资产同框。",
+
+    "16-atelier":
+        "工作室一角：冷灰墙下，后墙壁炉的程序化火焰把烟黑炉膛与石台染成"
+        "暖橙。炉前的彩色塑料积木、金银铜球、磨砂玻璃球和 Spot 全部从"
+        "空中落下，落定姿态完全由 PhysX 短仿真算出再交给 OptiX 绘制——"
+        "多材质的 Sparky 每个 usemtl 组都是独立刚体，落地时故意散了架"
+        "（部件贴合让翻倒保持温和）；胶囊吉祥物则站在石盆边旁观（它的"
+        "部件凸包深度穿插，动态落体会被求解器炸飞——如实近似）。右前浅"
+        "石盆盛着 Beer–Lambert 清水，拉丝金属罐与小银球靠墙；顶部区域"
+        "光与斜向小聚光在地面画出软阴影，低强度 HDR 天空从开放侧给金属"
+        "与玻璃擦上高光。",
+
+    "17-dusk-tide":
+        "暮潮观测站：日落后的海岸平台。Spot 蹲守中央检修台，Sparky 亮着"
+        "屏幕操作多材质光学仪器（铬镜筒、玻璃物镜、涂层外壳、粗金属座），"
+        "胶囊吉祥物在侧台校准格纹金属样片（渲染器无法线贴图，以反照率"
+        "格纹金属如实近似）。低角度暖阳与冷色天顶补光（gradient 暮色 + "
+        "distant 双灯近似日落 HDR）刻画陶瓷、粗糙金属、铬、低粗糙度涂层"
+        "与纹理表面；地平线上的余晖亮带在前景波浪水面拉出光道，与火焰"
+        "信标的暖反射、天空的冷调在同一片 fbm 波纹里交错。",
 }
 
 lines = [
@@ -430,16 +453,17 @@ def exists(rel):
             or os.path.exists(os.path.join(docs_gallery, rel)))
 
 
-# ---- class 1: the flagship demo ----
-if exists(HERO + ".png"):
-    lines += [
-        "## 旗舰演示",
-        "",
-        f"![{HERO}](gallery/{HERO}.png)",
-        "",
-        DESC.get(HERO, ""),
-        "",
-    ]
+# ---- class 1: the flagship demos ----
+have_heroes = [h for h in HEROES if exists(h + ".png")]
+if have_heroes:
+    lines += ["## 旗舰演示", ""]
+    for h in have_heroes:
+        lines += [
+            f"![{h}](gallery/{h}.png)",
+            "",
+            DESC.get(h, ""),
+            "",
+        ]
 
 # ---- class 2: feature ON/OFF pairs ----
 have_cmp = [c for c in COMPARE if exists(f"compare/{c[0]}-on.png")
@@ -467,11 +491,11 @@ if have_cmp:
 # ---- full scene catalog + stats ----
 lines += ["## 全部场景", ""]
 rows = []
-for stem in [*CATALOG, HERO]:
+for stem in [*CATALOG, *HEROES]:
     if not exists(stem + ".png"):
         print(f"WARNING: {stem}.png missing from out/gallery — skipped")
         continue
-    if stem != HERO:  # the hero already opens the page
+    if stem not in HEROES:  # the flagships already open the page
         lines += [
             f"### {stem}",
             "",
@@ -510,7 +534,7 @@ def gpu_of(stem):
     except Exception:
         return None
 
-all_gpus = sorted({g for g in (gpu_of(s) for s in [*CATALOG, HERO]) if g})
+all_gpus = sorted({g for g in (gpu_of(s) for s in [*CATALOG, *HEROES]) if g})
 if len(all_gpus) > 1:
     lines += [
         "",
