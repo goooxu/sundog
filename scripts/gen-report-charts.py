@@ -374,7 +374,7 @@ def chart_env():
     ax.set_title("Energy concentrates in a few rows - the 2D CDF's first level")
     ax.grid(True, which="both", axis="y")
     ax.set_xlim(0, h)
-    save(fig, "ch15-env-luminance.png")
+    save(fig, "ch14-env-luminance.png")
 
 
 def main():

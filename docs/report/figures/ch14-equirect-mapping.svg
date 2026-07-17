@@ -70,5 +70,5 @@
 
   <!-- ===== bottom: area element ===== -->
   <text x="470" y="430" text-anchor="middle" font-size="16" fill="#334155">面积元：dω = sinθ · dθ · dφ = 2π² · sinθ · du · dv —— 靠近两极 sinθ→0，</text>
-  <text x="470" y="454" text-anchor="middle" font-size="16" fill="#334155">同样一格 (du,dv) 覆盖的立体角越小：这正是采样目标里 ×sinθ 权重的来源（§15.3）</text>
+  <text x="470" y="454" text-anchor="middle" font-size="16" fill="#334155">同样一格 (du,dv) 覆盖的立体角越小：这正是采样目标里 ×sinθ 权重的来源（§14.3）</text>
 </svg>

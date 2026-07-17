@@ -52,7 +52,7 @@
   <!-- layer callouts -->
   <g font-size="15" fill="#334155">
     <text x="40" y="416">① 界面 = 材质：与玻璃同一套 Fresnel/Snell/TIR（第 5 章）</text>
-    <text x="470" y="416">② 波纹 = 法线扰动（第 6/13 章）</text>
-    <text x="740" y="416">③ 水体 = 介质（第 13 章）</text>
+    <text x="470" y="416">② 波纹 = 法线扰动（第 6/12 章）</text>
+    <text x="740" y="416">③ 水体 = 介质（第 12 章）</text>
   </g>
 </svg>

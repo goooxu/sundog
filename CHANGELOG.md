@@ -22,7 +22,7 @@
 - 画廊场景 `13-frosted-veil`「霜幕屏风」：五扇粗糙度阶梯玻璃屏后各燃
   一簇体积火焰，屏后辉光逐扇变糊、屏前光斑逐扇同锐，奶牛剪影立于
   最清一扇之后
-- [报告第 17 章](docs/report/17-rough-dielectric.md)：粗糙电介质——
+- [报告第 17 章](docs/report/16-rough-dielectric.md)：粗糙电介质——
   微表面透射与磨砂玻璃（透射半程向量与雅可比逐因子推导、两瓣权重
   G/G1 化简、delta 退化决定性论证、ggxD 浮点陷阱现场复盘）
 
@@ -239,7 +239,7 @@ JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字
 - **嵌套介质**：介质栈 + 相对折射率——水中玻璃按 η=1.5/1.33 折射、玻璃中
   气泡按 1.33/1.0；`dielectric` 支持 `absorb` 体吸收
 - 画廊场景 `11-glasswork`「琉璃静物」（玻璃⊃水⊃气泡，牛立气泡中）
-- [报告第 16 章](docs/report/16-transparent-media.md)：透明阴影与嵌套介质
+- [报告第 16 章](docs/report/15-transparent-media.md)：透明阴影与嵌套介质
 
 ### 变更
 
@@ -272,7 +272,7 @@ JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字
   两级 CDF 做**环境光重要性采样**，与 NEE/MIS 全接驳——一张带太阳的天空图
   即可点亮整个场景；`importance:false` 切均匀球面采样对照
 - 画廊场景 `10-suncatcher`「晴空捕日」（纯 IBL、全场零显式灯），并纳入 golden
-- [报告第 15 章](docs/report/15-envlight.md)：环境光照
+- [报告第 15 章](docs/report/14-envlight.md)：环境光照
 
 ### 变更
 
@@ -292,7 +292,7 @@ JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字
 - `water` 材质三件套：ior 1.33 电介质界面 + fbm 波纹法线 + Beer–Lambert
   水体吸收（介质内路径按长度衰减，深水偏蓝绿）
 - 画廊场景 `08-lakeside`「黄昏湖畔」
-- [报告第 14 章](docs/report/14-water.md)：水面——界面、波纹与水色
+- [报告第 14 章](docs/report/13-water.md)：水面——界面、波纹与水色
 
 ### 变更
 
@@ -309,7 +309,7 @@ JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字
 - 体积火焰光源：程序化发射 + 吸收参与介质（值噪声 fbm 泪滴场，解析界定 +
   光线行进积分），火焰内嵌软阴影点光经 NEE 照亮场景；`flames` 场景键
 - 画廊场景 `07-campfire`「篝火夜景」（火焰为全场唯一主光源）
-- [报告第 13 章](docs/report/13-volumes.md)：体积渲染——程序化火焰
+- [报告第 13 章](docs/report/12-volumes.md)：体积渲染——程序化火焰
 
 （主要提交 6687b12 · b89d529）
 
@@ -323,7 +323,7 @@ JSON 时代基准逐位相同（2de55ced…）；报告图版 18 张重渲逐字
   任一瞬间
 - 画廊场景 `06-spot-cascade`「奶牛倾泻堆」（512 刚体 GPU 沉降，主图为倾泻
   第 1.0 秒定格）
-- [报告第 12 章](docs/report/12-physics.md)：物理装载——PhysX GPU 刚体模拟
+- [报告第 12 章](docs/report/17-physics.md)：物理装载——PhysX GPU 刚体模拟
 
 （主要提交 0fe7187 · 1126711 · 08db9ff）
 

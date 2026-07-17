@@ -35,7 +35,7 @@ f_r = \frac{\text{albedo}}{\pi},
 D(h)=\frac{\alpha^2}{\pi\big((n\cdot h)^2(\alpha^2-1)+1\big)^2},
 ```
 
-其中**粗糙度（roughness）**参数 $`\alpha=\text{roughness}^2`$（这层平方映射让滑杆手感更线性，对账 `MaterialDesc.roughness` 的注释与各调用点的 `alpha = roughness * roughness`；[第 17 章](17-rough-dielectric.md)的磨砂玻璃透射沿用同一映射）。这正是 `ggxD()`（device/bsdf.cuh）：数值稳定形式 `k = α²c² + (1−c²)`，返回 `α²/(π k²)`——紧凑写法 `c²(α²−1)+1` 数学等价，但在极小 α 下会被 float 舍入吞掉 α² 项，来龙去脉见第 17 章 §17.5。GGX 的特点是"尾巴长"——离 $`n`$ 很远的方向仍有少量密度，高光边缘因此有真实的柔和过渡。
+其中**粗糙度（roughness）**参数 $`\alpha=\text{roughness}^2`$（这层平方映射让滑杆手感更线性，对账 `MaterialDesc.roughness` 的注释与各调用点的 `alpha = roughness * roughness`；[第 16 章](16-rough-dielectric.md)的磨砂玻璃透射沿用同一映射）。这正是 `ggxD()`（device/bsdf.cuh）：数值稳定形式 `k = α²c² + (1−c²)`，返回 `α²/(π k²)`——紧凑写法 `c²(α²−1)+1` 数学等价，但在极小 α 下会被 float 舍入吞掉 α² 项，来龙去脉见第 16 章 §16.5。GGX 的特点是"尾巴长"——离 $`n`$ 很远的方向仍有少量密度，高光边缘因此有真实的柔和过渡。
 
 **几何遮蔽项（masking-shadowing）** $`G`$ 描述微镜面之间的互相遮挡：掠射角下大部分微镜面要么背对视线（遮蔽）要么照不到光（阴影）。Smith 模型先定义辅助函数
 
@@ -130,7 +130,7 @@ $`k<0`$ 何时发生？$`k=1-\eta^2\sin^2\theta_i`$，仅当 $`\eta>1`$（从密
 
 由此 `bsdfSample()` 的 `MT_DIELECTRIC` 分支要做三个"按面选取"：
 
-1. **相对折射率按面选取**：`eta = frontface ? etaExt/ior : ior/etaExt`——外侧折射率 `etaExt` 来自路径当前所处介质（[第 16 章](16-transparent-media.md)的介质栈；真空中为 1，此时化简为熟悉的 `1/ior` 与 `ior`）。进入玻璃时 $`\eta<1`$（永不 TIR），从密介质离开时 $`\eta>1`$（可能 TIR）——注意水中的玻璃 $`\eta=1.33/1.5`$，临界角与空气中不同。`frontface` 由几何求交阶段根据几何法线与光线方向的点积判定（见 5.6 节与[第 6 章·几何求交](06-geometry.md)）。
+1. **相对折射率按面选取**：`eta = frontface ? etaExt/ior : ior/etaExt`——外侧折射率 `etaExt` 来自路径当前所处介质（[第 15 章](15-transparent-media.md)的介质栈；真空中为 1，此时化简为熟悉的 `1/ior` 与 `ior`）。进入玻璃时 $`\eta<1`$（永不 TIR），从密介质离开时 $`\eta>1`$（可能 TIR）——注意水中的玻璃 $`\eta=1.33/1.5`$，临界角与空气中不同。`frontface` 由几何求交阶段根据几何法线与光线方向的点积判定（见 5.6 节与[第 6 章·几何求交](06-geometry.md)）。
 2. **$`F_0`$ 与面无关**：$`F_0=\big(\frac{1-\eta}{1+\eta}\big)^2`$ 对 $`\eta`$ 与 $`1/\eta`$ 给出同一个值（玻璃两侧都是 0.04），代码按当前 `eta` 计算，结果对称。
 3. **Schlick 的余弦必须取低折射率一侧**：代码写作
 
@@ -142,7 +142,7 @@ float reflectProb = schlick(cosine, f0);
 
 按 $`\eta`$ 选取：$`\eta<1`$ 时用入射角的余弦，$`\eta>1`$ 时用**折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$——两者取的都是低折射率一侧的角度；`etaExt = 1` 时这恰好化简为熟悉的进入/离开二分。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这是折射实现里的经典陷阱，完整分析见[附录](appendix-pitfalls.md)。
 
-采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，delta 分支因此省略它——但注意这个省略只对"纯 BSDF 路径"合法，[第 17 章](17-rough-dielectric.md)的粗糙玻璃因为要被 NEE 单界面求值，必须把 $`\eta^2`$ 请回来。）本章的玻璃是光滑极限——粗糙度让反射与折射各自糊成微表面波瓣的"磨砂玻璃"，见[第 17 章·粗糙电介质](17-rough-dielectric.md)。
+采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，delta 分支因此省略它——但注意这个省略只对"纯 BSDF 路径"合法，[第 16 章](16-rough-dielectric.md)的粗糙玻璃因为要被 NEE 单界面求值，必须把 $`\eta^2`$ 请回来。）本章的玻璃是光滑极限——粗糙度让反射与折射各自糊成微表面波瓣的"磨砂玻璃"，见[第 16 章·粗糙电介质](16-rough-dielectric.md)。
 
 出射侧余弦选取的数值差别很悬殊：光线在玻璃内以 40° 入射（临界角 41.8° 以内）时，正确的反射率 $`\mathrm{schlick}(\cos\theta_t)\approx 0.246`$——若错用入射侧余弦，只剩约 0.041，差近 6 倍；超过临界角则必须全反射。任何此处的偏差都会立即改变 golden 图像（[第 11 章·验证方法学与性能](11-validation.md)）。视觉上二者的差别同样醒目：正确的 Fresnel 让玻璃体在掠射与临界角附近内反射显著增强，整体更暗、更"玻璃"；反之则偏亮偏透、丢失内壁亮环。
 
@@ -150,8 +150,8 @@ float reflectProb = schlick(cosine, f0);
 
 sundog 的场景语义里有一条很有表现力的约定：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $`n`$ 都以此为前提（$`n\cdot\omega_o>0`$ 恒成立）。
 
-`MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。阴影光线走独立的 `shadowAnyhit()`（device/programs.cu），其 `MAT_NONE` 穿透与 alpha 裁剪规则与 `maskAnyhit()` 完全一致（另加[第 16 章·透明阴影与嵌套介质](16-transparent-media.md)的透明阴影衰减），所以光与影的穿透行为保持一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
+`MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。阴影光线走独立的 `shadowAnyhit()`（device/programs.cu），其 `MAT_NONE` 穿透与 alpha 裁剪规则与 `maskAnyhit()` 完全一致（另加[第 15 章·透明阴影与嵌套介质](15-transparent-media.md)的透明阴影衰减），所以光与影的穿透行为保持一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
 
 ## 小结
 
-本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $`D`$、$`G`$、$`F`$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $`F\cdot G/G_1`$；玻璃在光滑极限下是按菲涅尔概率二选一的双 delta 瓣（粗糙情形见[第 17 章](17-rough-dielectric.md)），TIR 与"Schlick 取疏介质侧余弦"是其正确性的两个关键。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。
+本章把三种材质放进了同一个接口：朗伯瓣采样权重恰好是反照率；GGX 微表面用 $`D`$、$`G`$、$`F`$ 三因子描述粗糙镜面，VNDF 采样让权重化简为 $`F\cdot G/G_1`$；玻璃在光滑极限下是按菲涅尔概率二选一的双 delta 瓣（粗糙情形见[第 16 章](16-rough-dielectric.md)），TIR 与"Schlick 取疏介质侧余弦"是其正确性的两个关键。所有公式已与 `device/bsdf.cuh`、`device/math.cuh` 逐一对账。下一章回到几何：光线到底怎么"打中"球、圆柱、抛物面和三角形，法线与 UV 从哪里来——[第 6 章·几何求交](06-geometry.md)。

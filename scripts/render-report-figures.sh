@@ -271,27 +271,27 @@ python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
   "$RAW/ch09-albedo.png|albedo AOV" \
   "$RAW/ch09-normal.png|normal AOV"
 
-# --------------------------------------------------- ch12-freeze-sequence.png
+# --------------------------------------------------- ch17-freeze-sequence.png
 # 06-spot-cascade frozen at four instants plus the settled state: the same
 # initial conditions, different --physics-time. Small panels, modest spp.
 for t in 0.3 0.7 1.0 1.4; do
-  render "ch12-freeze-$t" "$ROOT/scenes/06-spot-cascade.py" \
+  render "ch17-freeze-$t" "$ROOT/scenes/06-spot-cascade.py" \
          --size 480x270 --spp 24 --physics-time "$t"
 done
-render "ch12-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
+render "ch17-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
        --size 480x270 --spp 24
-python3 "$COMPOSE" strip "$FIG/ch12-freeze-sequence.png" --label-size 20 \
-  "$RAW/ch12-freeze-0.3.png|t = 0.3 s" \
-  "$RAW/ch12-freeze-0.7.png|t = 0.7 s" \
-  "$RAW/ch12-freeze-1.0.png|t = 1.0 s（画廊主图）" \
-  "$RAW/ch12-freeze-1.4.png|t = 1.4 s" \
-  "$RAW/ch12-freeze-settled.png|沉降静止 · 8.75 s"
+python3 "$COMPOSE" strip "$FIG/ch17-freeze-sequence.png" --label-size 20 \
+  "$RAW/ch17-freeze-0.3.png|t = 0.3 s" \
+  "$RAW/ch17-freeze-0.7.png|t = 0.7 s" \
+  "$RAW/ch17-freeze-1.0.png|t = 1.0 s（画廊主图）" \
+  "$RAW/ch17-freeze-1.4.png|t = 1.4 s" \
+  "$RAW/ch17-freeze-settled.png|沉降静止 · 8.75 s"
 
-# --------------------------------------------------- ch13-noise-anatomy.png
+# --------------------------------------------------- ch12-noise-anatomy.png
 # Flame close-up at noise_scale 0 / 1.5 / 3: smooth teardrop profile -> mild
 # warp -> full licks. Temp scene generated inline (same recipe as ch04-nee).
 for ns in 0.0 1.5 3.0; do
-  skip_reuse "ch13-flame-ns$ns" || python3 - "$ROOT" "$RAW/ch13-flame-ns$ns.png" "$ns" <<'PY'
+  skip_reuse "ch12-flame-ns$ns" || python3 - "$ROOT" "$RAW/ch12-flame-ns$ns.png" "$ns" <<'PY'
 import os, sys
 root, out, ns = sys.argv[1], sys.argv[2], float(sys.argv[3])
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -307,28 +307,28 @@ s.flame(base=[0, 0.05, 0], height=1.6, radius=0.45, intensity=20, sigma=4,
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
 done
-python3 "$COMPOSE" strip "$FIG/ch13-noise-anatomy.png" --label-size 22 \
-  "$RAW/ch13-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
-  "$RAW/ch13-flame-ns1.5.png|noise_scale 1.5" \
-  "$RAW/ch13-flame-ns3.0.png|noise_scale 3（默认）"
+python3 "$COMPOSE" strip "$FIG/ch12-noise-anatomy.png" --label-size 22 \
+  "$RAW/ch12-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
+  "$RAW/ch12-flame-ns1.5.png|noise_scale 1.5" \
+  "$RAW/ch12-flame-ns3.0.png|noise_scale 3（默认）"
 
-# ---------------------------------------------- ch13-flame-shadow.png
+# ---------------------------------------------- ch12-flame-shadow.png
 # 12-molten-oracle with shadow rays blind to flames vs marching them: the
 # zero-emission smoke column casts no shadow vs a visible volumetric one
 # under the altar fires and the skylight beam.
-render "ch13-fshadow-opq" "$ROOT/scenes/12-molten-oracle.py" \
+render "ch12-fshadow-opq" "$ROOT/scenes/12-molten-oracle.py" \
        --size 960x540 --spp 96 --opaque-shadows
-render "ch13-fshadow-vol" "$ROOT/scenes/12-molten-oracle.py" \
+render "ch12-fshadow-vol" "$ROOT/scenes/12-molten-oracle.py" \
        --size 960x540 --spp 96
-python3 "$COMPOSE" strip "$FIG/ch13-flame-shadow.png" --label-size 26 \
-  "$RAW/ch13-fshadow-opq.png|旧口径（--opaque-shadows，烟柱不挡光）" \
-  "$RAW/ch13-fshadow-vol.png|体积阴影（默认，烟柱投影）"
+python3 "$COMPOSE" strip "$FIG/ch12-flame-shadow.png" --label-size 26 \
+  "$RAW/ch12-fshadow-opq.png|旧口径（--opaque-shadows，烟柱不挡光）" \
+  "$RAW/ch12-fshadow-vol.png|体积阴影（默认，烟柱投影）"
 
-# -------------------------------------------------------- ch14-anatomy.png
+# -------------------------------------------------------- ch13-anatomy.png
 # Water close-up (checker lake bed, sun sphere) in three variants: flat
 # mirror (wave_amp 0), default waves, no absorption. Temp scenes inline.
 for v in flat waves noabsorb; do
-  skip_reuse "ch14-water-$v" || python3 - "$ROOT" "$RAW/ch14-water-$v.png" "$v" <<'PY'
+  skip_reuse "ch13-water-$v" || python3 - "$ROOT" "$RAW/ch13-water-$v.png" "$v" <<'PY'
 import os, sys
 root, out, variant = sys.argv[1], sys.argv[2], sys.argv[3]
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -354,17 +354,17 @@ s.distant_light(direction=[0.3, -1.0, 0.5], radiance=[0.25, 0.18, 0.12])
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
 done
-python3 "$COMPOSE" strip "$FIG/ch14-anatomy.png" --label-size 20 \
-  "$RAW/ch14-water-flat.png|wave_amp 0（静水镜面）" \
-  "$RAW/ch14-water-waves.png|默认（波纹 + 波光）" \
-  "$RAW/ch14-water-noabsorb.png|absorb 0（无水色）"
+python3 "$COMPOSE" strip "$FIG/ch13-anatomy.png" --label-size 20 \
+  "$RAW/ch13-water-flat.png|wave_amp 0（静水镜面）" \
+  "$RAW/ch13-water-waves.png|默认（波纹 + 波光）" \
+  "$RAW/ch13-water-noabsorb.png|absorb 0（无水色）"
 
-# --------------------------------------- ch15-uniform-vs-importance.png
+# --------------------------------------- ch14-uniform-vs-importance.png
 # 10-suncatcher with importance:false (uniform sphere NEE) vs default, at
 # 16 and 256 spp. The variant lives in /tmp, so relative asset paths are
 # rewritten to absolute ones first.
 for spp in 16 256; do
-  skip_reuse "ch15-uni-$spp" || python3 - "$ROOT" "$RAW/ch15-uni-$spp.png" "$spp" <<'PY'
+  skip_reuse "ch14-uni-$spp" || python3 - "$ROOT" "$RAW/ch14-uni-$spp.png" "$spp" <<'PY'
 import os, runpy, sys
 root, out, spp = sys.argv[1], sys.argv[2], sys.argv[3]
 scenes = os.path.join(root, "scenes")
@@ -375,30 +375,30 @@ s.doc["background"]["importance"] = False   # uniform-sphere NEE variant
 s.run(out=out, argv=["--size", "480x270", "--spp", spp,
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-  render "ch15-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
+  render "ch14-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
 done
-python3 "$COMPOSE" strip "$FIG/ch15-uniform-vs-importance.png" --label-size 18 \
-  "$RAW/ch15-uni-16.png|均匀采样 · 16 spp" \
-  "$RAW/ch15-imp-16.png|重要性采样 · 16 spp" \
-  "$RAW/ch15-uni-256.png|均匀采样 · 256 spp" \
-  "$RAW/ch15-imp-256.png|重要性采样 · 256 spp"
+python3 "$COMPOSE" strip "$FIG/ch14-uniform-vs-importance.png" --label-size 18 \
+  "$RAW/ch14-uni-16.png|均匀采样 · 16 spp" \
+  "$RAW/ch14-imp-16.png|重要性采样 · 16 spp" \
+  "$RAW/ch14-uni-256.png|均匀采样 · 256 spp" \
+  "$RAW/ch14-imp-256.png|重要性采样 · 256 spp"
 
-# ---------------------------------------------- ch16-shadow-compare.png
+# ---------------------------------------------- ch15-shadow-compare.png
 # 11-glasswork with legacy binary occlusion vs transparent shadows: the
 # tinted marbles cast solid dark blobs vs rose/gold/teal light pools.
-render "ch16-shadow-opq" "$ROOT/scenes/11-glasswork.py" \
+render "ch15-shadow-opq" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96 --opaque-shadows
-render "ch16-shadow-xpr" "$ROOT/scenes/11-glasswork.py" \
+render "ch15-shadow-xpr" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96
-python3 "$COMPOSE" strip "$FIG/ch16-shadow-compare.png" --label-size 26 \
-  "$RAW/ch16-shadow-opq.png|布尔遮挡（--opaque-shadows）" \
-  "$RAW/ch16-shadow-xpr.png|透明阴影（默认）"
+python3 "$COMPOSE" strip "$FIG/ch15-shadow-compare.png" --label-size 26 \
+  "$RAW/ch15-shadow-opq.png|布尔遮挡（--opaque-shadows）" \
+  "$RAW/ch15-shadow-xpr.png|透明阴影（默认）"
 
-# ------------------------------------------------ ch16-snell-window.png
+# ------------------------------------------------ ch15-snell-window.png
 # Underwater camera looking straight up: the sky compresses into Snell's
 # window (half-angle asin(1/1.33) ~ 48.6 deg); outside it, total internal
 # reflection mirrors the lake floor. Temp scene in /tmp (absolute asset path).
-skip_reuse "ch16-snell" || python3 - "$ROOT" "$RAW/ch16-snell.png" <<'PY'
+skip_reuse "ch15-snell" || python3 - "$ROOT" "$RAW/ch15-snell.png" <<'PY'
 import os, sys
 root, out = sys.argv[1], sys.argv[2]
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -420,16 +420,16 @@ s.add("sphere", "coral", scale(0.6), translate(1.5, -3.4, 1.2))
 s.run(out=out, argv=["--size", "960x540", "--spp", "128",
                      "--no-denoise", "--quiet"], base_dir=".")
 PY
-python3 "$COMPOSE" strip "$FIG/ch16-snell-window.png" --label-size 22 \
-  "$RAW/ch16-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
+python3 "$COMPOSE" strip "$FIG/ch15-snell-window.png" --label-size 22 \
+  "$RAW/ch15-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
-# -------------------------------------------------- ch17-frosted-ladder.png
+# -------------------------------------------------- ch16-frosted-ladder.png
 # Dedicated scene: five glass spheres, dielectric roughness 0/0.05/0.15/
 # 0.3/0.6, HDR sky over a checker floor — refraction blurring to frost.
-render "ch17-frosted-ladder" \
+render "ch16-frosted-ladder" \
        "$ROOT/docs/report/figures/src/frosted-ladder.py" --spp 256
-python3 "$COMPOSE" ladder "$FIG/ch17-frosted-ladder.png" \
-  "$RAW/ch17-frosted-ladder.png" "磨砂玻璃 · 256 spp" \
+python3 "$COMPOSE" ladder "$FIG/ch16-frosted-ladder.png" \
+  "$RAW/ch16-frosted-ladder.png" "磨砂玻璃 · 256 spp" \
   "roughness 0" "roughness 0.05" "roughness 0.15" \
   "roughness 0.3" "roughness 0.6"
 
