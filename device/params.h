@@ -11,7 +11,7 @@ namespace sd {
 
 enum GeomKind : int { GK_SPHERE = 0, GK_RECT, GK_DISK, GK_CYLINDER, GK_PARABOLA, GK_MESH, GK_COUNT };
 enum TexKind : int { TX_SOLID = 0, TX_IMAGE, TX_CHECKER, TX_GRID };
-enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE, MT_WATER };
+enum MatKind : int { MT_LAMBERT = 0, MT_METAL, MT_DIELECTRIC, MT_EMISSIVE, MT_WATER, MT_PLASTIC };
 enum LightKind : int { LT_RECT = 0, LT_DISK, LT_SPHERE, LT_POINT, LT_DISTANT, LT_MESH };
 enum BgKind : int { BG_SOLID = 0, BG_GRADIENT, BG_ENVMAP };
 
@@ -29,7 +29,8 @@ struct MaterialDesc {
   int kind;        // MatKind
   int texId;       // -1 -> use .color
   float3 color;
-  float roughness; // metal & dielectric (GGX alpha = roughness^2); <1e-3 -> delta
+  float roughness; // metal & dielectric (GGX alpha = roughness^2); <1e-3 -> delta.
+                   // plastic coat too, but floored at 1e-3 on device: never delta
   float ior;       // dielectric / water
   float intensity; // emissive scale
   int twoSided;    // emissive visible from both faces

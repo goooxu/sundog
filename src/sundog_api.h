@@ -105,6 +105,8 @@ SUNDOG_API int sundog_add_material_water(sundog_scene*, double ior /* NaN=1.33 *
                                          double wave_amp /* NaN=0.05 */,
                                          double wave_freq /* NaN=2.0 */,
                                          const double color[3] /* NULL=white */);
+SUNDOG_API int sundog_add_material_plastic(sundog_scene*, const double color[3],
+                                           int tex_id, double roughness /* NaN=0.15 */);
 
 SUNDOG_API int sundog_add_mesh(sundog_scene*, const char* obj_file,
                                int smooth_normals /* -1 -> 1 */,

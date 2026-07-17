@@ -1,7 +1,8 @@
 // sundog: BSDF sampling/evaluation. Lambert (cosine), metal (GGX + VNDF,
 // Schlick F0 = base color), dielectric (smooth delta below the roughness
 // gate; GGX microfacet reflection + transmission above it — Walter et al.
-// 2007, VNDF-sampled half vectors).
+// 2007, VNDF-sampled half vectors), plastic (Fresnel-coupled Lambert base
+// under a GGX dielectric coat — the first two-lobe mixture; see plasticTerms).
 //
 // Conventions: wo points AWAY from the surface (toward the previous vertex),
 // n is the shading normal on the same side as wo (already flipped by the
@@ -103,6 +104,44 @@ SD_HD float ggxPdfTransmit(float3 lo, float3 li, float3 h, float eta, float alph
          fabsf(lih) / (denom * denom);
 }
 
+// ---------- plastic (GGX dielectric coat over a Fresnel-coupled Lambert base) ----------
+// Coat Fresnel is Schlick at f0 = ((ior-1)/(ior+1))^2, always evaluated
+// air->plastic from m.ior: the surface is opaque, never joins the medium
+// stack, and shades both faces identically (n is pre-flipped to the wo side),
+// so the eta interface parameter is deliberately ignored. The diffuse base is
+// scaled by (1-F(cos_o))(1-F(cos_i)) — reciprocal, and E(wo) <= 1 at every
+// angle because the base dims exactly where the coat saturates (the price:
+// whites sit ~10% below lambert; the hemispheric Schlick average is
+// f0 + (1-f0)/21 ~= 0.086 at ior 1.5). Roughness is floored at 1e-3: the
+// coat is never a delta lobe (bsdfIsDelta stays false, NEE always connects).
+// Both lobes overlap in one hemisphere, so — unlike the rough dielectric —
+// the lobe-choice probability never cancels: sample/eval/pdf all go through
+// this one helper and the constant 0.5-mixture pdf, keeping f*cos/pdf ==
+// weight exact by construction.
+struct PlasticTerms {
+  float fSpec;   // coat BRDF value (scalar: untinted coat)
+  float3 fDiff;  // coupled diffuse BRDF value
+  float pSpec;   // VNDF reflection pdf
+  float pDiff;   // cosine-hemisphere pdf
+};
+
+SD_HD PlasticTerms plasticTerms(const MaterialDesc& m, float3 albedo,
+                                float3 lo, float3 li) {  // lo.z, li.z > 0
+  PlasticTerms t;
+  float rough = fmaxf(m.roughness, 1e-3f);
+  float alpha = rough * rough;
+  float f0 = (m.ior - 1.0f) / (m.ior + 1.0f);
+  f0 = f0 * f0;
+  float3 h = normalize(lo + li);
+  float F = schlick(dot(lo, h), f0);
+  t.fSpec = F * ggxD(h, alpha) * ggxG(lo, li, alpha) / (4.0f * lo.z * li.z);
+  t.fDiff = albedo * (SD_INV_PI * (1.0f - schlick(lo.z, f0)) *
+                      (1.0f - schlick(li.z, f0)));
+  t.pSpec = ggxPdf(lo, li, alpha);
+  t.pDiff = li.z * SD_INV_PI;
+  return t;
+}
+
 // ---------- eval / pdf (non-delta lobes only; local computation in world space) ----------
 // eta: relative IOR at this interface (outside/inside as seen from wo, i.e.
 // frontface ? etaExt/ior : ior/etaExt) — consumed only by the rough
@@ -143,6 +182,14 @@ SD_HD float3 bsdfEval(const MaterialDesc& m, float3 albedo, float3 wo, float3 wi
   }
 
   if (m.kind == MT_LAMBERT) return albedo * SD_INV_PI;
+  if (m.kind == MT_PLASTIC) {
+    // Both lobes, always: NEE consumes this eval with the mixture pdfB, whose
+    // balance weight assumes f_total — returning one lobe would lose the coat
+    // highlight from area lights (or nearly everything, the other way round).
+    Onb onb(n);
+    PlasticTerms t = plasticTerms(m, albedo, onb.toLocal(wo), onb.toLocal(wi));
+    return f3(t.fSpec) + t.fDiff;
+  }
   if (m.kind == MT_METAL && m.roughness >= 1e-3f) {
     float alpha = m.roughness * m.roughness;
     Onb onb(n);
@@ -190,6 +237,14 @@ SD_HD float bsdfPdf(const MaterialDesc& m, float3 wo, float3 wi, float3 n,
   }
 
   if (m.kind == MT_LAMBERT) return ci * SD_INV_PI;
+  if (m.kind == MT_PLASTIC) {
+    // Mixture marginal with the constant lobe probability INSIDE it — must
+    // match bs.pdf from sampling exactly (NEE pdfB and the emissive-hit MIS).
+    Onb onb(n);
+    PlasticTerms t = plasticTerms(m, f3(0.0f) /* pdfs ignore albedo */,
+                                  onb.toLocal(wo), onb.toLocal(wi));
+    return 0.5f * (t.pSpec + t.pDiff);
+  }
   if (m.kind == MT_METAL && m.roughness >= 1e-3f) {
     Onb onb(n);
     return ggxPdf(onb.toLocal(wo), onb.toLocal(wi), m.roughness * m.roughness);
@@ -329,6 +384,37 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
       if (li.z < 0.0f) wgt *= eta * eta;
       s.weight = f3(wgt);
       s.valid = s.pdf > 0.0f;
+      return s;
+    }
+
+    case MT_PLASTIC: {
+      // Constant 0.5 lobe choice FIRST (nothing facet-dependent to defer,
+      // unlike the rough dielectric), then the chosen lobe's 2D draw: exactly
+      // 3 draws on every plastic hit, branch-independent.
+      Onb onb(n);
+      float3 lo = onb.toLocal(wo);
+      if (lo.z <= 0.0f) return s;
+      bool coat = rng.rnd() < 0.5f;
+      float3 li;
+      if (coat) {
+        float rough = fmaxf(m.roughness, 1e-3f);
+        float3 h = ggxSampleVndf(lo, rough * rough, rng.rnd2());
+        li = reflect(-lo, h);
+      } else {
+        li = cosineHemisphere(rng.rnd2());
+      }
+      if (li.z <= 0.0f) return s;  // below the horizon: dead sample (metal convention)
+      PlasticTerms t = plasticTerms(m, albedo, lo, li);
+      s.pdf = 0.5f * (t.pSpec + t.pDiff);
+      if (s.pdf <= 0.0f) return s;
+      s.wi = onb.toWorld(li);
+      // weight = (fSpec + fDiff) * cos / mixture pdf, all full expressions:
+      // the lobes overlap, so nothing cancels — the metal-style G/G1 shortcut
+      // is the single-lobe cancellation and would be wrong under a mixture.
+      // Bounded by 2 * max(F * G/G1, coupled albedo) <= 2 (mediant bound:
+      // each lobe's f * cos is <= its own pdf term).
+      s.weight = (f3(t.fSpec) + t.fDiff) * (li.z / s.pdf);
+      s.valid = true;
       return s;
     }
 

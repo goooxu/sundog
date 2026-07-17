@@ -526,6 +526,23 @@ static void testWater() {
   sundog_scene_destroy(h);
 }
 
+static void testPlastic() {
+  sundog_scene* h = sundog_scene_create(nullptr);
+  int toy = sundog_add_material_plastic(h, D3(0.85, 0.2, 0.15), -1, kNaN);
+  int matte = sundog_add_material_plastic(h, nullptr, -1, 0.6);
+  CHECK(toy == 0 && matte == 1);
+  const MaterialDesc& t = h->scene.materials[0];
+  CHECK(t.kind == MT_PLASTIC);
+  CHECK_NEAR(t.color.x, 0.85, 1e-6);
+  CHECK_NEAR(t.roughness, 0.15, 1e-6);  // NaN/omitted -> the household default
+  CHECK_NEAR(t.ior, 1.5, 1e-6);         // coat Fresnel, fixed by baseMaterial
+  // Explicit roughness stored verbatim — the 1e-3 floor is a device-side
+  // clamp, not a host rewrite (what you set is what tests read back).
+  CHECK_NEAR(h->scene.materials[1].roughness, 0.6, 1e-6);
+  CHECK(h->scene.lights.empty());  // plastic registers no NEE light
+  sundog_scene_destroy(h);
+}
+
 static void testEnvmap() {
   sundog_scene* h = freshMini();
   CHECK(sundog_set_background_envmap(h, "../assets/sky.hdr", 90, 2.5, 0) ==
@@ -719,6 +736,7 @@ int main() {
   testPhysics();
   testFlames();
   testWater();
+  testPlastic();
   testEnvmap();
   testLightOrderAndPhases();
   testMeshLights();

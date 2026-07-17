@@ -302,6 +302,21 @@ extern "C" int sundog_add_material_water(sundog_scene* h, double ior,
   SUNDOG_CATCH(-1)
 }
 
+extern "C" int sundog_add_material_plastic(sundog_scene* h, const double color[3],
+                                           int tex_id, double roughness) {
+  SUNDOG_TRY
+  MaterialDesc md = baseMaterial();
+  // Diffuse base under a GGX dielectric coat; ior stays baseMaterial's 1.5
+  // (the coat Fresnel, f0 = 0.04). Roughness is stored verbatim — the device
+  // floors it at 1e-3 so the coat never degenerates to a delta lobe.
+  md.kind = MT_PLASTIC;
+  md.color = nf3(color, md.color);
+  md.texId = tex_id;
+  md.roughness = nf(roughness, 0.15f);
+  return pushMaterial(h, md, tex_id);
+  SUNDOG_CATCH(-1)
+}
+
 extern "C" int sundog_add_mesh(sundog_scene* h, const char* obj_file,
                                int smooth_normals, const char* usemtl) {
   SUNDOG_TRY

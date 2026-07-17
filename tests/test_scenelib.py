@@ -143,12 +143,16 @@ expect_error(lambda: minimal().texture("t", "perlin"), "unknown type",
              "texture type enum")
 expect_error(lambda: minimal().texture("t", "solid", colr=[1, 1, 1]),
              "not a field", "texture field typo")
-expect_error(lambda: minimal().material("m", "plastic"), "unknown type",
+expect_error(lambda: minimal().material("m", "velvet"), "unknown type",
              "material type enum")
 expect_error(lambda: minimal().dielectric("g", roughnes=0.1),
              "unexpected keyword", "dielectric kwarg typo is a TypeError")
 expect_error(lambda: minimal().metal("m", roughnes=0.1), "unexpected keyword",
              "metal kwarg typo is a TypeError")
+expect_error(lambda: minimal().plastic("p", roughnes=0.1), "unexpected keyword",
+             "plastic kwarg typo is a TypeError")
+expect_error(lambda: minimal().material("p", "plastic", ior=1.6), "not a field",
+             "plastic has no ior field (coat is fixed at 1.5)")
 expect_error(lambda: minimal().render(tonemap="filmic"), "tonemap",
              "tonemap enum")
 expect_error(lambda: minimal().flame(base=[0, 0, 0], height=0, radius=1),
@@ -286,6 +290,16 @@ check(objs[1][3] == 0 and objs[1][4] == 1, "aaa -> 0, mid -> 1")
 mats = [c for c in prog if c[0].startswith("add_material")]
 check(mats[1][2] == 1, "material 'mid' references texture 'beta' as id 1 "
                        "(sorted: alpha=0, beta=1)")
+
+# plastic emits its own program op (color, tex_id, roughness)
+s = minimal()
+s.plastic("shell", color=[0.85, 0.2, 0.15], roughness=0.35)
+s.plastic("bare")
+prog = s._program(".")
+pls = [c for c in prog if c[0] == "add_material_plastic"]
+check(pls[1][1] == [0.85, 0.2, 0.15] and pls[1][2] == -1 and pls[1][3] == 0.35,
+      "plastic emit: color/no-texture/roughness (sorted: bare, shell)")
+check(math.isnan(pls[0][3]), "plastic roughness OMIT -> NaN (C default 0.15)")
 
 # material_back tri-state / scalar splat / rotation packing / nee
 s = minimal()

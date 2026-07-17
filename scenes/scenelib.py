@@ -66,6 +66,7 @@ _MATERIAL_FIELDS = {
     "dielectric": ("ior", "absorb", "color", "texture", "roughness"),
     "emissive": ("color", "texture", "intensity", "two_sided"),
     "water": ("ior", "absorb", "wave_amp", "wave_freq", "color"),
+    "plastic": ("color", "texture", "roughness"),
 }
 _OBJ_PHYSICS_FIELDS = ("dynamic", "density", "velocity", "angular_velocity",
                        "friction", "restitution", "thickness")
@@ -308,6 +309,14 @@ class Scene(object):
         return self.material(name, "water", _site_=_site(), ior=ior,
                              absorb=absorb, wave_amp=wave_amp,
                              wave_freq=wave_freq)
+
+    def plastic(self, name, color=OMIT, texture=OMIT, roughness=OMIT):
+        """Diffuse base under a glossy dielectric coat (fixed IOR 1.5).
+        roughness (default 0.15) shapes the coat highlight and is floored at
+        0.001 — never a mirror; use metal/dielectric for that. Whites render
+        ~10% below lambert: that energy went into the coat highlight."""
+        return self.material(name, "plastic", _site_=_site(), color=color,
+                             texture=texture, roughness=roughness)
 
     def mesh(self, name, obj, normals=OMIT, usemtl=OMIT):
         """usemtl: load only that material group of the OBJ — multi-material
@@ -604,6 +613,9 @@ class Scene(object):
             elif kind == "emissive":
                 p.append(("add_material_emissive", fvec(m, "color"), tid,
                           fnum(m, "intensity"), ftri(m, "two_sided")))
+            elif kind == "plastic":
+                p.append(("add_material_plastic", fvec(m, "color"), tid,
+                          fnum(m, "roughness")))
             else:
                 p.append(("add_material_water", fnum(m, "ior"), fvec(m, "absorb"),
                           fnum(m, "wave_amp"), fnum(m, "wave_freq"),
@@ -837,6 +849,9 @@ def _apply(lib, program):
         elif name == "add_material_water":
             rc = lib.sundog_add_material_water(h, d(args[0]), _d3(args[1]),
                                                d(args[2]), d(args[3]), _d3(args[4]))
+        elif name == "add_material_plastic":
+            rc = lib.sundog_add_material_plastic(h, _d3(args[0]), args[1],
+                                                 d(args[2]))
         elif name == "add_mesh":
             rc = lib.sundog_add_mesh(h, args[0].encode(), args[1],
                                      args[2].encode() if args[2] else None)
