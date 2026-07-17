@@ -267,7 +267,7 @@ static __forceinline__ __device__ void shadowAnyhit(const ShadePoint& sp,
   // taken against vacuum (no medium context on an unordered shadow ray), the
   // flat front normal is used (no waterNormal perturbation), the ray
   // continues in a straight line, and a rough dielectric is treated as
-  // smooth (roughness never blurs a shadow — brightness-only, see ch17).
+  // smooth (roughness never blurs a shadow — brightness-only, see ch16).
   float3 d = optixGetWorldRayDirection();           // unit (== ls.wi)
   float3 n = sp.frontface ? sp.nFront : -sp.nFront;  // toward incident side
   float eta = sp.frontface ? 1.0f / mat.ior : mat.ior;

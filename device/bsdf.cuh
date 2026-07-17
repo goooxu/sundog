@@ -411,8 +411,8 @@ SD_HD BsdfSample bsdfSample(const MaterialDesc& m, float3 albedo, float3 rayDir,
       // weight = (fSpec + fDiff) * cos / mixture pdf, all full expressions:
       // the lobes overlap, so nothing cancels — the metal-style G/G1 shortcut
       // is the single-lobe cancellation and would be wrong under a mixture.
-      // Bounded by 2 * max(F * G/G1, coupled albedo) <= 2 (mediant bound:
-      // each lobe's f * cos is <= its own pdf term).
+      // Bounded by 2 * max(F * G/G1, coupled albedo) — <= 2 for albedo <= 1
+      // (mediant bound: each lobe's f * cos is <= its own pdf term).
       s.weight = (f3(t.fSpec) + t.fDiff) * (li.z / s.pdf);
       s.valid = true;
       return s;

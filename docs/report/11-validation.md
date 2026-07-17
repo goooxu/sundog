@@ -20,7 +20,7 @@
 
 ## 性能基准与吞吐解读
 
-`scripts/run-benchmark.sh` 把性能问题拆成两层：**A. 特性层**——13 个画廊场景按其原生分辨率 1920×1080 / 64 spp，采集渲染时间、光线吞吐与峰值显存，从 21 个 quadric 的极简场景到 3 万多个实例的网格阵列，覆盖全部特性组合；**B. 降噪层**——量化 AI 降噪的等效收益（下节）。结果写入 `docs/BENCHMARKS.md`（RTX 5090 实测），逐场景数字见其特性层表；本节解释这些数字怎么读、吞吐从哪里来。计时口径统一取 stats 的 `render` 分段：只含渲染循环，场景解析、加速结构构建与 06 场景的 PhysX 刚体沉降（独立的 `physics` 分段）都不计入。
+`scripts/run-benchmark.sh` 把性能问题拆成两层：**A. 特性层**——14 个画廊场景按其原生分辨率 1920×1080 / 64 spp，采集渲染时间、光线吞吐与峰值显存，从 21 个 quadric 的极简场景到 3 万多个实例的网格阵列，覆盖全部特性组合；**B. 降噪层**——量化 AI 降噪的等效收益（下节）。结果写入 `docs/BENCHMARKS.md`（RTX 5090 实测），逐场景数字见其特性层表；本节解释这些数字怎么读、吞吐从哪里来。计时口径统一取 stats 的 `render` 分段：只含渲染循环，场景解析、加速结构构建与 06 场景的 PhysX 刚体沉降（独立的 `physics` 分段）都不计入。
 
 **Mrays/s 的含义**：`--stats` 时 raygen 逐线程数 `optixTrace` 调用（辐射光线 + 阴影光线都算），launch 末原子累加，除以渲染时间（src/capi_render.cpp、device/programs.cu）。以 05-spot-swarm 在 1920×1080 / 128 spp 下的一次 `--stats` 实测为例（out/gallery/05-spot-swarm.stats.json，与[第 8 章·加速结构与 RT Core](08-acceleration.md)引用的是同一次）：230.93 ms 追完 737,624,333 条光线，吞吐 3194 Mrays/s。用它可以还原路径结构：$`1920\times 1080\times 128\approx 265.4`$M 个像素样本，$`737.6\mathrm{M}/265.4\mathrm{M}\approx 2.8`$，平均每样本不到 3 次 trace——路径段加上朗伯面的 NEE 阴影线，量级合理。把工作量减半——同场景 64 spp（见 BENCHMARKS.md 特性层表）——渲染时间也几乎减半（115 ms），吞吐仍稳定在 3.2 Gigarays/s 附近：渲染处在吞吐主导的稳态，时间随工作量近似线性扩展，不是 launch 开销制造的假象。
 

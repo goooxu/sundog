@@ -91,6 +91,10 @@
 | 磨砂玻璃 | frosted glass | 粗糙电介质的日常名 |
 | 微表面透射 | microfacet transmission | Walter 2007，透射半程向量 |
 | 双向透射分布函数 | BTDF | f_t；与 BRDF 合称 BSDF |
+| 涂层 | coat | 塑料：罩在漫反射底上的透明电介质层 |
+| 瓣选择 | lobe selection | 多瓣 BSDF 采样时先掷硬币选瓣 |
+| 混合边际 pdf | mixture (marginal) pdf | 瓣选概率加权的各瓣 pdf 之和 |
+| 中项不等式 | mediant inequality | (a+c)/(b+d) 夹在 a/b 与 c/d 之间 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
 | 色调映射 | tone mapping | 出口映射：ACES Hill 拟合（RRT+ODT），第 1 章 |

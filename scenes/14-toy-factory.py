@@ -2,7 +2,7 @@
 """sundog scene 14-toy-factory — Five plastic Sparkys on the line.
 
 A quality-control shelf in a toy factory: five candy-colored Sparky
-robots fresh out of the same mold, lined up under one big cool light
+robots fresh out of the same mold, lined up under one big overhead light
 panel. Their shells are the new plastic material — a diffuse base under
 a glossy dielectric coat — and the coat roughness steps 0.03 -> 0.6
 left to right: the cherry-red toy wears a wet clear-coat highlight, the
@@ -46,8 +46,9 @@ s.emissive('panel', color=[1.0, 0.98, 0.93], intensity=18.0)
 s.emissive('tube', color=[1.0, 0.99, 0.95], intensity=60.0)
 
 # The ladder: same mold, one coat parameter apart. (name, shell color,
-# coat roughness, x). Whites stay at 0.9 — plastic whites sit ~10% below
-# lambert (the coupling sent that energy into the highlight).
+# coat roughness, x). Whites stay at 0.80 — plastic whites already sit
+# ~10% below lambert (the coupling sent that energy into the highlight),
+# and the tube streak wants the extra headroom.
 TOYS = [('cherry', [0.85, 0.12, 0.10], 0.03, -3.1),
         ('tangerine', [0.95, 0.45, 0.08], 0.08, -1.55),
         ('lemon', [0.95, 0.78, 0.10], 0.15, 0.0),   # QC default -> powered on
@@ -70,9 +71,10 @@ s.add('rect', 'belt', scale(5.0, 1, 1.15), translate(0, 0.01, 0))
 # the mirror path face -> camera. The tube's reflected image is one sharp
 # streak on the clear-coat end and a wide bloom on the matte end.
 s.add('rect', 'panel', scale(3.0, 1, 1.0), rotate_x(180), translate(0, 4.8, 0.4))
-# Tube length: a flat face keeps the lateral component on reflection, so the
-# outer toys (x = +-3.1) see the tube at x = +-3.1 * (1 + 12.65/6.85) ~= +-8.8
-# — the tube must span that or the ladder's end toys lose their streak.
+# Tube length: a flat face keeps the lateral component on reflection, so with
+# shell fronts near z = 0.3 the outer toys (x = +-3.1) see the tube at about
+# +-3.1 * (1 + 12.9/7.3) ~= +-8.6 (face-to-tube over camera-to-face depth) —
+# the tube must span that or the ladder's end toys lose their streak.
 s.add('rect', 'tube', scale(9.5, 1, 0.20), rotate_x(-90), translate(0, 1.28, 13.2))
 
 # ---- lights ----

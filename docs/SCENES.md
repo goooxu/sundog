@@ -129,7 +129,7 @@ Typed helpers (each returns the material name):
   glass: GGX microfacet reflection + transmission (VNDF-sampled Walter BTDF);
   below 1e-3 it degenerates bit-exactly to the smooth delta interface. Shadow
   rays always treat the interface as smooth — roughness blurs what you see
-  through the glass, never the shadow behind it (report ch17)
+  through the glass, never the shadow behind it (report ch16)
 - `s.water(name, ior, absorb, wave_amp, wave_freq)` — 光滑电介质界面
   （`ior` 默认 **1.33**）+ 两件水特有的事——**fbm 波纹法线**（`wave_amp`
   默认 0.05、`wave_freq` 默认 2.0；只扰动着色法线不位移；波场定义在世界
@@ -139,6 +139,13 @@ Typed helpers (each returns the material name):
   玻璃、玻璃中气泡；几何须良构嵌套——真包含、不穿插）；水下着色点的 NEE
   阴影线经菲涅尔 + Beer–Lambert 衰减穿过水面（超出 Snell 窗口的方向被
   全内反射挡住），水下能收到直接光。
+- `s.plastic(name, color | texture, roughness)` — opaque diffuse base under
+  a glossy dielectric coat (fixed IOR 1.5, F0 = 0.04); `color`/`texture`
+  drives the base, `roughness` (default 0.15) shapes the coat highlight and
+  is floored at 0.001 on the device — the coat is never a mirror (use
+  metal/dielectric for that). Whites render ~10% below lambert: the
+  bidirectional Fresnel coupling sends that energy into the highlight
+  (report ch17)
 - `s.emissive(name, color | texture, intensity, two_sided)` — `two_sided`
   defaults to false (only the front face emits). Emissive `rect`/`disk`/
   `sphere`/`mesh:NAME` objects are automatically sampled as area lights

@@ -43,7 +43,7 @@ u=\frac{\phi-\rho+\pi}{2\pi},\qquad v=\frac{\theta}{\pi},\qquad
 
 *图：上为 kloofendal 全景与太阳所在行；下为行边缘亮度（对数轴）——尖峰一行是中位行的 568 倍，这就是"必须重要性采样"的直观证据。*
 
-选出纹素 (row,col) 后拼回方向与密度。图像域 pdf 是分段常数 $`p_{img}=\Delta m\cdot\Delta c\cdot W\cdot H`$（$`\Delta m,\Delta c`$ 是两条 CDF 在所选区间的高度差），经 15.2 的面积元换到立体角域：
+选出纹素 (row,col) 后拼回方向与密度。图像域 pdf 是分段常数 $`p_{img}=\Delta m\cdot\Delta c\cdot W\cdot H`$（$`\Delta m,\Delta c`$ 是两条 CDF 在所选区间的高度差），经 14.2 的面积元换到立体角域：
 
 ```math
 p_\omega(\omega)=\frac{\Delta m\,\Delta c\, W H}{2\pi^2\sin\theta}
@@ -78,4 +78,4 @@ w_{nee}=\frac{p_\omega(\omega)/n_{strat}}{p_\omega(\omega)/n_{strat}+p_{bsdf}}
 
 ## 小结
 
-环境光照 = 一张图 + 一次换元 + 一条旧公式：equirect 把方向域摊平成像素（15.2），亮度×sinθ 的两级 CDF 把"图有多亮"变成"该往哪采"（15.3，第 3 章逆变换采样的完整落地），balance heuristic 的另一半权重把 miss 分支纳入 MIS 的账本（15.4，第 4 章两式的镜像补全）。太阳这种"小而炽烈"的光源由此从噪声灾难变成一次二分搜索就能命中的普通样本。但阴影线的故事还差最后一块：本章的阴影线仍把玻璃与水当成不透明的墙——[第 15 章·透明阴影与嵌套介质](15-transparent-media.md)将拆掉这堵墙，顺手把"水里放玻璃"这类嵌套介质也算对。
+环境光照 = 一张图 + 一次换元 + 一条旧公式：equirect 把方向域摊平成像素（14.2），亮度×sinθ 的两级 CDF 把"图有多亮"变成"该往哪采"（14.3，第 3 章逆变换采样的完整落地），balance heuristic 的另一半权重把 miss 分支纳入 MIS 的账本（14.4，第 4 章两式的镜像补全）。太阳这种"小而炽烈"的光源由此从噪声灾难变成一次二分搜索就能命中的普通样本。但阴影线的故事还差最后一块：本章的阴影线仍把玻璃与水当成不透明的墙——[第 15 章·透明阴影与嵌套介质](15-transparent-media.md)将拆掉这堵墙，顺手把"水里放玻璃"这类嵌套介质也算对。

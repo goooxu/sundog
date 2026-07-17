@@ -10,7 +10,7 @@ Walter BTDF) smearing "what you see" into "only the light". A Spot cow
 stands silhouetted behind the clearest panel. The firelight pools on
 the floor in front of the screen stay equally sharp across the ladder:
 shadow rays still cross the glass with the smooth-Fresnel straight-line
-approximation (report ch17).
+approximation (report ch16).
 
 Run: python3 scenes/13-frosted-veil.py
 """

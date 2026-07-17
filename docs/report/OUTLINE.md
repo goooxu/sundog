@@ -7,7 +7,7 @@
 
 ## index.md（集成阶段编写）
 
-阅读指南（三条路径：只看原理 01-05 / 只看工程 08-16 / 全读）、章节导航表、
+阅读指南（四条路径：全读 / 只看原理 01-05+特性选读 / 只看工程 01→08-18 / 只看陷阱附录）、章节导航表、
 致谢与延伸阅读（PBRT、Ray Tracing in One Weekend、OptiX Programming Guide）。
 
 ---
@@ -391,7 +391,7 @@
 | ch14-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
 | ch15-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
 | ch16-frosted-ladder.png | 磨砂玻璃阶梯（5 球 roughness 0→0.6） | 新建 figures/src/frosted-ladder.py（仿 roughness-ladder，HDR 天空 + 棋盘地面），256spp，compose ladder |
-| ch17-toy-ladder.png | 玩具工厂涂层阶梯 | 14-toy-factory --size 960x540 --spp 384，compose ladder 单图配注 |
+| ch17-toy-ladder.png | 玩具工厂涂层阶梯 | 14-toy-factory --spp 384（场景原生 1920x1080），compose ladder 单图配注 |
 | ch15-snell-window.png | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
