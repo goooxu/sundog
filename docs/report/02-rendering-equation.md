@@ -142,7 +142,7 @@ L_i(x,\omega_i) = L_o(x', -\omega_i)
 
 | 方程中的量 | sundog 中的实现 | 详见 |
 |---|---|---|
-| $`f_r`$ | 材质三类：MT_LAMBERT / MT_METAL / MT_DIELECTRIC（`MaterialDesc`，device/params.h），求值入口 `bsdfEval()`（device/bsdf.cuh） | [第 5 章](05-materials.md) |
+| $`f_r`$ | 材质四类：MT_LAMBERT / MT_METAL / MT_DIELECTRIC / MT_WATER（水在 BSDF 层与电介质共享分支，见第 14 章；`MaterialDesc`，device/params.h），求值入口 `bsdfEval()`（device/bsdf.cuh） | [第 5 章](05-materials.md) |
 | $`L_e`$（面光源） | 发光材质 MT_EMISSIVE：$`L_e = \text{albedo}\times\text{intensity}`$（raygen 命中发光体处，device/programs.cu），几何上是矩形/圆盘/球面/三角网格光 | [第 4 章](04-path-tracing.md) |
 | $`L_e`$（delta 灯） | 点光 LT_POINT、平行光 LT_DISTANT | 第 4 章 NEE |
 | $`\int_{H^2}\cdots\mathrm{d}\omega_i`$ | 蒙特卡洛估计 | [第 3 章](03-monte-carlo.md)、第 4 章 |

@@ -136,21 +136,21 @@ $`k<0`$ 何时发生？$`k=1-\eta^2\sin^2\theta_i`$，仅当 $`\eta>1`$（从密
 
 ```c
 // device/bsdf.cuh, MT_DIELECTRIC 分支
-float cosine = frontface ? -dot(rayDir, n) : -dot(refr, n);
+float cosine = eta < 1.0f ? -dot(rayDir, n) : -dot(refr, n);
 float reflectProb = schlick(cosine, f0);
 ```
 
-进入玻璃时用入射角（空气侧）的余弦；**离开玻璃时用折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$（同样是空气侧）。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这是折射实现里的经典陷阱，完整分析见[附录](appendix-pitfalls.md)。
+按 $`\eta`$ 选取：$`\eta<1`$ 时用入射角的余弦，$`\eta>1`$ 时用**折射方向的余弦** $`-\,\omega_t\cdot n=\cos\theta_t`$——两者取的都是低折射率一侧的角度；`etaExt = 1` 时这恰好化简为熟悉的进入/离开二分。为什么？Schlick 近似的自变量约定就是疏介质一侧的角度；更直观的检验是连续性：当出射角逼近临界角时 $`\cos\theta_t\to 0`$，Schlick 给出 $`F\to 1`$，与 TIR 分支的"全反射"无缝衔接。若错用密介质一侧的余弦，$`F`$ 在临界角处仍只有约 0.04，反射率被严重低估——这是折射实现里的经典陷阱，完整分析见[附录](appendix-pitfalls.md)。
 
 采样策略与金属的 delta 镜面同理：玻璃是双 delta 瓣（一反一折），以概率 $`F`$ 取反射、$`1-F`$ 取折射，两个分支的 $`f/p`$ 恰好相消，`s.weight = 1`、`isDelta = true`。（严格的辐亮度传输在透射时还应乘 $`\eta^2`$ 缩放因子；对进出成对的封闭玻璃体该因子沿路径相消，delta 分支因此省略它——但注意这个省略只对"纯 BSDF 路径"合法，[第 17 章](17-rough-dielectric.md)的粗糙玻璃因为要被 NEE 单界面求值，必须把 $`\eta^2`$ 请回来。）本章的玻璃是光滑极限——粗糙度让反射与折射各自糊成微表面波瓣的"磨砂玻璃"，见[第 17 章·粗糙电介质](17-rough-dielectric.md)。
 
-出射侧余弦选取的数值差别很悬殊：光线在玻璃内以 40° 入射（临界角 41.8° 以内）时，正确的反射率 $`\mathrm{schlick}(\cos\theta_t)\approx 0.244`$——若错用入射侧余弦，只剩约 0.041，差近 6 倍；超过临界角则必须全反射。任何此处的偏差都会立即改变 golden 图像（[第 11 章·验证方法学与性能](11-validation.md)）。视觉上二者的差别同样醒目：正确的 Fresnel 让玻璃体在掠射与临界角附近内反射显著增强，整体更暗、更"玻璃"；反之则偏亮偏透、丢失内壁亮环。
+出射侧余弦选取的数值差别很悬殊：光线在玻璃内以 40° 入射（临界角 41.8° 以内）时，正确的反射率 $`\mathrm{schlick}(\cos\theta_t)\approx 0.246`$——若错用入射侧余弦，只剩约 0.041，差近 6 倍；超过临界角则必须全反射。任何此处的偏差都会立即改变 golden 图像（[第 11 章·验证方法学与性能](11-validation.md)）。视觉上二者的差别同样醒目：正确的 Fresnel 让玻璃体在掠射与临界角附近内反射显著增强，整体更暗、更"玻璃"；反之则偏亮偏透、丢失内壁亮环。
 
 ## 5.6 双面材质与穿透面
 
 sundog 的场景语义里有一条很有表现力的约定：**每个面片的正面和背面可以挂不同材质，也可以不挂材质**。SBT 记录（见[第 9 章·OptiX 工程实现](09-optix-pipeline.md)）里每个实例存 `matFront, matBack` 两个材质索引，特殊值 `MAT_NONE` 表示"该侧无材质"。命中处理时（`packHit()`（device/programs.cu））先用几何法线判定 `frontface = dot(n_geom, rayDir) < 0`，据此选取材质，并把着色法线翻向入射一侧——本章所有公式中的 $`n`$ 都以此为前提（$`n\cdot\omega_o>0`$ 恒成立）。
 
-`MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。同一段 anyhit 逻辑同时服务辐射光线与阴影光线，所以光与影穿透行为一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
+`MAT_NONE` 的一侧是**穿透面**：任意命中（any-hit / AH）程序 `maskAnyhit()` 对它直接调用 `optixIgnoreIntersection()`，光线如入无物之境。阴影光线走独立的 `shadowAnyhit()`（device/programs.cu），其 `MAT_NONE` 穿透与 alpha 裁剪规则与 `maskAnyhit()` 完全一致（另加[第 16 章·透明阴影与嵌套介质](16-transparent-media.md)的透明阴影衰减），所以光与影的穿透行为保持一致。一个典型用法是第 4 章场景里的抛物面聚光碗：凸面（正面）设 `MAT_NONE`、凹面（背面）挂镜面金属——光线从外侧穿入碗内、在内壁反射聚焦（这也依赖第 6 章"隐式面把两个交点都上报"的设计）。发光材质另有一个 `twoSided` 标志：单面灯只在正面可见（`hit.frontface || mat.twoSided`，对账 raygen 的发光体分支），Cornell 盒顶灯就是典型的单面灯。
 
 ## 小结
 

@@ -16,7 +16,7 @@
 
 这个错误还有两个连带后果。其一，出射折射方向也错了：Snell 定律给出 $`\sin\theta_t=\sin\theta_i/\text{ior}`$，出射光被再次**折向**法线，而物理上离开密介质应**偏离**法线。其二，Schlick 近似容易跟着用错侧的余弦：出射时若沿用玻璃内的入射角余弦，就违背了 Schlick 近似的自变量应取疏介质一侧角度的约定。定量地（$`\text{ior}=1.5`$，纯数学计算可复核）：临界角 $`41.8°`$ 处真实反射率为 $`1`$，而 $`\mathrm{schlick}(\cos 41.8°)\approx 0.041`$，低估约 24 倍；对从玻璃内部出射的余弦加权方向平均，真实平均反射率约 $`0.60`$（其中约 $`55\%`$ 的方向本应发生 TIR），错侧余弦的写法给出约 $`0.086`$，整体低估约 7 倍。
 
-**sundog 的做法**：`bsdfSample()`（device/bsdf.cuh）的电介质分支按面选取 $`\eta`$（`frontface ? 1/ior : ior`），保留 TIR 分支，并让 Schlick 恒用低折射率侧余弦（出射时用折射方向的余弦 $`-\,\omega_t\cdot n=\cos\theta_t`$，与 TIR 分支在临界角处连续衔接），推导见[第 5 章·材质与 BSDF](05-materials.md)。这一差异（正确反射率 0.244 对错侧余弦的 0.041）在第 5 章有完整的数值对照，任何此处的回归都会直接改变 golden 图像。
+**sundog 的做法**：`bsdfSample()`（device/bsdf.cuh）的电介质分支按面选取相对 $`\eta`$（`frontface ? etaExt/ior : ior/etaExt`——外侧折射率来自第 16 章的介质栈，真空中化简为熟悉的 `1/ior` 与 `ior`），保留 TIR 分支，并让 Schlick 恒用低折射率侧余弦（出射时用折射方向的余弦 $`-\,\omega_t\cdot n=\cos\theta_t`$，与 TIR 分支在临界角处连续衔接），推导见[第 5 章·材质与 BSDF](05-materials.md)。这一差异（正确反射率 0.246 对错侧余弦的 0.041）在第 5 章有完整的数值对照，任何此处的回归都会直接改变 golden 图像。
 
 ## 陷阱 2：Lambertian 采样分布与权重不匹配
 

@@ -72,6 +72,8 @@ payload 是 trace 调用者与 CH/miss 之间的寄存器通道，sundog 固定 
 | p5–p6 | 纹理坐标 u、v |
 | p7 | matId（低 16 位）\|（lightId + 1）<< 16 |
 
+p2–p4 有一处例外：命中网格 NEE 灯的发光面时，改存**几何**法线而非平滑着色法线（`triShadePoint()`（device/programs.cu））——NEE 对网格灯采样时按几何法线折算 pdf，命中端与这一约定保持一致，MIS 权重才对得上；发光命中即终止路径，法线不会再用于散射，代价只是网格灯作首个命中时法线 AOV 呈面片状。
+
 两处打包很值得玩味：miss 时 p2–p4 **复用**法线寄存器直接携带背景色，raygen 拿来就当辐亮度用，省一次分支后的二次求值；p7 把材质号与灯号（`lightId + 1`，0 表示"不是 NEE 灯"）挤进一个寄存器，raygen 全程不需要读 SBT 数据。阴影光线用 5 个寄存器：`traceShadow()` 以 `TERMINATE_ON_FIRST_HIT | DISABLE_CLOSESTHIT` 发射，p0 由 `__miss__shadow` 置 1 表示"到达光源"——被不透明表面挡住时 miss 不会执行、p0 保持 0；p1–p4 携带沿线累积的透射率（逐界面菲涅尔连乘 + 逐通道符号光学深度，玻璃/水的透明阴影，见[第 16 章](16-transparent-media.md)）。属性寄存器（attribute）则是 IS 与 AH/CH 之间的通道：`numAttributeValues = 5`，quadric 的 IS 经它交出法线（3）加 UV（2）；三角形用内建重心坐标，不占这 5 个。
 
 ## 9.4 SBT：光线如何找到"它的程序"
@@ -98,18 +100,18 @@ raygen ×1 | miss ×2（radiance, shadow）| hitgroup ×(2×对象数)
 
 正好落在"该对象的该光线类型"那条记录上；miss 记录也按 rayType 各选各的。
 
-记录头部指向哪个程序组（program group/PG）？hitgroup PG 一共 8 个变体，按 {quadric, 三角形} × {radiance, shadow} × {不透明, 需掩码} 组合（在 `Pipeline` 构造函数中创建；`buildSbt()` 只负责为每个对象**选**变体并打包头部）：
+记录头部指向哪个程序组（program group/PG）？hitgroup PG 一共 8 个变体，按 {quadric, 三角形} × {radiance, shadow} × {不透明, 非不透明} 组合（在 `Pipeline` 构造函数中创建；`buildSbt()` 只负责为每个对象**选**变体并打包头部）——非不透明在 radiance 侧是掩码（MSK）变体，在 shadow 侧则连同玻璃/水的透明阴影一并交给 XPR 变体（见 9.5 节）：
 
 | 变体 | IS | CH | AH |
 |---|---|---|---|
 | Q_RAD_OPQ | `__intersection__quadric` | `__closesthit__radiance` | — |
 | Q_RAD_MSK | `__intersection__quadric` | `__closesthit__radiance` | `__anyhit__mask` |
 | Q_SHD_OPQ | `__intersection__quadric` | — | — |
-| Q_SHD_MSK | `__intersection__quadric` | — | `__anyhit__mask` |
+| Q_SHD_XPR | `__intersection__quadric` | — | `__anyhit__shadow` |
 | T_RAD_OPQ | — | `__closesthit__radiance_tri` | — |
 | T_RAD_MSK | — | `__closesthit__radiance_tri` | `__anyhit__mask_tri` |
 | T_SHD_OPQ | — | — | — |
-| T_SHD_MSK | — | — | `__anyhit__mask_tri` |
+| T_SHD_XPR | — | — | `__anyhit__shadow_tri` |
 
 注意两点：shadow 变体一律没有 CH（trace 侧还叠加了 `DISABLE_CLOSESTHIT` 双保险）；"三角形 + shadow + 不透明"三个槽位全空——硬件求交加首命中即终止已经足够，"被挡住"完全由 miss **没有**被调用来表达。非不透明物体的 shadow 槽则挂统一的 `__anyhit__shadow[_tri]`：除穿透面与镂空外，还对玻璃/水累积透射率（第 16 章）。
 
