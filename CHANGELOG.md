@@ -8,15 +8,60 @@
 
 ## [Unreleased]
 
+（暂无）
+
+## [0.16.0] - 2026-07-17 — 展示体系重构：旗舰 2K 场景与特性对比组
+
+### 新增
+
+- **旗舰场景 `15-assembly-hall`「玩具工厂总装大厅」**（2560×1440 / 768
+  spp）：一帧收纳全部渲染能力——天窗 HDR 阳光（环境光重要性采样）、
+  纯吸收烟柱在光束中投体积阴影、磨砂玻璃隔间后的火焰暖晕与炉口锐利
+  火苗对照、传送带糖果色塑料 Sparky 列队（亮屏那只是网格 NEE 灯）、
+  胶囊吉祥物督工、PhysX GPU 定格倾泻半空的一箱玩具奶牛、水冷池波纹
+  倒影、金属桁架与 alpha 镂空齿轮标志；spot/sparky/capsule_mascot 三份
+  网格资产同框（capsule_mascot 首次进画廊）
+- **特性对比组（8 对 16 张 1080p）**：同场景同机位、一个开关之差——
+  透明阴影（11 号 ±--opaque-shadows）、火焰体积阴影（12 号同开关）、
+  环境光重要性采样（10 号 ±importance，同 spp）、AI 降噪（09 号
+  16 spp）、网格 NEE 灯（03 号深夜变体：撤灯暗天、屏为唯一光源、
+  关 clamp 让等 spp 方差如实显形）、ACES 色调映射（07 号 ±clamp
+  截断）、NEE（02 号发光体 ±nee，同 spp）、磨砂玻璃（13 号五扇
+  ±roughness）；变体经 runpy 就地改 Scene 生成，原场景零改动，全部
+  配方入库于 render-gallery.sh compare 段（可再生红线）
+- render-gallery.sh：SECTIONS 增量渲染（scenes/hero/compare 分段）、
+  `JOBS=n` 多卡并行（CUDA_VISIBLE_DEVICES 轮转，单卡默认串行不变）；
+  Makefile `DEVARCH` PTX 目标覆盖 + setup-testbox.sh 双架构
+  （x86_64/aarch64——GB200 Grace 测试机全链路引导，PhysX aarch64 源码
+  构建产物独立缓存）
+
 ### 变更
 
-- **网格资产全部入库**：`assets/spot.obj`（Keenan Crane 的 Spot，CC0 1.0
-  允许再分发，此前按需下载）与 `scenes/textures/spot_texture.png` 入库；
-  `scripts/fetch-assets.sh` 精简为只下载 20 MB 天空 HDRI（10/11/12 号
-  场景用）——克隆仓库即可渲染除此三景外的全部场景
-- 新增备用网格资产 `assets/capsule_mascot.obj/.mtl`（胶囊机器人吉祥物，
-  5,816 三角形、15 个 usemtl 组；AI 生成模型，项目作者提供，与 sparky
-  同源做法；暂未接入画廊场景）
+- **README 首页与 GALLERY.md 重构为两类展示**：①旗舰 2K 演示 + 中文
+  走读（README 首图）；②特性对比节（8 对双列表格）；逐场景单图流从
+  README 撤出，完整目录与渲染统计留在 GALLERY.md（脚本生成，两类
+  结构 + 全场景目录）
+- **封面退役**：docs/cover.png（12 号 4K）删除，12 号场景保留于画廊
+  目录；README 首图换为 15 号 2K
+- **网格资产全部入库**：`assets/spot.obj`（Keenan Crane 的 Spot，CC0
+  1.0 允许再分发，此前按需下载）入库；`scripts/fetch-assets.sh` 精简为
+  只下载 20 MB 天空 HDRI（10/11/12/15 号场景用）；新增
+  `assets/capsule_mascot.obj/.mtl`（AI 生成的胶囊机器人吉祥物，项目
+  作者提供，与 sparky 同源做法）
+
+红线记录（**GB200 口径声明**）：
+- 本版渲染产物（15 号 2K 图与 compare/ 全部 16 张）由 4× GB200
+  测试机（Grace aarch64 / sm_100 / 驱动 595.84.01，DEVARCH=compute_100）
+  渲出——与既有 RTX 5090 + 615.36 口径**分叉**，GALLERY 统计表已注明；
+  15 号**暂不进 golden**，待分配到 5090 测试机后补钉 golden、补
+  BENCHMARKS 行、并按 5090 口径重渲复核全部新图
+- golden 基线零触碰：tests/golden/ 在本版全部提交中无任何变化，8 场景
+  基线维持 5090 口径；BENCHMARKS.md 未重测（保持 5090 口径）
+- GB200 兼容性实证：CUDA 13.0.2 sbsa + OptiX 头跨架构复用 + PhysX
+  5.8 aarch64 源码构建（含 GPU 刚体，06 号一帧定格验证通过）；smoke
+  全绿（OptiX 渲染 / AI 降噪 / stats 正常）
+
+（主要提交 b1c24d7 · 648521d · 05e4e3b）
 
 ## [0.15.0] - 2026-07-17 — 塑料：首个双瓣混合 BSDF
 
