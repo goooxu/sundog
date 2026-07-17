@@ -8,6 +8,8 @@ assets/*.hdr
 !assets/sparky.obj
 !assets/spot.obj
 !assets/capsule_mascot.obj
+!assets/box.obj
+!assets/brick.obj
 
 # build trees (dev box; on the test box builds go to /tmp/sundog-build)
 build*/
