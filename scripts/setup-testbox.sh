@@ -7,8 +7,25 @@ SUNDOG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DL=/tmp/sundog-dl
 mkdir -p "$DL"
 
+# Architecture split: x86_64 boxes (RTX) vs aarch64 Grace boxes (GB200).
+# Same layout either way; only installer names, the CUDA target include dir,
+# the PhysX preset and the NFS PhysX cache tarball differ.
+ARCH="$(uname -m)"
+if [ "$ARCH" = "aarch64" ]; then
+  RUN=cuda_13.0.2_580.95.05_linux_sbsa.run
+  CUDA_TARGET_INC=/tmp/cuda-13.0/targets/sbsa-linux/include
+  CMAKE_PKG=cmake-3.30.5-linux-aarch64.tar.gz
+  PHYSX_PRESET=linux-aarch64-gcc
+  PHYSX_CACHE_NAME=physx-5.8.0-linux-gpu-aarch64.tar.gz
+else
+  RUN=cuda_13.0.2_580.95.05_linux.run
+  CUDA_TARGET_INC=/tmp/cuda-13.0/targets/x86_64-linux/include
+  CMAKE_PKG=cmake-3.30.5-linux-x86_64.tar.gz
+  PHYSX_PRESET=linux-gcc
+  PHYSX_CACHE_NAME=physx-5.8.0-linux-gpu.tar.gz
+fi
+
 # 1. CUDA 13.0 Update 2 toolkit, no sudo (driver 610.47.04 >= bundled 580.95)
-RUN=cuda_13.0.2_580.95.05_linux.run
 if [ ! -x /tmp/cuda-13.0/bin/nvcc ]; then
   if [ ! -f "$DL/$RUN" ]; then
     echo "== downloading $RUN =="
@@ -20,7 +37,9 @@ if [ ! -x /tmp/cuda-13.0/bin/nvcc ]; then
   sh "$DL/$RUN" --silent --toolkit --toolkitpath=/tmp/cuda-13.0 --no-man-page
 fi
 
-# 2. OptiX SDK 9.1.0 headers (self-extracting STGZ, no root)
+# 2. OptiX SDK 9.1.0 headers (self-extracting STGZ, no root). The x86_64
+# installer is a plain shell+tar archive and the headers are arch-neutral,
+# so the same installer serves the aarch64 boxes too.
 if [ ! -f /tmp/optix-9.1.0/include/optix.h ]; then
   echo "== extracting OptiX SDK to /tmp/optix-9.1.0 =="
   mkdir -p /tmp/optix-9.1.0
@@ -34,7 +53,7 @@ fi
 # (first time only): build from the NFS source tarball — generate_projects
 # needs outbound HTTPS to packman's CDN for its own cmake/python — then
 # cache the prefix back to NFS so no network is ever needed again.
-PHYSX_TARBALL="$SUNDOG_ROOT/../physx-5.8.0-linux-gpu.tar.gz"
+PHYSX_TARBALL="$SUNDOG_ROOT/../$PHYSX_CACHE_NAME"
 PHYSX_SRC_TARBALL="$SUNDOG_ROOT/../physx-src-5.8.0.tar.gz"
 if [ ! -f /tmp/physx-5.8/lib/libPhysX_static_64.a ] || [ ! -f /tmp/physx-5.8/bin/libPhysXGpu_64.so ]; then
   if [ -f "$PHYSX_TARBALL" ]; then
@@ -46,7 +65,7 @@ if [ ! -f /tmp/physx-5.8/lib/libPhysX_static_64.a ] || [ ! -f /tmp/physx-5.8/bin
     rm -rf /tmp/physx-src /tmp/physx-5.8-plan
     tar -C /tmp -xzf "$PHYSX_SRC_TARBALL"
     mv /tmp/physx-5.8-plan /tmp/physx-src
-    PRESET=/tmp/physx-src/physx/buildtools/presets/public/linux-gcc.xml
+    PRESET=/tmp/physx-src/physx/buildtools/presets/public/$PHYSX_PRESET.xml
     # Reduced arch list (sm_80+): the full list starts at sm_70, which nvcc 13
     # no longer accepts. Skip snippets/PVD runtime — we only need the SDK.
     sed -i 's/\("PX_GENERATE_GPU_REDUCED_ARCHITECTURES" value="\)False/\1True/;
@@ -62,7 +81,7 @@ if [ ! -f /tmp/physx-5.8/lib/libPhysX_static_64.a ] || [ ! -f /tmp/physx-5.8/bin
     # CUDA 13's cudaGL.h unconditionally includes <GL/gl.h>; the box has no
     # GL dev headers (no sudo). Drop a minimal typedef stub into our own
     # user-space CUDA install — PhysX itself only needs the GL scalar types.
-    GLSTUB=/tmp/cuda-13.0/targets/x86_64-linux/include/GL/gl.h
+    GLSTUB=$CUDA_TARGET_INC/GL/gl.h
     if [ ! -f "$GLSTUB" ]; then
       mkdir -p "$(dirname "$GLSTUB")"
       cat > "$GLSTUB" <<'EOF'
@@ -92,7 +111,7 @@ EOF
     if ! command -v cmake >/dev/null && [ ! -x /tmp/cmake-3.30/bin/cmake ]; then
       echo "== fetching standalone cmake =="
       wget -q -O "$DL/cmake.tgz.part" \
-        "https://github.com/Kitware/CMake/releases/download/v3.30.5/cmake-3.30.5-linux-x86_64.tar.gz"
+        "https://github.com/Kitware/CMake/releases/download/v3.30.5/$CMAKE_PKG"
       mv "$DL/cmake.tgz.part" "$DL/cmake.tgz"
       mkdir -p /tmp/cmake-3.30
       tar -C /tmp/cmake-3.30 --strip-components=1 -xzf "$DL/cmake.tgz"
@@ -100,10 +119,10 @@ EOF
     [ -x /tmp/cmake-3.30/bin/cmake ] && export PATH="/tmp/cmake-3.30/bin:$PATH"
     export PM_CUDA_PATH=/tmp/cuda-13.0
     export PM_PACKAGES_ROOT=/tmp/packman-repo   # test-box $HOME is tiny
-    (cd /tmp/physx-src/physx && ./generate_projects.sh linux-gcc)
+    (cd /tmp/physx-src/physx && ./generate_projects.sh "$PHYSX_PRESET")
     # generator is "Unix Makefiles"; the box has no system cmake (packman's
     # copy is only used for the generate step)
-    make -C /tmp/physx-src/physx/compiler/linux-gcc-release -j"$(nproc)"
+    make -C "/tmp/physx-src/physx/compiler/$PHYSX_PRESET-release" -j"$(nproc)"
     echo "== assembling /tmp/physx-5.8 prefix =="
     rm -rf /tmp/physx-5.8
     mkdir -p /tmp/physx-5.8/lib /tmp/physx-5.8/bin

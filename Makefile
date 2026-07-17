@@ -26,7 +26,11 @@ LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) -ldl -lpthread \
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
              -Idevice -I$(OPTIX_HOME)/include
 
-DEVFLAG := -ptx -arch=compute_120
+# PTX target. compute_120 (RTX Blackwell) is the project's pinned golden
+# capacity; override for other GPUs — e.g. DEVARCH=compute_100 on GB200
+# boxes for look-dev renders (goldens stay 5090-only regardless).
+DEVARCH ?= compute_120
+DEVFLAG := -ptx -arch=$(DEVARCH)
 DEVEXT  := ptx
 ifeq ($(DEBUG),1)
   CXXFLAGS  := $(filter-out -O2,$(CXXFLAGS)) -O0
