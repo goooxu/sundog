@@ -33,11 +33,12 @@
   参考，渲染器不读取）。
 - **Terms:** 项目自有资产，随仓库分发。
 - **获取方式:** 无外部下载源——OBJ/MTL 全部入库。
-- **Use in this project:** 暂未接入画廊场景（备用资产）。
+- **Use in this project:** `scenes/15-assembly-hall.py` 旗舰场景的黄色督工
+  吉祥物（v0.16 起，塑料混搭材质映射）。
 
 ## gear.png / runes.png — 封面场景程序化纹理
 
-- **Origin:** 项目自制程序化纹理（12 号封面场景的齿轮 alpha 镂空与符文
+- **Origin:** 项目自制程序化纹理（12 号场景的齿轮 alpha 镂空与符文
   发光图集），静态资产入库于 `scenes/textures/`；一次性生成器已随
   v0.12.1 清理移除，可在 git 历史找 `scripts/gen_cover_textures.py`。
 - **Terms:** 项目自有资产，随仓库分发。
@@ -50,5 +51,5 @@
 - **Terms:** **CC0 1.0 Universal** — public domain; no attribution required.
 - **获取方式:** `scripts/fetch-assets.sh`（HDR 不入库，按需重新下载；直链
   `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kloofendal_48d_partly_cloudy_puresky_4k.hdr`）。
-- **Use in this project:** `scenes/10-suncatcher.py` 的环境光照（IBL），
-  技术报告第 14 章的重要性采样演示。
+- **Use in this project:** 场景 10/11/12/15 的环境光照（IBL），技术报告
+  第 14 章的重要性采样演示。

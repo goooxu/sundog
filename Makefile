@@ -32,6 +32,10 @@ NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
 DEVARCH ?= compute_120
 DEVFLAG := -ptx -arch=$(DEVARCH)
 DEVEXT  := ptx
+# Arch stamp: the PTX rule depends on it, so switching DEVARCH between
+# invocations in the same build tree forces a rebuild instead of silently
+# reusing the previous arch's PTX (the build dir does not encode the arch).
+ARCHSTAMP := $(BUILD)/.arch-$(DEVARCH)
 ifeq ($(DEBUG),1)
   CXXFLAGS  := $(filter-out -O2,$(CXXFLAGS)) -O0
   NVCCFLAGS := $(filter-out --use_fast_math,$(NVCCFLAGS)) -G
@@ -61,7 +65,11 @@ $(BUILD) $(BUILD)/tests:
 # valid for the OptiX loader. For the PTX path we tolerate the exit code and
 # verify completeness ourselves (all 10 program entry points + closing brace);
 # a real compile error leaves no/partial PTX and still fails the build.
-$(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h | $(BUILD)
+$(ARCHSTAMP): | $(BUILD)
+	@rm -f $(BUILD)/.arch-*
+	@touch $@
+
+$(BUILD)/programs.$(DEVEXT): device/programs.cu $(wildcard device/*.cuh) device/params.h $(ARCHSTAMP) | $(BUILD)
 	@rm -f $@
 	-@$(NVCC) $(NVCCFLAGS) $(DEVFLAG) -o $@ $< 2> $(BUILD)/nvcc-ptx.log || true
 	@entries=$$(grep -c '\.visible \.entry' $@ 2>/dev/null || echo 0); \

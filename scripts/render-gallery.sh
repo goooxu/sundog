@@ -46,13 +46,16 @@ RENDERED=()  # image stems, in display order
 # the post-wait verification pass, since a fail() inside a background job
 # cannot abort the parent.
 JOBS="${JOBS:-1}"
-NGPU="$(nvidia-smi -L 2>/dev/null | wc -l)"; [ "$NGPU" -ge 1 ] || NGPU=1
+NGPU="$(nvidia-smi -L 2>/dev/null | wc -l || true)"; [ -n "$NGPU" ] && [ "$NGPU" -ge 1 ] 2>/dev/null || NGPU=1
 SLOT=0
 
 render() { # render STEM SCENE SPP EXTRA_ARGS...
   local stem="$1" scene="$2" spp="$3"; shift 3
   echo "== $stem ($SIZE, $spp spp) =="
   if [ "$JOBS" -gt 1 ]; then
+    # remove any stale output first: a background job that dies must NOT be
+    # masked by a previous run's PNG in the post-wait [ -s ] verification
+    rm -f "$GALLERY/$stem.png" "$GALLERY/$stem.stats.json"
     CUDA_VISIBLE_DEVICES="$((SLOT % NGPU))" \
       python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
               --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@" &
@@ -71,6 +74,9 @@ render() { # render STEM SCENE SPP EXTRA_ARGS...
 # the GALLERY.md generator reads whatever renders exist in out/gallery, so
 # catalog entries rendered on a previous run (and their stats) are kept.
 SECTIONS="${SECTIONS:-scenes,hero,compare}"
+for tok in ${SECTIONS//,/ }; do
+  case "$tok" in scenes|hero|compare) ;; *) fail "unknown SECTIONS token: $tok" ;; esac
+done
 has() { case ",$SECTIONS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
 if has scenes; then
@@ -105,7 +111,7 @@ if has hero && [ -f "$ROOT/scenes/15-assembly-hall.py" ]; then
 fi
 
 wait || true
-for stem in "${RENDERED[@]}"; do
+for stem in ${RENDERED[@]+"${RENDERED[@]}"}; do
   [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
 done
 
@@ -295,7 +301,8 @@ COMPARE = [
     ("mesh-light", "网格 NEE 灯",
      "同 256 spp 的深夜变体（撤去太阳与补光，Sparky 的发光屏是唯一光源）："
      "开——发光网格按三角形面积 CDF 被 NEE 主动采样，屏光照明干净；"
-     "关——同样的发光网格只能被 BSDF 路径偶然撞中，照明塌暗、噪声爆炸。",
+     "关——同样的发光网格只能被 BSDF 路径偶然撞中，照明塌暗、噪声爆炸"
+     "（为读性变体同步提升屏幕强度与曝光、双侧关闭 firefly 钳制）。",
      "03 号场景深夜变体 · 256 spp"),
     ("aces-tonemap", "ACES 色调映射",
      "开：高光沿肩部渐进滚降，火心保住层次与色相；关：线性截断，火心"
@@ -366,7 +373,7 @@ DESC = {
         "吸收）在桌面投下玫瑰、金、青三色的透明亮影——阴影线不再把玻璃"
         "当不透明，而是沿直线累积菲涅尔与介质衰减。",
     "12-molten-oracle":
-        "封面场景「熔岩圣殿的机械先知」：机械奶牛在祭坛烈焰上被无形之力"
+        "「熔岩圣殿的机械先知」（v0.15 前的封面场景）：机械奶牛在祭坛烈焰上被无形之力"
         "击碎，PhysX GPU 在 0.20 秒定格 49 个刚体的爆裂瞬间——金铜齿轮"
         "（极坐标 alpha 镂空圆盘）悬浮其间；破晓阳光越过后墙从穹顶破口"
         "斜射而入（envmap 重要性采样），在地面拉出被碎片凿碎的光斑长影，"
@@ -414,8 +421,14 @@ lines = [
     "",
 ]
 
+docs_gallery = os.path.join(os.path.dirname(out_md), "gallery")
+
 def exists(rel):
-    return os.path.exists(os.path.join(gallery, rel))
+    # out/gallery (this box's renders) first, then the committed store —
+    # incremental SECTIONS runs on a fresh box must not gut the catalog
+    return (os.path.exists(os.path.join(gallery, rel))
+            or os.path.exists(os.path.join(docs_gallery, rel)))
+
 
 # ---- class 1: the flagship demo ----
 if exists(HERO + ".png"):
@@ -488,13 +501,24 @@ lines += [
 ]
 for r in rows:
     lines.append("| " + " | ".join(str(c) for c in r) + " |")
-lines += [
-    "",
-    "> 口径注：15-assembly-hall 与 compare/ 对比图当前由 GB200"
-    "（DEVARCH=compute_100）渲染，统计数字不与上表其余行（RTX 5090 + "
-    "驱动 615.36 口径）比较；待分配到 5090 测试机后统一重渲复核。",
-    "",
-]
+def gpu_of(stem):
+    sp = os.path.join(gallery, f"{stem}.stats.json")
+    if not os.path.exists(sp):
+        return None
+    try:
+        return json.load(open(sp)).get("device", {}).get("name")
+    except Exception:
+        return None
+
+all_gpus = sorted({g for g in (gpu_of(s) for s in [*CATALOG, HERO]) if g})
+if len(all_gpus) > 1:
+    lines += [
+        "",
+        "> 口径注：本表统计并非单一硬件口径——涉及 " + "、".join(all_gpus) +
+        "。跨行比较渲染时间/吞吐前请核对各图 stats 的 device 字段"
+        "（compare/ 对比图不采集统计）。",
+        "",
+    ]
 
 with open(out_md, "w") as f:
     f.write("\n".join(lines))
@@ -506,9 +530,9 @@ PY
 # files from renamed scenes). Losslessly recompress via PIL when available
 # (stb PNGs are ~40% larger); fall back to a plain copy.
 mkdir -p "$ROOT/docs/gallery"
-SYNC=("${RENDERED[@]}")
-for stem in "${CMP_STEMS[@]:-}"; do
-  [ -n "$stem" ] && SYNC+=("compare/$stem")
+SYNC=(${RENDERED[@]+"${RENDERED[@]}"})
+for stem in ${CMP_STEMS[@]+"${CMP_STEMS[@]}"}; do
+  SYNC+=("compare/$stem")
 done
 if [ "${#SYNC[@]}" -gt 0 ] && python3 -c 'import PIL' 2>/dev/null; then
   python3 - "$GALLERY" "$ROOT/docs/gallery" "${SYNC[@]}" << 'PY'

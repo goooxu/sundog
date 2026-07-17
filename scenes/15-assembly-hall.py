@@ -12,7 +12,7 @@ partition (GGX microfacet transmission). Candy-colored plastic Sparkys
 ride the conveyor (coated two-lobe BSDF); the one QC woke up lights its
 screens as textured mesh NEE lights. The capsule mascot supervises in
 yellow plastic with an emissive antenna beacon, a UV-textured Spot waits
-at the end of the belt, and a PhysX GPU pour freezes a crateful of toy
+by the cooling pool, and a PhysX GPU pour freezes a crateful of toy
 cows mid-tumble (--physics-time). A cooling pool up front reflects it all
 through fbm waves and Beer-Lambert absorption; metal trusses span the
 ceiling and the factory's gear logo hangs as an alpha-cutout disk. Three
@@ -94,8 +94,8 @@ for name, c, rough, _ in TOYS:
     s.plastic(name + 'A', color=[c[0] * 0.45, c[1] * 0.45, c[2] * 0.45],
               roughness=rough)
 
-# ---- hall shell (28 wide x 12 high x 30 deep; skylight gap in the roof) ----
-s.add('rect', 'floor', scale(16))
+# ---- hall shell (28 wide x ~13 high x 28 deep; skylight gap in the roof) ----
+s.add('rect', 'floor', scale(16), physics={'thickness': 0.5})
 s.add('rect', 'wall', scale(16, 1, 6.5), rotate_x(90), translate(0, 6.5, -14))
 # west wall with three tall windows (y 5.5-10, width 2.2): the due-west
 # 48-deg sun drops three light stripes onto the floor around x -9..-5,
@@ -109,7 +109,7 @@ s.add('rect', 'wall', scale(6.5, 1, 15), rotate_z(90), translate(14, 6.5, 0))
 # roof as four slabs around a 7x5 skylight opening centered at (-6, z=-2.25):
 # with the sun due west at 48 deg (rotate=165), the beam through the opening
 # lands mid-right around x~5.6 where the mascot and the pour crate stand,
-# and the smoke column at x~0.5 rises straight through it.
+# and the smoke column (x=3.2) rises through its mid-section.
 s.add('rect', 'wall', scale(16, 1, 4.625), rotate_x(180), translate(0, 12.9, -9.375))
 s.add('rect', 'wall', scale(16, 1, 6.875), rotate_x(180), translate(0, 12.9, 7.125))
 s.add('rect', 'wall', scale(2.25, 1, 2.5), rotate_x(180), translate(-11.75, 12.9, -2.25))
@@ -188,7 +188,7 @@ s.add('mesh:spot', 'spotMat', scale(0.9), rotate_y(155),
 s.add('rect', 'beltFrame', scale(1.9, 1, 1.9), translate(5.0, 0.02, 1.2),
       physics={'thickness': 0.3})                       # crate base plate
 for wx, hh, rot in ((3.25, 0.5, 90), (6.75, 0.9, -90)):
-    s.add('rect', 'beltFrame', scale(1.75, 1, hh), rotate_z(rot),
+    s.add('rect', 'beltFrame', scale(hh, 1, 1.75), rotate_z(rot),
           translate(wx, hh, 1.2), physics={'thickness': 0.25})
 for wz, rot in ((-0.55, -90), (2.95, 90)):
     s.add('rect', 'beltFrame', scale(1.75, 1, 0.55 if rot == -90 else 0.9),
