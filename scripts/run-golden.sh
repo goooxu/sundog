@@ -19,7 +19,7 @@ IMG_COMPARE="$SUNDOG_BUILD/img_compare"
 GOLDEN_DIR="$ROOT/tests/golden"
 
 WIDTH=256 HEIGHT=256 SPP=64 SEED=7 MIN_PSNR=45
-SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork 13-frosted-veil)
+SCENES=(smoke 01-marble-run 02-cornell-lume 04-parabolica 10-suncatcher 11-glasswork 13-frosted-veil 14-toy-factory)
 
 fail() { echo "run-golden: FAIL: $*" >&2; exit 1; }
 [ -f "$BACKEND" ] || fail "backend not found: $BACKEND"
