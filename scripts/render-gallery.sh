@@ -215,11 +215,6 @@ PY
   CMP_STEMS+=("mesh-light-$side")
 done
 
-# 6. ACES tone mapping vs linear clamp: the campfire core
-cr aces-tonemap-on  "$ROOT/scenes/07-campfire.py" --spp 512 --no-denoise
-cr aces-tonemap-off "$ROOT/scenes/07-campfire.py" --spp 512 --no-denoise \
-   --tonemap clamp
-
 # 7. NEE: equal-spp Cornell, light sampling on vs BSDF-only paths
 cr nee-on "$ROOT/scenes/02-cornell-lume.py" --spp 64 --no-denoise
 echo "== compare/nee-off (variant) =="
@@ -307,9 +302,6 @@ COMPARE = [
      "关——同样的发光网格只能被 BSDF 路径偶然撞中，照明塌暗、噪声爆炸"
      "（为读性变体同步提升屏幕强度与曝光、双侧关闭 firefly 钳制）。",
      "03 号场景深夜变体 · 256 spp"),
-    ("aces-tonemap", "ACES 色调映射",
-     "开：高光沿肩部渐进滚降，火心保住层次与色相；关：线性截断，火心"
-     "撞墙成死白色块。", "07 号场景 · 512 spp"),
     ("nee", "下一事件估计（NEE）",
      "同 64 spp：开——每次弹跳主动向光源连线；关——只靠 BSDF 路径撞灯，"
      "小光源下噪声爆炸。", "02 号场景 · 64 spp"),

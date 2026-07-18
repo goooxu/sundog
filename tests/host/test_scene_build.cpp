@@ -62,7 +62,6 @@ static void testMinimalDefaults() {
   CHECK(sundog_scene_validate(h) == SUNDOG_OK);
   const Scene& s = h->scene;
   CHECK(s.render.width == 1280 && s.render.height == 720);  // defaults
-  CHECK(s.render.tonemap == TM_ACES);  // ACES is the default output mapping
   CHECK(s.render.transparentShadows == true);  // transmissive shadows on
   CHECK(s.objects.size() == 1 && s.lights.empty());
   CHECK(s.baseDir == "scenes");
@@ -73,14 +72,10 @@ static void testMinimalDefaults() {
   std::printf("  rejected (missing camera): %s\n", sundog_last_error());
   sundog_scene_destroy(h2);
 
-  // legacy opaque-shadows opt-out + tonemap clamp escape hatch
+  // legacy opaque-shadows opt-out
   sundog_scene* h3 = freshMini();
-  CHECK(sundog_set_render(h3, -1, -1, -1, -1, kNaN, -1, kNaN, kNaN,
-                          SUNDOG_TM_CLAMP, 0) == SUNDOG_OK);
+  CHECK(sundog_set_render(h3, -1, -1, -1, -1, kNaN, -1, kNaN, 0) == SUNDOG_OK);
   CHECK(h3->scene.render.transparentShadows == false);
-  CHECK(h3->scene.render.tonemap == TM_CLAMP);
-  expectSetFail(sundog_set_render(h3, -1, -1, -1, -1, kNaN, -1, kNaN, kNaN,
-                                  99, -1), "unknown tonemap");
   sundog_scene_destroy(h3);
   sundog_scene_destroy(h);
 }
@@ -89,7 +84,7 @@ static void testMinimalDefaults() {
 // scenelib::_program allocates are ball=0, ground=1; floor tex = 0).
 static void testSmokeEquivalent() {
   sundog_scene* h = sundog_scene_create("scenes");
-  CHECK(sundog_set_render(h, 256, 256, 16, 8, kNaN, 7, kNaN, kNaN, -1, -1) == 0);
+  CHECK(sundog_set_render(h, 256, 256, 16, 8, kNaN, 7, kNaN, -1) == 0);
   CHECK(sundog_set_camera(h, D3(0, 1.5, 5), D3(0, 0.7, 0), nullptr, 35.0,
                           kNaN, kNaN) == 0);
   CHECK(sundog_set_background_gradient(h, D3(1.0, 1.0, 1.0),
@@ -153,7 +148,7 @@ static void testSmokeEquivalent() {
 // mirror=4 red=5).
 static void testFeaturesEquivalent() {
   sundog_scene* h = sundog_scene_create("scenes");
-  CHECK(sundog_set_render(h, 1920, 1080, 64, 16, kNaN, 7, kNaN, kNaN, -1, -1) == 0);
+  CHECK(sundog_set_render(h, 1920, 1080, 64, 16, kNaN, 7, kNaN, -1) == 0);
   CHECK(sundog_set_camera(h, D3(0, 3.2, 9), D3(0, 0.9, 0), nullptr, 38.0,
                           0.02, kNaN) == 0);
   CHECK(sundog_set_background_gradient(h, D3(0.9, 0.9, 0.95),
@@ -604,8 +599,8 @@ static void testLightOrderAndPhases() {
                                   nullptr), "object after lights");
   expectAddFail(sundog_add_flame(h, D3(0, 0, 0), 1, 0.5, kNaN, kNaN, kNaN, -1,
                                  kNaN), "flame after lights");
-  expectSetFail(sundog_set_render(h, 64, 64, -1, -1, kNaN, -1, kNaN, kNaN, -1,
-                                  -1), "render settings after lights");
+  expectSetFail(sundog_set_render(h, 64, 64, -1, -1, kNaN, -1, kNaN, -1),
+                "render settings after lights");
   expectAddFail(sundog_add_material_lambert(h, nullptr, -1),
                 "material after lights");
   sundog_scene_destroy(h);

@@ -69,7 +69,7 @@ check(doc["objects"][0] == {"shape": "sphere", "material": "grey"},
       "object without steps has no transform key")
 
 s = minimal()
-s.render(spp=64, tonemap="clamp")
+s.render(spp=64, exposure=0.5)
 s.background_envmap("sky.hdr", rotate=90)
 s.mesh("cow", "../assets/spot.obj", normals="smooth")
 s.add("mesh:cow", "grey", scale(1.7), rotate_y(205), translate(0, 2.9, -3),
@@ -80,7 +80,7 @@ s.add("rect", "grey", physics=static_body(thickness=0.5))
 s.add("sphere", "grey", physics=rigid_body(density=400, velocity=[1, 0, 0]))
 s.validate()
 doc = s.doc
-check(doc["render"] == {"spp": 64, "tonemap": "clamp"}, "render partial emit")
+check(doc["render"] == {"spp": 64, "exposure": 0.5}, "render partial emit")
 check(doc["background"] == {"type": "envmap", "file": "sky.hdr", "rotate": 90},
       "background envmap emit")
 check(doc["meshes"] == {"cow": {"obj": "../assets/spot.obj",
@@ -153,8 +153,6 @@ expect_error(lambda: minimal().plastic("p", roughnes=0.1), "unexpected keyword",
              "plastic kwarg typo is a TypeError")
 expect_error(lambda: minimal().material("p", "plastic", ior=1.6), "not a field",
              "plastic has no ior field (coat is fixed at 1.5)")
-expect_error(lambda: minimal().render(tonemap="filmic"), "tonemap",
-             "tonemap enum")
 expect_error(lambda: minimal().flame(base=[0, 0, 0], height=0, radius=1),
              "must be > 0", "flame height domain")
 expect_error(lambda: minimal().physics(solver_iterations=[8]),
@@ -268,8 +266,7 @@ check(prog[0] == ("create", "scenes"), "program starts with create(base_dir)")
 check(calls["set_render"][1:5] == (256, 256, 8, -1) and calls["set_render"][6] == 7,
       "set_render ints and seed")
 check(math.isnan(calls["set_render"][5]), "clamp OMIT -> NaN")
-check(calls["set_render"][9] == -1 and calls["set_render"][10] == -1,
-      "tonemap/transparent_shadows OMIT -> -1")
+check(calls["set_render"][8] == -1, "transparent_shadows OMIT -> -1")
 cam = calls["set_camera"]
 check(cam[1] == [0.0, 1.0, 5.0] and cam[3] is None, "camera vecs; up OMIT -> None")
 
@@ -367,18 +364,18 @@ check(True, "all %d scenes validate and program" % len(stems))
 # ---- CLI argument layer -------------------------------------------------------
 
 pa = scenelib._parse_args
-ns = pa([], "default.png")
-check(ns.out == "default.png" and ns.spp == -1 and ns.width == -1
-      and ns.seed == -1 and ns.denoise == -1 and ns.tonemap == -1
+ns = pa([], "default.avif")
+check(ns.out == "default.avif" and ns.spp == -1 and ns.width == -1
+      and ns.seed == -1 and ns.denoise == -1
       and math.isnan(ns.clamp) and not ns.quiet and not ns.probe,
       "defaults map to sentinels")
-ns = pa(["--out", "x.png", "--spp", "16", "--size", "640x360", "--seed", "0",
-         "--denoise", "--no-denoise", "--tonemap", "clamp", "--quiet"],
-        "default.png")
-check(ns.out == "x.png" and ns.spp == 16 and (ns.width, ns.height) == (640, 360)
-      and ns.seed == 0 and ns.denoise == 0 and ns.tonemap == 1 and ns.quiet,
+ns = pa(["--out", "x.avif", "--spp", "16", "--size", "640x360", "--seed", "0",
+         "--denoise", "--no-denoise", "--quiet"],
+        "default.avif")
+check(ns.out == "x.avif" and ns.spp == 16 and (ns.width, ns.height) == (640, 360)
+      and ns.seed == 0 and ns.denoise == 0 and ns.quiet,
       "flag parsing; later --no-denoise wins")
-ns = pa(["--opaque-shadows", "--physics-time", "1.0"], "d.png")
+ns = pa(["--opaque-shadows", "--physics-time", "1.0"], "d.avif")
 check(ns.transparent_shadows == 0 and ns.physics_time == 1.0,
       "opaque shadows + physics time")
 try:

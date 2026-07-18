@@ -5,7 +5,6 @@
 // loader applied when a key was absent.
 #include "capi_internal.h"
 #include "scene_build.h"
-#include "tonemap.h"
 
 #include <algorithm>
 #include <cstring>
@@ -33,8 +32,7 @@ extern "C" void sundog_scene_destroy(sundog_scene* h) { delete h; }
 
 extern "C" int sundog_set_render(sundog_scene* h, int width, int height, int spp,
                                  int max_depth, double clamp, int64_t seed,
-                                 double gamma, double exposure, int tonemap,
-                                 int transparent_shadows) {
+                                 double exposure, int transparent_shadows) {
   SUNDOG_TRY
   phaseAdvance(h, 0, "render settings");
   RenderSettings& r = h->scene.render;
@@ -44,11 +42,7 @@ extern "C" int sundog_set_render(sundog_scene* h, int width, int height, int spp
   if (max_depth > 0) r.maxDepth = max_depth;
   if (isset(clamp)) r.clampVal = (float)clamp;
   if (seed >= 0) r.seed = (unsigned)seed;
-  if (isset(gamma)) r.gamma = (float)gamma;
   if (isset(exposure)) r.exposure = (float)exposure;
-  if (tonemap == SUNDOG_TM_ACES) r.tonemap = TM_ACES;
-  else if (tonemap == SUNDOG_TM_CLAMP) r.tonemap = TM_CLAMP;
-  else if (tonemap != -1) sceneFail("render: unknown tonemap value");
   if (transparent_shadows >= 0) r.transparentShadows = transparent_shadows == 1;
   return SUNDOG_OK;
   SUNDOG_CATCH(SUNDOG_ERROR)

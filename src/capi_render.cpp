@@ -79,10 +79,6 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     if (opt->transparent_shadows >= 0)
       scene.render.transparentShadows = opt->transparent_shadows == 1;
     if (isset(opt->clamp) && opt->clamp >= 0.0) scene.render.clampVal = (float)opt->clamp;
-    if (isset(opt->gamma) && opt->gamma > 0.0) scene.render.gamma = (float)opt->gamma;
-    if (opt->tonemap == SUNDOG_TM_ACES) scene.render.tonemap = TM_ACES;
-    else if (opt->tonemap == SUNDOG_TM_CLAMP) scene.render.tonemap = TM_CLAMP;
-    else if (opt->tonemap != -1) throw std::runtime_error("--tonemap: expected aces|clamp");
     const RenderSettings& rs = scene.render;
 
     TextureSet textureSet;
@@ -259,9 +255,9 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     }
 
     // ---- output ----
-    film.writePng(outputBuf, opt->out_path, rs.exposure, rs.gamma, rs.tonemap);
-    if (opt->aov_albedo_path) film.writeAovPng(film.aovAlbedo(), opt->aov_albedo_path, false);
-    if (opt->aov_normal_path) film.writeAovPng(film.aovNormal(), opt->aov_normal_path, true);
+    film.writeAvif(outputBuf, opt->out_path, rs.exposure);
+    if (opt->aov_albedo_path) film.writeAovAvif(film.aovAlbedo(), opt->aov_albedo_path, false);
+    if (opt->aov_normal_path) film.writeAovAvif(film.aovNormal(), opt->aov_normal_path, true);
 
     size_t freeAfter = 0;
     CUDA_CHECK(cudaMemGetInfo(&freeAfter, &totalMem));

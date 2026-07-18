@@ -12,7 +12,7 @@ $ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
 There is no separate scene *file format* to learn and no main program to
 drive: the scene chooses its own render settings and output name in code,
 and any backend flag given on the command line overrides it
-(`--spp/--size/--seed/--out/--denoise/--stats/--tonemap/--physics-time/...`).
+(`--spp/--size/--seed/--out/--denoise/--stats/--physics-time/...`).
 Under the hood `Scene.run()` feeds the scene through the C ABI of the
 renderer library (`$SUNDOG_BUILD/libsundog.so`) via ctypes — call by call,
 with **no intermediate representation of any kind** — then renders in-process
@@ -66,16 +66,12 @@ only for `material`/`material_back` (pass-through, see below).
 
 `width` (1280), `height` (720), `spp` (64), `max_depth` (16), `clamp` (50.0,
 indirect-light firefly clamp, 0 = off), `seed` (7), `gamma` (2.2),
-`exposure` (0.0, EV), `tonemap` (`"aces"`), `transparent_shadows` (true).
+`exposure` (0.0, EV — HDR-domain scale before PQ encoding), `transparent_shadows` (true).
 
 Most are overridable from the command line at run time; fixed `seed` gives
 bit-identical images on the same GPU/driver.
 
-`tonemap` selects the output mapping: `"aces"` (default) runs the Hill
-ACES fit — highlights roll off along a filmic shoulder instead of clipping
-to white; `"clamp"` is the linear escape hatch (exposure → clamp[0,1] →
-gamma) for numeric experiments like the white-furnace test where the PNG
-must be a direct linear readout.
+Output is always HDR AVIF: linear radiance is PQ-encoded (SMPTE ST 2084, BT.2020 container, 12-bit, lossless) with linear 1.0 anchored at 203 cd/m² — there is no SDR tonemap path (v0.18).
 
 `transparent_shadows` (default true) lets shadow rays transmit through
 glass/water with Fresnel + Beer–Lambert attenuation, and march flame volumes
@@ -319,7 +315,7 @@ offending item:
 SceneError: objects[17] (12-molten-oracle.py:196): disk area light requires uniform XZ scale
 ```
 
-Checked: shape/texture/material/tonemap enums, unknown field names (typo
+Checked: shape/texture/material enums, unknown field names (typo
 guard), references to unregistered materials/textures/meshes, double-null
 faces, area-light rules (sphere/disk uniform scale; the textured-emissive-
 sphere `nee=False` rule; a dynamic body cannot be an NEE light — emissive

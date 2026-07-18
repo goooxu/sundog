@@ -43,7 +43,6 @@ enum {
   SUNDOG_GK_PARABOLA = 4,
   SUNDOG_GK_MESH = 5,
 };
-enum { SUNDOG_TM_ACES = 0, SUNDOG_TM_CLAMP = 1 };
 enum {
   SUNDOG_XF_SCALE = 0,
   SUNDOG_XF_TRANSLATE = 1,
@@ -57,8 +56,7 @@ enum {
 /* ---- config blocks (phase 0; each at most once) --------------------------- */
 SUNDOG_API int sundog_set_render(sundog_scene*, int width, int height, int spp,
                                  int max_depth, double clamp, int64_t seed,
-                                 double gamma, double exposure,
-                                 int tonemap /* -1|SUNDOG_TM_* */,
+                                 double exposure,
                                  int transparent_shadows /* -1|0|1 */);
 SUNDOG_API int sundog_set_camera(sundog_scene*, const double lookfrom[3],
                                  const double lookat[3],
@@ -174,8 +172,7 @@ typedef struct {
   int32_t spp, width, height;           /* -1 = scene value */
   int64_t seed;                         /* -1 = scene value */
   int32_t denoise, transparent_shadows; /* -1|0|1 */
-  double clamp, gamma;                  /* NaN = scene value */
-  int32_t tonemap;                      /* -1|SUNDOG_TM_* */
+  double clamp;                         /* NaN = scene value */
   double physics_time;                  /* NaN; >=0 overrides stop_time */
   int32_t quiet;                        /* 0|1 */
 } sundog_render_options;

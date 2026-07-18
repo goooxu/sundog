@@ -1,9 +1,8 @@
-// sundog: accumulation buffers, tonemap, PNG output.
+// sundog: accumulation buffers and HDR AVIF output.
 #ifndef SUNDOG_FILM_H
 #define SUNDOG_FILM_H
 
 #include "cuda_check.h"
-#include "tonemap.h"
 #include <string>
 
 namespace sd {
@@ -17,11 +16,14 @@ class Film {
   CUdeviceptr aovNormal() const { return normal_.ptr; }
   CUdeviceptr denoised() const { return denoised_.ptr; }
 
-  // exposure in EV stops; gamma e.g. 2.2. src: accum() or denoised().
-  void writePng(CUdeviceptr src, const std::string& path, float exposure,
-                float gamma, TonemapMode tonemap) const;
-  // AOV debug output ([-1,1] normals remapped to [0,1]).
-  void writeAovPng(CUdeviceptr src, const std::string& path, bool remap) const;
+  // Beauty output: linear HDR -> PQ (BT.2100) 12-bit lossless AVIF.
+  // exposure in EV stops. src: accum() or denoised().
+  void writeAvif(CUdeviceptr src, const std::string& path,
+                 float exposure) const;
+  // AOV debug output ([-1,1] normals remapped to [0,1]): the data is LDR
+  // by construction, stored as sRGB 8-bit lossless AVIF.
+  void writeAovAvif(CUdeviceptr src, const std::string& path,
+                    bool remap) const;
 
   int width() const { return width_; }
   int height() const { return height_; }

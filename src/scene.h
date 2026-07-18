@@ -3,7 +3,6 @@
 #define SUNDOG_SCENE_H
 
 #include "params.h"
-#include "tonemap.h"
 #include <string>
 #include <vector>
 
@@ -15,9 +14,7 @@ struct RenderSettings {
   int maxDepth = 16;
   float clampVal = 50.0f;
   unsigned seed = 7;
-  float gamma = 2.2f;
-  float exposure = 0.0f;  // EV
-  TonemapMode tonemap = TM_ACES;  // output mapping; TM_CLAMP = linear escape
+  float exposure = 0.0f;  // EV (HDR-domain scale; output is PQ AVIF)
   bool transparentShadows = true;  // false = legacy binary shadow occlusion
   int chunk = 16;
   bool denoise = false;

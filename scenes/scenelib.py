@@ -175,8 +175,8 @@ class Scene(object):
     # ---- blocks --------------------------------------------------------------
 
     def render(self, width=OMIT, height=OMIT, spp=OMIT, max_depth=OMIT,
-               clamp=OMIT, seed=OMIT, gamma=OMIT, exposure=OMIT,
-               tonemap=OMIT, transparent_shadows=OMIT):
+               clamp=OMIT, seed=OMIT, exposure=OMIT,
+               transparent_shadows=OMIT):
         r = self._render
         _put(r, "width", width)
         _put(r, "height", height)
@@ -184,13 +184,8 @@ class Scene(object):
         _put(r, "max_depth", max_depth)
         _put(r, "clamp", clamp)
         _put(r, "seed", seed)
-        _put(r, "gamma", gamma)
         _put(r, "exposure", exposure)
-        _put(r, "tonemap", tonemap)
         _put(r, "transparent_shadows", transparent_shadows)
-        if tonemap is not OMIT and tonemap not in ("aces", "clamp"):
-            raise SceneError("render (%s): tonemap must be 'aces' or 'clamp'"
-                             % _fmt_site(_site()))
 
     def camera(self, lookfrom, lookat, up=OMIT, vfov=OMIT, aperture=OMIT,
                focus_dist=OMIT):
@@ -556,10 +551,9 @@ class Scene(object):
 
         p = [("create", base_dir)]
         r = self._render
-        tm = {"aces": 0, "clamp": 1}.get(r.get("tonemap"), -1)
         p.append(("set_render", fint(r, "width"), fint(r, "height"),
                   fint(r, "spp"), fint(r, "max_depth"), fnum(r, "clamp"),
-                  fint(r, "seed"), fnum(r, "gamma"), fnum(r, "exposure"), tm,
+                  fint(r, "seed"), fnum(r, "exposure"),
                   ftri(r, "transparent_shadows")))
         if self._physics is not None:
             ph = self._physics
@@ -748,8 +742,7 @@ class _RenderOptions(ctypes.Structure):
                 ("height", ctypes.c_int32), ("seed", ctypes.c_int64),
                 ("denoise", ctypes.c_int32),
                 ("transparent_shadows", ctypes.c_int32),
-                ("clamp", ctypes.c_double), ("gamma", ctypes.c_double),
-                ("tonemap", ctypes.c_int32), ("physics_time", ctypes.c_double),
+                ("clamp", ctypes.c_double), ("physics_time", ctypes.c_double),
                 ("quiet", ctypes.c_int32)]
 
 
@@ -803,10 +796,9 @@ def _apply(lib, program):
                 raise SceneError(_err(lib))
             continue
         if name == "set_render":
-            w, ht, spp, md, clamp, seed, gamma, expo, tm, ts = args
+            w, ht, spp, md, clamp, seed, expo, ts = args
             rc = lib.sundog_set_render(h, w, ht, spp, md, d(clamp),
-                                       ctypes.c_int64(seed), d(gamma), d(expo),
-                                       tm, ts)
+                                       ctypes.c_int64(seed), d(expo), ts)
         elif name == "set_physics":
             g, ts_, mt, fr, re, pi, vi, st, sp = args
             rc = lib.sundog_set_physics(h, _d3(g), d(ts_), d(mt), d(fr), d(re),
@@ -894,7 +886,7 @@ def _render(lib, h, opts):
         scene_name=os.path.basename(sys.argv[0]).encode() or b"(scene)",
         spp=opts.spp, width=opts.width, height=opts.height, seed=opts.seed,
         denoise=opts.denoise, transparent_shadows=opts.transparent_shadows,
-        clamp=opts.clamp, gamma=opts.gamma, tonemap=opts.tonemap,
+        clamp=opts.clamp,
         physics_time=opts.physics_time, quiet=1 if opts.quiet else 0)
     if lib.sundog_render(h, ctypes.byref(o)) != 0:
         raise SceneError(_err(lib))
@@ -916,8 +908,6 @@ def _parse_args(args, default_out):
     ap.add_argument("--opaque-shadows", dest="transparent_shadows",
                     action="store_const", const=0, default=-1)
     ap.add_argument("--clamp", type=float, default=NAN, metavar="F")
-    ap.add_argument("--gamma", type=float, default=NAN, metavar="F")
-    ap.add_argument("--tonemap", choices=["aces", "clamp"], default=None)
     ap.add_argument("--physics-time", dest="physics_time", type=float,
                     default=NAN, metavar="F")
     ap.add_argument("--stats", default=None, metavar="FILE.json")
@@ -933,7 +923,6 @@ def _parse_args(args, default_out):
             ns.width, ns.height = int(w), int(h)
         except ValueError:
             ap.error("--size expects WxH")
-    ns.tonemap = {"aces": 0, "clamp": 1, None: -1}[ns.tonemap]
     return ns
 
 
