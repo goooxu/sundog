@@ -158,6 +158,6 @@ while (done < rs.spp) {
 
 *图：左起 beauty、反照率 AOV、法线 AOV（03-spot-atrium 场景）；AOV 作降噪引导层的用法见第 10 章。*
 
-最后是一个工程坑，一段带过：设备代码理论上可编成 OptiX-IR（OptiX 专用的二进制中间表示）交给驱动，但 nvcc 13.0 的 `--optix-ir` 输出会被 R610 驱动（610.47.04）的加载器拒收，`optixModuleCreate` 报出空日志的编译错误。因此 sundog 一律编成 PTX（CUDA 的汇编级中间表示，`-arch=compute_120`）嵌入渲染库，运行时由驱动即时编译（JIT）为机器码，性能无差别，代价只是首次创建模块稍慢。
+最后是一个工程坑，一段带过：设备代码理论上可编成 OptiX-IR（OptiX 专用的二进制中间表示）交给驱动，但 nvcc 13.0 的 `--optix-ir` 输出会被 R610 驱动（610.47.04）的加载器拒收，`optixModuleCreate` 报出空日志的编译错误。因此 sundog 一律编成 PTX（CUDA 的汇编级中间表示，`-arch=compute_75`——nvcc 13 接受的最低目标）嵌入渲染库，运行时由驱动即时编译（JIT）为本机架构的机器码，性能无差别，代价只是首次创建模块稍慢。这个选择还顺手解决了可移植性：PTX 前向兼容，同一份 compute_75 模块在 Turing 到最新数据中心 Blackwell 的任何 NVIDIA GPU 上都能 JIT——项目因此不必假设运行环境的 GPU 型号（`DEVARCH` 仍可覆盖，golden 的 manifest 记录生成时的实际口径）。
 
 **小结**：OptiX 的五种程序各管一段——raygen 发光线、IS 算自定义求交、AH 行使否决权、CH/miss 收尾；sundog 用 megakernel 结构把整个路径积分器收进 raygen，trace 深度压到 1，CH 退化为 8 寄存器的打包器；SBT 以 `2×instanceId + rayType` 的索引规则把每个对象、每种光线接到 8 个 hitgroup 变体之一；anyhit 一段逻辑同时实现穿透、镂空与正确的阴影，其余对象全部走 DISABLE_ANYHIT 快速路径。下一章转向让图像"干净"的另一半工程：并行随机数如何做到逐位可复现、纹理如何采样、以及 AI 降噪如何用 16 spp 逼近数千 spp——[第 10 章·随机数、纹理与 AI 降噪](10-sampling-denoising.md)。

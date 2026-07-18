@@ -29,10 +29,13 @@ LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) $(AVIF_LIBS) -ldl -lpthr
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
              -Idevice -I$(OPTIX_HOME)/include
 
-# PTX target. compute_120 (RTX Blackwell) is the project's pinned golden
-# capacity; override for other GPUs — e.g. DEVARCH=compute_100 on GB200
-# boxes for look-dev renders (goldens stay 5090-only regardless).
-DEVARCH ?= compute_120
+# PTX target. compute_75 (Turing) is the lowest target nvcc 13 accepts;
+# PTX is JIT-compiled by the driver, so one compute_75 module runs on every
+# NVIDIA GPU from Turing on — RT Cores optional (OptiX falls back to
+# software BVH traversal on GPUs without them, e.g. GB200). Raising this
+# only changes which GPUs can run the PTX, not the rendered image on a
+# given machine; goldens are pinned to the arch recorded in their manifest.
+DEVARCH ?= compute_75
 DEVFLAG := -ptx -arch=$(DEVARCH)
 DEVEXT  := ptx
 # Arch stamp: the PTX rule depends on it, so switching DEVARCH between

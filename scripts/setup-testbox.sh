@@ -105,7 +105,11 @@ if [ ! -f "$AVIF_PREFIX/lib/libavif.a" ]; then
 fi
 
 # 5. PhysX 5.8.0 (GPU): static SDK libs + libPhysXGpu_64.so, all built from
-# source (the GPU code is open since 5.6; CUDA kernels include sm_120).
+# source (the GPU code is open since 5.6). Kernel coverage of this build:
+# sm_75 SASS comes from the CMAKE_CUDA_ARCHITECTURES=75 baseline, the
+# reduced list adds sm_80..120 SASS plus compute_120 PTX for forward
+# compat — i.e. GPU rigid bodies run on any NVIDIA GPU from Turing on,
+# same floor as the renderer's compute_75 PTX. No CPU PhysX fallback.
 # Fast path: restore the assembled prefix from the NFS tarball. Slow path
 # (first time only): build from the NFS source tarball — generate_projects
 # needs outbound HTTPS to packman's CDN for its own cmake/python — then
@@ -123,8 +127,10 @@ if [ ! -f /tmp/physx-5.8/lib/libPhysX_static_64.a ] || [ ! -f /tmp/physx-5.8/bin
     tar -C /tmp -xzf "$PHYSX_SRC_TARBALL"
     mv /tmp/physx-5.8-plan /tmp/physx-src
     PRESET=/tmp/physx-src/physx/buildtools/presets/public/$PHYSX_PRESET.xml
-    # Reduced arch list (sm_80+): the full list starts at sm_70, which nvcc 13
-    # no longer accepts. Skip snippets/PVD runtime — we only need the SDK.
+    # Reduced arch list: the full list starts at sm_70, which nvcc 13 no
+    # longer accepts. Reduced = sm_80..120 SASS on top of the sm_75
+    # CMAKE_CUDA_ARCHITECTURES baseline (see header comment), so nothing
+    # below Turing is lost. Skip snippets/PVD runtime — SDK only.
     sed -i 's/\("PX_GENERATE_GPU_REDUCED_ARCHITECTURES" value="\)False/\1True/;
             s/\("PX_BUILDSNIPPETS" value="\)True/\1False/;
             s/\("PX_BUILDPVDRUNTIME" value="\)True/\1False/' "$PRESET"
