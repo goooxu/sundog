@@ -3,6 +3,7 @@
 CUDA_HOME  ?= /tmp/cuda-13.0
 OPTIX_HOME ?= /tmp/optix-9.1.0
 PHYSX_HOME ?= /tmp/physx-5.8
+AVIF_HOME  ?= /tmp/avif-1.1
 BUILD      ?= $(if $(SUNDOG_BUILD),$(SUNDOG_BUILD),build)
 NVCC       := $(CUDA_HOME)/bin/nvcc
 BIN2C      := $(CUDA_HOME)/bin/bin2c
@@ -14,14 +15,16 @@ DEBUG ?= 0
 
 CXXFLAGS := -std=c++17 -O2 -g -Wall -Wextra -MMD -MP -fPIC \
             -Isrc -Idevice -Iextern -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include \
-            -I$(PHYSX_HOME)/include
+            -I$(PHYSX_HOME)/include -I$(AVIF_HOME)/include
 # PhysX static archives must precede -ldl/-lpthread; libPhysXGpu_64.so is
 # dlopen'ed at runtime from $(PHYSX_HOME)/bin (rpath below + LD_LIBRARY_PATH
 # in scripts/env-testbox.sh).
 PHYSX_LIBS := -L$(PHYSX_HOME)/lib \
               -lPhysXExtensions_static_64 -lPhysX_static_64 -lPhysXPvdSDK_static_64 \
               -lPhysXCooking_static_64 -lPhysXCommon_static_64 -lPhysXFoundation_static_64
-LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) -ldl -lpthread \
+# Static HDR AVIF codec (libavif + libaom); order matters: avif before aom.
+AVIF_LIBS := -L$(AVIF_HOME)/lib -lavif -laom
+LDFLAGS  := -L$(CUDA_HOME)/lib64 -lcudart $(PHYSX_LIBS) $(AVIF_LIBS) -ldl -lpthread \
             -Wl,-rpath,$(CUDA_HOME)/lib64 -Wl,-rpath,$(PHYSX_HOME)/bin
 NVCCFLAGS := -std=c++17 --use_fast_math -lineinfo \
              -Idevice -I$(OPTIX_HOME)/include
@@ -50,7 +53,7 @@ HOST_OBJS := $(HOST_SRCS:src/%.cpp=$(BUILD)/%.o)
 TEST_SRCS := $(wildcard tests/host/*.cpp)
 TEST_BINS := $(TEST_SRCS:tests/host/%.cpp=$(BUILD)/tests/%)
 TESTFLAGS := -std=c++17 -O2 -g -Wall -Idevice -Iextern -Isrc \
-             -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include
+             -I$(OPTIX_HOME)/include -I$(CUDA_HOME)/include -I$(AVIF_HOME)/include
 
 all: $(BUILD)/libsundog.so
 
@@ -103,7 +106,12 @@ $(BUILD)/tests/%: tests/host/%.cpp tests/host/check.h $(wildcard device/*.cuh) d
 	$(CXX) $(TESTFLAGS) -o $@ $<
 
 $(BUILD)/img_compare: tests/tools/img_compare.cpp | $(BUILD)
-	$(CXX) $(TESTFLAGS) -o $@ $< -lm
+	$(CXX) $(TESTFLAGS) -o $@ $< $(AVIF_LIBS) -lpthread -lm
+
+# stb-in / libavif-out converter for scripts (texture/doc migration, PIL
+# and matplotlib intermediates); also decodes AVIF back to raw for checks.
+$(BUILD)/img2avif: tests/tools/img2avif.cpp | $(BUILD)
+	$(CXX) $(TESTFLAGS) -o $@ $< $(AVIF_LIBS) -lpthread -lm
 
 host-tests: $(TEST_BINS)
 	@for t in $(TEST_BINS); do echo "== $$t"; $$t || exit 1; done

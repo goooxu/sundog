@@ -4,7 +4,7 @@
 
 | 组件 | 用途 | 许可 |
 |---|---|---|
-| [stb](https://github.com/nothings/stb)（`stb_image.h`、`stb_image_write.h`） | 纹理读取、PNG 输出、img_compare | public domain（Unlicense）/ MIT 双许可 |
+| [stb](https://github.com/nothings/stb)（`stb_image.h`） | Radiance .hdr 环境贴图解码、img2avif 的 SDR 图读取 | public domain（Unlicense）/ MIT 双许可 |
 | [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)（`tiny_obj_loader.h`） | OBJ 网格加载 | MIT |
 
 ## 资产
@@ -20,6 +20,15 @@
 - **许可：** MIT。
 - **用途：** `src/tonemap.h` 的输出色调映射（输入/输出 3×3 矩阵与有理拟合
   常数照录；实现为独立 C++ 改写）。
+
+## 构建时静态链接（不随仓库分发源码）
+
+- [libavif](https://github.com/AOMediaCodec/libavif) 1.1.1（BSD-2-Clause）——
+  HDR AVIF 编码/解码（渲染输出、纹理输入、img_compare/img2avif）；
+- [libaom](https://aomedia.googlesource.com/aom/) 3.9.1（BSD-2-Clause +
+  AOM 专利授权）——AV1 编解码器后端。
+  两者由 `scripts/setup-testbox.sh` 按架构从源码静态构建，产物 tarball
+  缓存回 NFS（同 PhysX 模式）。
 
 ## 运行时依赖（不随仓库分发）
 
