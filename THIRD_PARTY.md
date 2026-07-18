@@ -9,7 +9,7 @@
 
 ## 资产
 
-- **Spot**（`assets/spot.obj` + `scenes/textures/spot_texture.png`）：
+- **Spot**（`assets/spot.obj` + `scenes/textures/spot_texture.avif`）：
   Keenan Crane 的卡通奶牛模型，CC0 1.0（公有领域）。OBJ 不入库，由
   `scripts/fetch-assets.sh` 下载，详见 [assets/LICENSES.md](assets/LICENSES.md)。
 

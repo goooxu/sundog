@@ -97,8 +97,9 @@
 | 中项不等式 | mediant inequality | (a+c)/(b+d) 夹在 a/b 与 c/d 之间 |
 | 降噪器 | denoiser | |
 | 引导层 | guide layer | albedo/normal AOV |
-| 色调映射 | tone mapping | 出口映射：ACES Hill 拟合（RRT+ODT），第 1 章 |
-| ACES | Academy Color Encoding System | 电影工业色彩编码标准 |
+| PQ | perceptual quantizer | 出口转移函数：SMPTE ST 2084，绝对亮度 0–10,000 nits，第 1 章 |
+| HDR10 / BT.2100 | — | PQ + BT.2020 的 HDR 广播/流媒体口径，sundog 输出遵循 |
+| AVIF | AV1 image format | 唯一输出/纹理图像格式：12-bit PQ（beauty）与 8-bit sRGB（AOV/图表），无损 |
 | 脚趾 / 肩部 | toe / shoulder | S 曲线的暗部轻压段 / 高光滚降段 |
 | 伽马校正 | gamma correction | |
 | 峰值信噪比 | PSNR | dB |
@@ -128,7 +129,7 @@
 
 - 数学：行内用 ``$`...`$``（美元+反引号），独立公式用 ```` ```math ```` 围栏块——两种写法 GitHub 与 GitLab 都原生渲染；**不要用裸 `$...$` / `$$...$$`**（GitHub 对紧邻中文全角字符的 `$` 解析会失效，GitLab 则完全不支持）。重要公式前空行独立成段；不用公式编号，引用时用文字（"上式""渲染方程"）
 - 源码引用：`` `bsdfSample()`（device/bsdf.cuh）``格式——函数名+文件路径，不写行号（会漂移）
-- 图：`![说明](figures/chNN-name.png)`，图后紧跟一行斜体图注 `*图：……*`；所有图放 `docs/report/figures/`
+- 图：`![说明](figures/chNN-name.avif)`，图后紧跟一行斜体图注 `*图：……*`；所有图放 `docs/report/figures/`
 - 交叉引用其他章：`[第 3 章·蒙特卡洛积分](03-monte-carlo.md)`
 - 每章结构：开头 2-3 句"本章回答什么问题、承接哪一章"；结尾"小结 + 下一章去哪"；标题层级从 `#`（章名）到 `###` 为止
 - 代码片段：只贴关键 10 行以内并注明出处，不整段复制源码

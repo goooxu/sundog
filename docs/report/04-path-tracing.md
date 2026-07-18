@@ -78,7 +78,7 @@ p_\omega = \frac{d^2}{\cos\theta_g\,A_{\text{total}}},
 
 发光网格从此与矩形/圆盘/球同列：解析场景时自动登记进灯表（对账 `addObjectDerived()`（src/scene_build.cpp）——动态刚体同样不得兼任网格灯，约束与其他灯型一致），NEE 主动连线，MIS 与 BSDF 命中对分权重，萤火虫的来源变成了被两条途径共同压住的普通面光源。
 
-![NEE 开与关的对比](figures/ch04-nee.png)
+![NEE 开与关的对比](figures/ch04-nee.avif)
 
 *图：Cornell 类场景 64 spp。左：NEE 开（默认）；右：发光体不注册为灯（nee:false），只能靠 BSDF 采样撞灯，噪声急剧恶化。*
 
@@ -161,7 +161,7 @@ if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
 
 **仅 depth ≥ 1 生效**：depth = 0 的贡献——相机直接看到的背景、直接可见的发光体、首个顶点的直接光——永不 clamp。于是直接光照与"看得见的灯"保持严格无偏，偏差被圈禁在间接光里。此外 `sanitize()` 把偶发的 NaN/Inf 归零，是最后一道数值防线。
 
-![clamp 开关下的 firefly 对比](figures/ch04-clamp.png)
+![clamp 开关下的 firefly 对比](figures/ch04-clamp.avif)
 
 *图：04-parabolica 24 spp。左：`--clamp 0`（关闭），镜面/折射路径产生大量 firefly；右：`--clamp 5`（刻意取小值使抑制在低 spp 下肉眼可见；该场景默认 clamp 30 与关闭的实测差异在 59 dB 量级——ACES 肩部把残余的超亮贡献压得极扁，8-bit 上不可辨），亮斑消失，间接高光略有压暗。*
 

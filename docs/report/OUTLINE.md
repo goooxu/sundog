@@ -17,20 +17,18 @@
 **回答**：数字图像是什么？渲染在计算什么？为什么沿"反方向"追光线？
 
 小节：
-1. 像素、RGB 与线性空间——显示器 gamma、为什么渲染在线性空间累积、伽马留到最后
-2. 色调映射：把无界的辐亮度装进 8-bit——截断丢层次丢色相（火心数值例）；胶片 S 曲线（toe/shoulder）；ACES Hill 拟合公式与关键数值走读（0.18→0.106、1.0→0.619、渐近 1.0165）；管线顺序 曝光→ACES→gamma 的理由；tonemap:"clamp" 线性退路的用途（对账 `acesFitted()`（src/tonemap.h）与 `Film::writePng()`（src/film.cpp））
+1. 像素、RGB 与线性空间——显示器 gamma、为什么渲染在线性空间累积、编码留到出口（输入 sRGB 解码 / 输出 PQ）
+2. HDR 输出：把无界的辐亮度原样交给显示器——SDR 色调映射的结构性代价（v0.18 起退役）；PQ（SMPTE ST 2084）公式与锚点走读（100nits→0.508、203→0.581、10000→1.0）；曝光→709→2020→203nit 锚→PQ→12bit 的管线顺序；无损 AVIF 与决定性（对账 `pqOetf()`（src/transfer.h）与 `Film::writeAvif()`（src/film.cpp））
 3. 针孔相机模型——成像平面、视场角 vfov、从像素 (i,j) 构造光线 o+t·d（对账 `makeCamera()`（src/scene_build.cpp）：lowerLeft/horizontal/vertical 的几何含义）
 4. 薄透镜与景深——光圈半径、对焦距离（对账 raygen 中 lensRadius 采样）
 5. 光的可逆性：从眼睛出发反向追踪的合理性（Helmholtz 互易性直觉版）；一张图给出"渲染一帧 = 对每个像素解一个积分"的全书路线图
-6. sundog 的一帧流程速览（伪代码 10 行：循环 spp→构造光线→追踪→累积→tonemap）
+6. sundog 的一帧流程速览（伪代码 10 行：循环 spp→构造光线→追踪→累积→PQ 编码）
 
 图：
 - `figures/ch01-pinhole-camera.svg`：针孔相机+成像平面+像素网格+一根光线
 - `figures/ch01-thin-lens.svg`：薄透镜、光圈、焦平面、弥散圈
-- `figures/ch01-spp-convergence.png`：同场景 1/4/16/64/256 spp 五联横条
-- `figures/ch01-gamma.png`：gamma 1.0 vs 2.2 双联（tonemap:"clamp" 下渲染以隔离伽马）
-- `figures/ch01-tonemap.png`：截断 vs ACES 双联（07-campfire 火心）
-- `figures/ch01-aces-curve.png`：数据图——截断折线 vs ACES S 曲线
+- `figures/ch01-spp-convergence.avif`：同场景 1/4/16/64/256 spp 五联横条
+- `figures/ch01-pq-curve.avif`：数据图——PQ 转移函数与 SDR 区间带（gen-report-charts.py）
 
 ---
 
@@ -64,7 +62,7 @@
 5. 半球上的常用采样：均匀球面、cosine 加权（给出 (u1,u2)→方向的构造与 pdf=cosθ/π 验证，对账 `cosineHemisphere()`（device/rng.cuh））
 
 图：
-- `figures/ch03-mc-convergence.png`：数据图——PSNR(dB) vs spp（对数轴），标注 +6dB/4× 参考斜率
+- `figures/ch03-mc-convergence.avif`：数据图——PSNR(dB) vs spp（对数轴），标注 +6dB/4× 参考斜率
 - `figures/ch03-importance-sampling.svg`：同一被积函数下均匀采样 vs 重要性采样的样本分布
 - 复用 ch01-spp-convergence 交叉引用
 
@@ -85,8 +83,8 @@
 图：
 - `figures/ch04-path-trace.svg`：相机→漫反射点(带 NEE shadow ray)→玻璃→灯 的完整路径
 - `figures/ch04-mis-weights.svg`：小亮灯场景中 BSDF 采样 pdf 与光源采样 pdf 的互补覆盖
-- `figures/ch04-nee.png`：cornell 类场景 64spp，NEE 开 vs 关（发光体 nee:false）双联
-- `figures/ch04-clamp.png`：低 spp 下 --clamp 0 vs 默认 双联（fireflies 可见）
+- `figures/ch04-nee.avif`：cornell 类场景 64spp，NEE 开 vs 关（发光体 nee:false）双联
+- `figures/ch04-clamp.avif`：低 spp 下 --clamp 0 vs 默认 双联（fireflies 可见）
 
 ---
 
@@ -105,8 +103,8 @@
 图：
 - `figures/ch05-microfacet.svg`：宏观面上的微镜面、半程向量 h、遮蔽/阴影
 - `figures/ch05-snell.svg`：折射几何+临界角+TIR
-- `figures/ch05-fresnel-curves.png`：数据图——η=1.5 精确 Fresnel vs Schlick，0-90°
-- `figures/ch05-roughness-ladder.png`：5 个金属球 roughness 0/0.1/0.25/0.45/0.7
+- `figures/ch05-fresnel-curves.avif`：数据图——η=1.5 精确 Fresnel vs Schlick，0-90°
+- `figures/ch05-roughness-ladder.avif`：5 个金属球 roughness 0/0.1/0.25/0.45/0.7
 
 ---
 
@@ -125,7 +123,7 @@
 - `figures/ch06-ray-quadric.svg`：射线穿球的两根 t、判别式几何含义
 - `figures/ch06-barycentric.svg`：三角形重心坐标与属性插值
 - `figures/ch06-parabola-focus.svg`：抛物面反射平行光过焦点（与 04 场景互证）
-- `figures/ch06-primitives.png`：features.py 渲染（5 种原语同框）
+- `figures/ch06-primitives.avif`：features.py 渲染（5 种原语同框）
 
 ---
 
@@ -143,7 +141,7 @@
 图：
 - `figures/ch07-instancing.svg`：一份单位几何 GAS ← 三个实例矩阵 → 世界中三个不同摆放
 - `figures/ch07-normal-transform.svg`：非均匀缩放下"直接变换法线"出错 vs 逆转置正确
-- 复用 `../gallery/05-spot-swarm.png` 交叉引用
+- 复用 `../gallery/05-spot-swarm.avif` 交叉引用
 
 ---
 
@@ -181,7 +179,7 @@
 - `figures/ch09-app-flow.svg`：七步生命周期泳道图（主机一次性准备 → 渲染循环 ⑤↔⑥ → 降噪落盘，框内标源文件，硬件/软件分色）
 - `figures/ch09-optix-pipeline.svg`：一次 optixTrace 的程序调用流程图（含 AH ignore 回路）
 - `figures/ch09-sbt.svg`：SBT 内存布局：raygen|miss×2|每实例两条 hitgroup 记录
-- `figures/ch09-aov.png`：beauty / albedo AOV / normal AOV 三联
+- `figures/ch09-aov.avif`：beauty / albedo AOV / normal AOV 三联
 
 ---
 
@@ -193,12 +191,12 @@
 1. PCG32——为什么不用 curand；按 (pixel,sample) 播种的独立流设计→逐位决定性（同 seed 同驱动图像比特级一致，正是 golden 测试基础）（对账 `Pcg32::init()` 播种式）
 2. 分层采样——把 [0,1)² 切格子降方差；spp 的 ⌊√N⌋² 分层（对账 raygen 抖动段）
 3. 纹理——UV→纹素、双线性过滤、sRGB 硬件解码、alpha 镂空（对账 textures.cpp 与 `evalTexture()`）
-4. AI 降噪——为什么 MC 噪声适合学习法去除；albedo/normal 引导层的作用（"告诉网络哪些边是真的"）；HDR 域降噪在 tonemap 前（对账 denoise.cpp 流程）；局限（偏差、非决定性输出不入 golden）
+4. AI 降噪——为什么 MC 噪声适合学习法去除；albedo/normal 引导层的作用（"告诉网络哪些边是真的"）；HDR 域降噪在输出编码前（对账 denoise.cpp 流程）；局限（偏差、非决定性输出不入 golden）
 
 图：
 - `figures/ch10-stratified.svg`：64 个纯随机点 vs 8×8 分层点的空隙/成团对比
-- 复用 `../gallery/09-ember-shore-spp16-raw.png` 与 `-denoised.png` 双联交叉引用（体积火焰+水面的重噪声场景）
-- `figures/ch09-aov.png` 交叉引用（引导层）
+- 复用 `../gallery/09-ember-shore-spp16-raw.avif` 与 `-denoised.avif` 双联交叉引用（体积火焰+水面的重噪声场景）
+- `figures/ch09-aov.avif` 交叉引用（引导层）
 
 ---
 
@@ -232,9 +230,9 @@
 图：
 - `figures/ch12-radiative-transfer.svg`：介质微元账目 + 透射率衰减曲线
 - `figures/ch12-flame-field.svg`：泪滴轮廓/fbm 扰边/发射梯度三层解剖
-- `figures/ch12-noise-anatomy.png`：火焰特写三联（noise_scale 0/1.5/3）
-- `figures/ch12-flame-shadow.png`：12 号场景对比双联（--opaque-shadows vs 默认，烟柱投影）
-- 复用 `../gallery/07-campfire.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch12-noise-anatomy.avif`：火焰特写三联（noise_scale 0/1.5/3）
+- `figures/ch12-flame-shadow.avif`：12 号场景对比双联（--opaque-shadows vs 默认，烟柱投影）
+- 复用 `../gallery/07-campfire.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -252,8 +250,8 @@
 图：
 - `figures/ch13-water-layers.svg`：纵剖面三层解剖（Fresnel 分光/法线锥/深度色衰减）
 - `figures/ch13-glitter.svg`：波光路径成因（法线抖动锥 → 亮带）
-- `figures/ch13-anatomy.png`：三联（wave_amp 0 / 默认 / absorb 0）
-- 复用 `../gallery/08-lakeside.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch13-anatomy.avif`：三联（wave_amp 0 / 默认 / absorb 0）
+- 复用 `../gallery/08-lakeside.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -271,9 +269,9 @@
 图：
 - `figures/ch14-equirect-mapping.svg`：球面方向域↔矩形 (u,v)、两极拉伸、sinθ 因子
 - `figures/ch14-env-cdf.svg`：亮度图→行边缘 CDF→条件 CDF→两次逆变换查找（太阳行的尖峰画出来）
-- `figures/ch14-uniform-vs-importance.png`：四联条带（均匀/重要性 × 16/256 spp）
-- `figures/ch14-env-luminance.png`：数据图——envmap 缩略图 + 逐行边缘亮度曲线（log），能量集中在极小立体角的直观证据
-- 复用 `../gallery/10-suncatcher.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch14-uniform-vs-importance.avif`：四联条带（均匀/重要性 × 16/256 spp）
+- `figures/ch14-env-luminance.avif`：数据图——envmap 缩略图 + 逐行边缘亮度曲线（log），能量集中在极小立体角的直观证据
+- 复用 `../gallery/10-suncatcher.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -291,9 +289,9 @@
 图：
 - `figures/ch15-shadow-transmit.svg`：阴影线穿介质的符号距离记账解剖（入/出成对、起点在水中的不成对情形）
 - `figures/ch15-medium-stack.svg`：介质栈进出与相对 IOR（玻璃⊃水⊃气泡三层走读）
-- `figures/ch15-shadow-compare.png`：11-glasswork 透明阴影开/关双联（--opaque-shadows）
-- `figures/ch15-snell-window.png`：水下仰视临时场景——Snell 窗口内是天空、窗外是全内反射的水底
-- 复用 `../gallery/11-glasswork.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch15-shadow-compare.avif`：11-glasswork 透明阴影开/关双联（--opaque-shadows）
+- `figures/ch15-snell-window.avif`：水下仰视临时场景——Snell 窗口内是天空、窗外是全内反射的水底
+- 复用 `../gallery/11-glasswork.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -311,8 +309,8 @@
 
 图：
 - `figures/ch16-halfvec-refraction.svg`：反射/透射半程向量几何（微镜面上的 Snell、η 加权和、TIR 情形）
-- `figures/ch16-frosted-ladder.png`：磨砂玻璃阶梯（5 球 roughness 0/0.05/0.15/0.3/0.6，HDR 天空）
-- 复用 `../gallery/13-frosted-veil.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch16-frosted-ladder.avif`：磨砂玻璃阶梯（5 球 roughness 0/0.05/0.15/0.3/0.6，HDR 天空）
+- 复用 `../gallery/13-frosted-veil.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -328,9 +326,9 @@
 5. 数值审计与加法性——主机端 6 组 × 20 万样本 weight/pdf 三方零失配、权重峰值 1.84 < 2、全角度能量 ≤ 1（垂直入射 E≈0.908 对上理论 0.87a+0.04；高粗糙度掠射的 G/G₁ 单次散射损失照旧）；枚举尾部追加 + raygen 白名单零改动 → 既有 7 golden 逐字节不变的机器证明；14 号入列第 8 张 golden 三连跑
 
 图：
-- `figures/ch17-toy-ladder.png`：玩具工厂涂层阶梯（14 号场景，粗糙度 0.03→0.6 的灯管反射条渐糊）
-- `figures/ch17-coupling-energy.png`：三种耦合的半球反照率随入射角曲线（唯 (d) 全程 ≤ 1）
-- 复用 `../gallery/14-toy-factory.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch17-toy-ladder.avif`：玩具工厂涂层阶梯（14 号场景，粗糙度 0.03→0.6 的灯管反射条渐糊）
+- `figures/ch17-coupling-energy.avif`：三种耦合的半球反照率随入射角曲线（唯 (d) 全程 ≤ 1）
+- 复用 `../gallery/14-toy-factory.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -348,8 +346,8 @@
 图：
 - `figures/ch18-physics-pipeline.svg`：装载管线与 PhysX 模块边界
 - `figures/ch18-trs-bake.svg`：T·R·S 分解/烘焙示意
-- `figures/ch18-freeze-sequence.png`：t=0.3/0.7/1.0/1.4 + 沉降态五联
-- 复用 `../gallery/06-spot-cascade.png` 交叉引用（正文未内嵌，画廊链接）
+- `figures/ch18-freeze-sequence.avif`：t=0.3/0.7/1.0/1.4 + 沉降态五联
+- 复用 `../gallery/06-spot-cascade.avif` 交叉引用（正文未内嵌，画廊链接）
 
 ---
 
@@ -376,23 +374,21 @@
 
 | 文件 | 内容 | 生成要点 |
 |---|---|---|
-| ch01-spp-convergence.png | 五联横条 1/4/16/64/256 spp | 02-cornell-lume --size 480x270，PIL 横拼+每格左上角标 spp |
-| ch01-gamma.png | gamma 1.0 vs 2.2 双联 | smoke.py --tonemap clamp --gamma 1.0/2.2，PIL 竖缝拼接+标注 |
-| ch01-tonemap.png | 截断 vs ACES 双联 | 07-campfire 960x540/64spp，--tonemap clamp vs 默认，PIL 横拼 |
-| ch04-nee.png | NEE 开关双联 | 02-cornell-lume 64spp 原样 vs sed 生成 nee:false 变体场景 |
-| ch04-clamp.png | firefly 对比双联 | 04-parabolica --size 640x360 --spp 24，--clamp 0 vs 默认 |
-| ch05-roughness-ladder.png | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
-| ch06-primitives.png | 5 原语同框 | features.py 256spp |
-| ch09-aov.png | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
-| ch18-freeze-sequence.png | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
-| ch12-noise-anatomy.png | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
-| ch12-flame-shadow.png | 烟柱投影对比双联 | 12-molten-oracle 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
-| ch13-anatomy.png | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
-| ch14-uniform-vs-importance.png | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
-| ch15-shadow-compare.png | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
-| ch16-frosted-ladder.png | 磨砂玻璃阶梯（5 球 roughness 0→0.6） | 新建 figures/src/frosted-ladder.py（仿 roughness-ladder，HDR 天空 + 棋盘地面），256spp，compose ladder |
-| ch17-toy-ladder.png | 玩具工厂涂层阶梯 | 14-toy-factory --spp 384（场景原生 1920x1080），compose ladder 单图配注 |
-| ch15-snell-window.png | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
+| ch01-spp-convergence.avif | 五联横条 1/4/16/64/256 spp | 02-cornell-lume --size 480x270，PIL 横拼+每格左上角标 spp |
+| ch04-nee.avif | NEE 开关双联 | 02-cornell-lume 64spp 原样 vs sed 生成 nee:false 变体场景 |
+| ch04-clamp.avif | firefly 对比双联 | 04-parabolica --size 640x360 --spp 24，--clamp 0 vs 默认 |
+| ch05-roughness-ladder.avif | 金属球粗糙度阶梯 | 新建临时小场景（5 球 roughness 0/0.1/0.25/0.45/0.7，一个面光）512spp |
+| ch06-primitives.avif | 5 原语同框 | features.py 256spp |
+| ch09-aov.avif | beauty/albedo/normal 三联 | 03-spot-atrium --spp 64 --aov-albedo --aov-normal，PIL 三拼 |
+| ch18-freeze-sequence.avif | 倾泻时序五联（4 个定格 + 沉降态） | 06-spot-cascade --size 480x270 --spp 24，--physics-time 0.3/0.7/1.0/1.4 与无覆盖，PIL 横拼 |
+| ch12-noise-anatomy.avif | 火焰特写三联（noise_scale 0/1.5/3） | 内联 python 生成火焰特写 temp 场景（480x640 / 48 spp），PIL 横拼 |
+| ch12-flame-shadow.avif | 烟柱投影对比双联 | 12-molten-oracle 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
+| ch13-anatomy.avif | 水面三联（wave_amp 0 / 默认 / absorb 0） | 内联 python 生成水面特写 temp 场景（640x360 / 64 spp），PIL 横拼 |
+| ch14-uniform-vs-importance.avif | 均匀 vs 重要性四联（16/256 spp × 2） | 10-suncatcher --size 480x270，内联 python 生成 importance:false 变体场景，PIL 横拼 |
+| ch15-shadow-compare.avif | 透明阴影开/关双联 | 11-glasswork 960x540/96spp，--opaque-shadows vs 默认，PIL 横拼 |
+| ch16-frosted-ladder.avif | 磨砂玻璃阶梯（5 球 roughness 0→0.6） | 新建 figures/src/frosted-ladder.py（仿 roughness-ladder，HDR 天空 + 棋盘地面），256spp，compose ladder |
+| ch17-toy-ladder.avif | 玩具工厂涂层阶梯 | 14-toy-factory --spp 384（场景原生 1920x1080），compose ladder 单图配注 |
+| ch15-snell-window.avif | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
 全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
 
@@ -400,11 +396,10 @@
 
 | 文件 | 内容 | 数据来源 |
 |---|---|---|
-| ch03-mc-convergence.png | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
-| ch05-fresnel-curves.png | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
-| ch14-env-luminance.png | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |
-| ch01-aces-curve.png | 截断折线 vs ACES S 曲线（对数横轴，标注 toe/肩/0.18/1.0） | 纯计算：gen-report-charts.py 复算 Hill 拟合 |
-| ch17-coupling-energy.png | 塑料三种耦合的半球反照率 E(θ) 曲线 | 纯计算：gen-report-charts.py 复算 GGX+Schlick 半球积分（albedo=1，roughness 0.15） |
+| ch03-mc-convergence.avif | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
+| ch05-fresnel-curves.avif | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
+| ch14-env-luminance.avif | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |
+| ch17-coupling-energy.avif | 塑料三种耦合的半球反照率 E(θ) 曲线 | 纯计算：gen-report-charts.py 复算 GGX+Schlick 半球积分（albedo=1，roughness 0.15） |
 
 风格：白底、单一强调色系（蓝 #2563EB 主色、灰网格线）、中文标签（若字体缺中文则英文标签）、300 dpi 导出后≤1600px 宽。
 

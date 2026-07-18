@@ -25,7 +25,7 @@ Pcg32 rng = Pcg32::init(((unsigned long long)pixel << 32) ^ (unsigned long long)
 - 序列内的"维度分配"由程序顺序固定：先抖动、再光圈、再 NEE、再 BSDF、再轮盘，代码路径相同则消耗相同；
 - 累积不经过原子浮点加法：每像素每 launch 恰好一个线程，用递推均值 `accum += (L - accum)/(s+1)` 顺序更新，浮点运算顺序完全固定，与线程调度无关。
 
-于是固定 `--seed`，在同一 GPU 与驱动上输出 PNG 比特级一致——这正是 [第 11 章·验证方法学与性能](11-validation.md) 中 golden 测试拿 sha256 校验决定性的基础。跨驱动版本则不保证（PTX 即时编译可能改变指令调度），所以 golden 参考图与 GPU/驱动组合绑定。作为对照，朴素实现的常见做法是用 `random_device` 播种：同一场景渲染两次，结果像素级不同，回归测试只能靠肉眼（见[附录](appendix-pitfalls.md)）。
+于是固定 `--seed`，在同一 GPU 与驱动上输出 AVIF 比特级一致——这正是 [第 11 章·验证方法学与性能](11-validation.md) 中 golden 测试拿 sha256 校验决定性的基础。跨驱动版本则不保证（PTX 即时编译可能改变指令调度），所以 golden 参考图与 GPU/驱动组合绑定。作为对照，朴素实现的常见做法是用 `random_device` 播种：同一场景渲染两次，结果像素级不同，回归测试只能靠肉眼（见[附录](appendix-pitfalls.md)）。
 
 ## 分层采样：把运气变成保证
 
@@ -58,7 +58,7 @@ case TX_IMAGE:
   return tex2D<float4>(tx.tex, u, 1.0f - v);
 ```
 
-$`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。host 侧的上传流程在 `TextureSet::upload()`（src/textures.cpp）：stb_image 把 PNG 统一解码成 RGBA8，拷进 `cudaArray`，再创建纹理对象，几项配置各有含义——
+$`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。host 侧的上传流程在 `TextureSet::upload()`（src/textures.cpp）：libavif 把 AVIF 纹理解码成 RGBA8（项目纹理均为无损 sRGB AVIF），拷进 `cudaArray`，再创建纹理对象，几项配置各有含义——
 
 - **wrap 寻址**：两个方向都是 `cudaAddressModeWrap`，UV 超出 $`[0,1)`$ 时周期平铺，棋盘地板类场景直接复用一张小图；
 - **过滤**：默认 `cudaFilterModeLinear` 即双线性过滤（bilinear filtering），取周围 4 个纹素（texel）按距离加权混合，避免放大时的马赛克；
@@ -72,17 +72,17 @@ $`v`$ 取反是因为图像行序自顶向下，而 UV 约定 $`v`$ 向上。hos
 
 这就是引导层（guide layer）的作用。raygen 顺带累积两张辅助输出（AOV，见第 9 章）：首次命中的反照率与相机空间法线（raygen 中 `aovAlbedo/aovNormal` 的递推均值段，device/programs.cu；miss 时反照率记背景色）。这两张图几乎无噪声——首跳命中由几何决定，不含路径采样的随机性——它们告诉网络哪些不连续是真实的几何边、纹理边，哪些只是噪声，网络就能在平坦区域大胆平滑、在引导层的边缘处收手。
 
-![beauty/albedo/normal 三联](figures/ch09-aov.png)
+![beauty/albedo/normal 三联](figures/ch09-aov.avif)
 
 *图：降噪器的三张输入（复用第 9 章三联图）——含噪 beauty、首跳反照率引导层、相机空间法线引导层。*
 
-sundog 用 OptiX 内置降噪器（denoiser），流程在 `Denoiser`（src/denoise.cpp）：创建时声明 `guideAlbedo/guideNormal` 并选 `OPTIX_DENOISER_MODEL_KIND_HDR` 模型——HDR 即高动态范围（high dynamic range），指未经压缩的线性辐亮度值域，可以远超 $`[0,1]`$；每帧先 `optixDenoiserComputeIntensity` 在整幅 HDR 输入上算一个全局亮度尺度（`hdrIntensity`，把任意曝光的场景归一到网络训练时的量级），再 `optixDenoiserInvoke` 输出。所有输入输出都是 float4 线性辐亮度缓冲——降噪发生在**HDR 线性域、色调映射之前**（src/capi_render.cpp 的顺序：渲染循环 → 降噪 → `writePng` 才做 exposure/ACES/gamma）。这与噪声的统计假设一致：辐亮度域里噪声零均值，若先做 clamp 和伽马这类非线性再降噪，均值就被扭曲了。
+sundog 用 OptiX 内置降噪器（denoiser），流程在 `Denoiser`（src/denoise.cpp）：创建时声明 `guideAlbedo/guideNormal` 并选 `OPTIX_DENOISER_MODEL_KIND_HDR` 模型——HDR 即高动态范围（high dynamic range），指未经压缩的线性辐亮度值域，可以远超 $`[0,1]`$；每帧先 `optixDenoiserComputeIntensity` 在整幅 HDR 输入上算一个全局亮度尺度（`hdrIntensity`，把任意曝光的场景归一到网络训练时的量级），再 `optixDenoiserInvoke` 输出。所有输入输出都是 float4 线性辐亮度缓冲——降噪发生在**HDR 线性域、输出编码之前**（src/capi_render.cpp 的顺序：渲染循环 → 降噪 → `writeAvif` 才做 exposure/色域/PQ 编码）。这与噪声的统计假设一致：辐亮度域里噪声零均值，若先做 clamp 和伽马这类非线性再降噪，均值就被扭曲了。
 
-| ![16 spp 原始](../gallery/09-ember-shore-spp16-raw.png) | ![16 spp + 降噪](../gallery/09-ember-shore-spp16-denoised.png) |
+| ![16 spp 原始](../gallery/09-ember-shore-spp16-raw.avif) | ![16 spp + 降噪](../gallery/09-ember-shore-spp16-denoised.avif) |
 |:---:|:---:|
 | 16 spp 原始蒙特卡洛 | 16 spp + OptiX AI 降噪 |
 
-*图：余烬湖岸（体积火焰 + 波纹水面，低采样噪声最重的场景）16 spp 降噪前后对比（复用画廊图）。量化数字见第 11 章：16 spp 从 30.23 dB 提到 42.21 dB。*
+*图：余烬湖岸（体积火焰 + 波纹水面，低采样噪声最重的场景）16 spp 降噪前后对比（复用画廊图）。量化数字见第 11 章：16 spp 从 31.53 dB 提到 44.98 dB。*
 
 代价也要说清楚。降噪是**有偏**的：网络会在细节与噪声难以区分时选择平滑，输出不再是渲染方程的一致估计量，spp 再高也不保证收敛到真值；其输出还依赖驱动内置模型的版本，不具备跨版本的比特级决定性。因此 golden 测试一律 `--no-denoise`（scripts/run-golden.sh），降噪只作为最终展示环节，不进入正确性基线。
 

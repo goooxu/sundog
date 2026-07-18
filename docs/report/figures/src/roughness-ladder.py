@@ -34,4 +34,4 @@ for name, _, x in LADDER:
     s.add("sphere", name, scale(0.55), translate(x, 0.55, 0))
 
 if __name__ == "__main__":
-    s.run(out="roughness-ladder.png")
+    s.run(out="roughness-ladder.avif")

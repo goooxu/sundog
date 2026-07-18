@@ -7,7 +7,7 @@
 #
 # Per-scene spp: see ENTRIES; 09 additionally renders a 16 spp denoised vs
 # raw comparison pair. Every render writes a .stats.json next to
-# the PNG. Scenes that do not exist yet are skipped with a warning.
+# the AVIF. Scenes that do not exist yet are skipped with a warning.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -54,17 +54,17 @@ render() { # render STEM SCENE SPP EXTRA_ARGS...
   echo "== $stem ($SIZE, $spp spp) =="
   if [ "$JOBS" -gt 1 ]; then
     # remove any stale output first: a background job that dies must NOT be
-    # masked by a previous run's PNG in the post-wait [ -s ] verification
-    rm -f "$GALLERY/$stem.png" "$GALLERY/$stem.stats.json"
+    # masked by a previous run's output in the post-wait [ -s ] verification
+    rm -f "$GALLERY/$stem.avif" "$GALLERY/$stem.stats.json"
     CUDA_VISIBLE_DEVICES="$((SLOT % NGPU))" \
-      python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
+      python3 "$scene" --out "$GALLERY/$stem.avif" --size "$SIZE" \
               --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@" &
     SLOT=$((SLOT + 1))
     while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n || true; done
   else
-    python3 "$scene" --out "$GALLERY/$stem.png" --size "$SIZE" \
+    python3 "$scene" --out "$GALLERY/$stem.avif" --size "$SIZE" \
               --spp "$spp" --stats "$GALLERY/$stem.stats.json" --quiet "$@"
-    [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
+    [ -s "$GALLERY/$stem.avif" ] || fail "empty output for $stem"
   fi
   RENDERED+=("$stem")
 }
@@ -115,7 +115,7 @@ fi
 
 wait || true
 for stem in ${RENDERED[@]+"${RENDERED[@]}"}; do
-  [ -s "$GALLERY/$stem.png" ] || fail "empty output for $stem"
+  [ -s "$GALLERY/$stem.avif" ] || fail "empty output for $stem"
 done
 
 # ---- feature ON/OFF comparison pairs (class 2): 1080p, same scene, same
@@ -128,8 +128,8 @@ CMP_STEMS=()
 cr() { # cr STEM SCENE EXTRA_ARGS...
   local stem="$1" scene="$2"; shift 2
   echo "== compare/$stem (1920x1080) =="
-  python3 "$scene" --out "$CMP/$stem.png" --size 1920x1080 --quiet "$@"
-  [ -s "$CMP/$stem.png" ] || fail "empty compare output for $stem"
+  python3 "$scene" --out "$CMP/$stem.avif" --size 1920x1080 --quiet "$@"
+  [ -s "$CMP/$stem.avif" ] || fail "empty compare output for $stem"
   CMP_STEMS+=("$stem")
 }
 
@@ -153,7 +153,7 @@ cr flame-shadow-off "$ROOT/scenes/12-molten-oracle.py" --spp 512 --no-denoise \
 #    NEE vs 2D-CDF importance sampling
 cr env-importance-on "$ROOT/scenes/10-suncatcher.py" --spp 64 --no-denoise
 echo "== compare/env-importance-off (variant) =="
-python3 - "$ROOT" "$CMP/env-importance-off.png" <<'PY'
+python3 - "$ROOT" "$CMP/env-importance-off.avif" <<'PY'
 import os, runpy, sys
 root, out = sys.argv[1:]
 scenes = os.path.join(root, "scenes")
@@ -164,7 +164,7 @@ s.doc["background"]["importance"] = False
 s.run(out=out, argv=["--size", "1920x1080", "--spp", "64",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-[ -s "$CMP/env-importance-off.png" ] || fail "empty env-importance-off"
+[ -s "$CMP/env-importance-off.avif" ] || fail "empty env-importance-off"
 CMP_STEMS+=("env-importance-off")
 
 # 4. AI denoiser: 16 spp raw Monte Carlo vs the same 16 spp denoised
@@ -177,7 +177,7 @@ cr ai-denoise-off "$ROOT/scenes/09-ember-shore.py" --spp 16 --no-denoise
 #    (In the stock daytime scene the sun drowns the screens' contribution.)
 for side in on off; do
   echo "== compare/mesh-light-$side (night variant) =="
-  python3 - "$ROOT" "$CMP/mesh-light-$side.png" "$side" <<'PY'
+  python3 - "$ROOT" "$CMP/mesh-light-$side.avif" "$side" <<'PY'
 import os, runpy, sys
 root, out, side = sys.argv[1:]
 scenes = os.path.join(root, "scenes")
@@ -211,14 +211,14 @@ if side == "off":
 s.run(out=out, argv=["--size", "1920x1080", "--spp", "256",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-  [ -s "$CMP/mesh-light-$side.png" ] || fail "empty mesh-light-$side"
+  [ -s "$CMP/mesh-light-$side.avif" ] || fail "empty mesh-light-$side"
   CMP_STEMS+=("mesh-light-$side")
 done
 
 # 7. NEE: equal-spp Cornell, light sampling on vs BSDF-only paths
 cr nee-on "$ROOT/scenes/02-cornell-lume.py" --spp 64 --no-denoise
 echo "== compare/nee-off (variant) =="
-python3 - "$ROOT" "$CMP/nee-off.png" <<'PY'
+python3 - "$ROOT" "$CMP/nee-off.avif" <<'PY'
 import os, runpy, sys
 root, out = sys.argv[1:]
 scenes = os.path.join(root, "scenes")
@@ -236,14 +236,14 @@ assert n, "no emissive objects found"
 s.run(out=out, argv=["--size", "1920x1080", "--spp", "64",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-[ -s "$CMP/nee-off.png" ] || fail "empty nee-off"
+[ -s "$CMP/nee-off.avif" ] || fail "empty nee-off"
 CMP_STEMS+=("nee-off")
 
 # 8. rough dielectric: the frosted-veil screens at their ladder roughness
 #    vs every pane forced smooth (delta glass)
 cr frosted-glass-on "$ROOT/scenes/13-frosted-veil.py" --spp 512 --no-denoise
 echo "== compare/frosted-glass-off (variant) =="
-python3 - "$ROOT" "$CMP/frosted-glass-off.png" <<'PY'
+python3 - "$ROOT" "$CMP/frosted-glass-off.avif" <<'PY'
 import os, runpy, sys
 root, out = sys.argv[1:]
 scenes = os.path.join(root, "scenes")
@@ -259,7 +259,7 @@ assert n == 5, "expected the five ladder panes"
 s.run(out=out, argv=["--size", "1920x1080", "--spp", "512",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-[ -s "$CMP/frosted-glass-off.png" ] || fail "empty frosted-glass-off"
+[ -s "$CMP/frosted-glass-off.avif" ] || fail "empty frosted-glass-off"
 CMP_STEMS+=("frosted-glass-off")
 fi
 
@@ -270,7 +270,7 @@ import json, sys, datetime, os
 gallery, out_md = sys.argv[1:]
 
 # Display catalog (fixed order). The generator reads whatever renders exist
-# in out/gallery — entries whose PNG is missing are skipped with a warning,
+# in out/gallery — entries whose AVIF is missing are skipped with a warning,
 # so incremental SECTIONS runs keep previously rendered catalog entries.
 HEROES = ["15-assembly-hall", "16-atelier", "17-dusk-tide"]
 CATALOG = ["01-marble-run", "02-cornell-lume", "03-spot-atrium",
@@ -280,7 +280,7 @@ CATALOG = ["01-marble-run", "02-cornell-lume", "03-spot-atrium",
            "09-ember-shore-spp16-raw", "10-suncatcher", "11-glasswork",
            "12-molten-oracle", "13-frosted-veil", "14-toy-factory"]
 
-# (key, title, blurb, footnote) — key maps to compare/KEY-{on,off}.png
+# (key, title, blurb, footnote) — key maps to compare/KEY-{on,off}.avif
 COMPARE = [
     ("transparent-shadows", "透明阴影",
      "开：阴影线沿直线穿过玻璃，逐界面菲涅尔 × Beer–Lambert 衰减——有色"
@@ -431,8 +431,9 @@ lines = [
     "# sundog 画廊",
     "",
     f"由 `scripts/render-gallery.sh` 生成于 {datetime.date.today().isoformat()}。",
-    "正式图入库于 `docs/gallery/`（无损重压缩 PNG，旗舰 2K、其余 1080p）；"
-    "渲染原件在 `out/gallery/`（不入库）。",
+    "正式图入库于 `docs/gallery/`（12bit PQ **HDR AVIF**，旗舰 2K、其余 1080p——"
+    "支持 HDR 的浏览器与显示器上呈现完整动态范围；GitHub 网页可能不内联"
+    "预览 AVIF，可下载查看）；渲染原件在 `out/gallery/`（不入库）。",
     "",
 ]
 
@@ -446,20 +447,20 @@ def exists(rel):
 
 
 # ---- class 1: the flagship demos ----
-have_heroes = [h for h in HEROES if exists(h + ".png")]
+have_heroes = [h for h in HEROES if exists(h + ".avif")]
 if have_heroes:
     lines += ["## 旗舰演示", ""]
     for h in have_heroes:
         lines += [
-            f"![{h}](gallery/{h}.png)",
+            f"![{h}](gallery/{h}.avif)",
             "",
             DESC.get(h, ""),
             "",
         ]
 
 # ---- class 2: feature ON/OFF pairs ----
-have_cmp = [c for c in COMPARE if exists(f"compare/{c[0]}-on.png")
-            and exists(f"compare/{c[0]}-off.png")]
+have_cmp = [c for c in COMPARE if exists(f"compare/{c[0]}-on.avif")
+            and exists(f"compare/{c[0]}-off.avif")]
 if have_cmp:
     lines += [
         "## 特性对比",
@@ -473,8 +474,8 @@ if have_cmp:
             "",
             "| 开 | 关 |",
             "|:---:|:---:|",
-            f"| ![{key}-on](gallery/compare/{key}-on.png) "
-            f"| ![{key}-off](gallery/compare/{key}-off.png) |",
+            f"| ![{key}-on](gallery/compare/{key}-on.avif) "
+            f"| ![{key}-off](gallery/compare/{key}-off.avif) |",
             "",
             f"{blurb}（{note}）",
             "",
@@ -484,14 +485,14 @@ if have_cmp:
 lines += ["## 全部场景", ""]
 rows = []
 for stem in [*CATALOG, *HEROES]:
-    if not exists(stem + ".png"):
-        print(f"WARNING: {stem}.png missing from out/gallery — skipped")
+    if not exists(stem + ".avif"):
+        print(f"WARNING: {stem}.avif missing from out/gallery — skipped")
         continue
     if stem not in HEROES:  # the flagships already open the page
         lines += [
             f"### {stem}",
             "",
-            f"![{stem}](gallery/{stem}.png)",
+            f"![{stem}](gallery/{stem}.avif)",
             "",
             DESC.get(stem, ""),
             "",
@@ -541,32 +542,18 @@ with open(out_md, "w") as f:
 print("wrote", out_md)
 PY
 
-# Sync the finals into the repo (docs/gallery) so they render on GitHub.
-# Only the stems rendered THIS run are synced (out/gallery may hold stale
-# files from renamed scenes). Losslessly recompress via PIL when available
-# (stb PNGs are ~40% larger); fall back to a plain copy.
+# Sync the finals into the repo (docs/gallery). Only the stems rendered
+# THIS run are synced (out/gallery may hold stale files from renamed
+# scenes). The renderer's 12-bit PQ AVIF is already the final lossless
+# format — plain copy, no recompression pass.
 mkdir -p "$ROOT/docs/gallery"
 SYNC=(${RENDERED[@]+"${RENDERED[@]}"})
 for stem in ${CMP_STEMS[@]+"${CMP_STEMS[@]}"}; do
   SYNC+=("compare/$stem")
 done
-if [ "${#SYNC[@]}" -gt 0 ] && python3 -c 'import PIL' 2>/dev/null; then
-  python3 - "$GALLERY" "$ROOT/docs/gallery" "${SYNC[@]}" << 'PY'
-import os, sys
-from PIL import Image
-src, dst, *stems = sys.argv[1:]
-for stem in stems:
-    p = os.path.join(src, stem + ".png")
-    out = os.path.join(dst, stem + ".png")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    Image.open(p).convert("RGB").save(out, "PNG", optimize=True)
-    print(f"optimized {stem}.png: {os.path.getsize(p)//1024} KB -> {os.path.getsize(out)//1024} KB")
-PY
-else
-  for stem in "${SYNC[@]}"; do
-    mkdir -p "$(dirname "$ROOT/docs/gallery/$stem")"
-    cp -v "$GALLERY/$stem.png" "$ROOT/docs/gallery/$stem.png"
-  done
-fi
+for stem in ${SYNC[@]+"${SYNC[@]}"}; do
+  mkdir -p "$(dirname "$ROOT/docs/gallery/$stem")"
+  cp -v "$GALLERY/$stem.avif" "$ROOT/docs/gallery/$stem.avif"
+done
 
 echo "render-gallery OK (${#SYNC[@]} images synced to docs/gallery)"

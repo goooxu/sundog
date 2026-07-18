@@ -5,8 +5,8 @@ gallery scenes in `scenes/` and any scene you write — is a `.py` file that
 defines its content through the `scenelib` API and renders itself when run:
 
 ```console
-$ python3 scenes/07-campfire.py                  # renders 07-campfire.png
-$ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.png
+$ python3 scenes/07-campfire.py                  # renders 07-campfire.avif
+$ python3 scenes/07-campfire.py --spp 16 --size 640x360 --out /tmp/quick.avif
 ```
 
 There is no separate scene *file format* to learn and no main program to
@@ -43,7 +43,7 @@ s.add('rect', 'ground', scale(4))
 s.add('sphere', 'ball', scale(0.7), translate(0, 0.7, 0))
 
 if __name__ == "__main__":
-    s.run(out="smoke.png")
+    s.run(out="smoke.avif")
 ```
 
 Inspect a scene's assembled state without rendering:
@@ -106,7 +106,7 @@ uniform sphere sampling (comparison experiments only — leave it on).
 - `"solid"`: `color`
 - `"checker"`: `a`, `b`, `scale=[su, sv]` (default [8,8])
 - `"grid"`: `a` (cell), `b` (line), `scale`, `width` (line width, cell fraction)
-- `"image"`: `file` (PNG etc., relative to the scene file), `srgb` (default
+- `"image"`: `file` (lossless sRGB AVIF, relative to the scene file), `srgb` (default
   true), bilinear filtering
 
 Returns the name, so `tex = s.texture("skin", "image", file=...)` and

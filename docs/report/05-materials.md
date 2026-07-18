@@ -59,7 +59,7 @@ f_r(\omega_o,\omega_i)=\frac{F(\omega_o\cdot h)\,D(h)\,G(\omega_o,\omega_i)}{4\,
 
 分母中的 4 来自半程向量 $`h\to`$ 出射方向的换元雅可比（5.3 节将给出 $`\mathrm{d}\omega_i=4(\omega_o\cdot h)\,\mathrm{d}\omega_h`$），两个余弦则来自把微表面反射功率换算回宏观辐亮度时的投影面积因子；完整推导可参考 Walter et al. 2007。对账 `bsdfEval()` 的 `MT_METAL` 分支：`F * ggxD(h,α) * ggxG(lo,li,α) / (4 lo.z li.z)`，其中 `lo.z`、`li.z` 是局部标架（`Onb`，$`n=+Z`$）下的两个余弦，与公式一致。
 
-![粗糙度阶梯](figures/ch05-roughness-ladder.png)
+![粗糙度阶梯](figures/ch05-roughness-ladder.avif)
 *图：5 个金属球，roughness = 0 / 0.1 / 0.25 / 0.45 / 0.7——从完美镜面到近漫反射的连续过渡。*
 
 ## 5.3 VNDF 采样：按"看得见的"微镜面采样
@@ -107,7 +107,7 @@ F_0=\left(\frac{1-\eta}{1+\eta}\right)^2,
 
 其中 $`F_0`$ 是垂直入射反射率（玻璃 $`\eta=1.5`$ 时 $`F_0=0.04`$），$`\eta`$ 是相对折射率。sundog 全部使用 Schlick：标量版 `schlick()`（device/math.cuh）把 $`(1-\cos\theta)^5`$ 写成 `m2*m2*m` 并夹取 $`1-\cos\theta\in[0,1]`$；三通道版 `schlick3()` 形式相同。
 
-![Fresnel 曲线](figures/ch05-fresnel-curves.png)
+![Fresnel 曲线](figures/ch05-fresnel-curves.avif)
 *图：η=1.5 的精确 Fresnel 与 Schlick 近似，0°–90°——两条曲线高度贴合，仅在 85° 附近有约 0.036 的最大绝对偏差。*
 
 金属没有透射，其菲涅尔反射率天然是彩色的（金反黄光、铜反红光）。工程上的标准做法是**把材质颜色直接当作 $`F_0`$**：`bsdfEval()` 与 `bsdfSample()` 的金属分支都写作 `schlick3(dot(lo,h), albedo)`——正视金属时看到的颜色就是 $`F_0`$，掠射时按 Schlick 曲线趋白，这正是真实金属边缘泛白的原因。

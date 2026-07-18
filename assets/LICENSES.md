@@ -6,10 +6,10 @@
   Repository: <https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/>
   (archive `spot.zip`; this copy is `spot_triangulated.obj`, 5,856 triangles,
   with UV texture coordinates).
-- **Texture:** `scenes/textures/spot_texture.png`（同一压缩包内的纹理图集，入库）。
+- **Texture:** `scenes/textures/spot_texture.avif`（同一压缩包内的纹理图集，入库）。
 - **Terms:** **CC0 1.0 Universal** — dedicated to the public domain; no
   attribution required ("acknowledgement is appreciated").
-- **获取方式:** 入库（`assets/spot.obj` + `scenes/textures/spot_texture.png`；
+- **获取方式:** 入库（`assets/spot.obj` + `scenes/textures/spot_texture.avif`；
   CC0 允许再分发，`fetch-assets.sh` 已不再下载网格）。
 - **Use in this project:** rendering demo/benchmark scenes for the sundog
   path tracer.
@@ -18,7 +18,7 @@
 
 - **Origin:** AI 生成模型（项目作者提供，由生成式 3D 工具产出；7,284 三角形，
   带 UV，十个 usemtl 材质组）。
-- **Texture:** `scenes/textures/sparky_albedo.png`（屏幕面板图集，入库）。
+- **Texture:** `scenes/textures/sparky_albedo.avif`（屏幕面板图集，入库）。
 - **Terms:** 项目自有资产，随仓库分发。
 - **获取方式:** 无外部下载源——OBJ/MTL/纹理全部入库
   （`assets/sparky.obj`、`assets/sparky.mtl`）。
@@ -46,7 +46,7 @@
 - **Terms:** 项目自有资产，随仓库分发。
 - **Use in this project:** `scenes/16-atelier.py` 落体积木。
 
-## gear.png / runes.png — 封面场景程序化纹理
+## gear.avif / runes.avif — 封面场景程序化纹理
 
 - **Origin:** 项目自制程序化纹理（12 号场景的齿轮 alpha 镂空与符文
   发光图集），静态资产入库于 `scenes/textures/`；一次性生成器已随

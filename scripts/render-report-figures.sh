@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# sundog report figures — renders the 15 comparison PNGs from the
-# docs/report/OUTLINE.md "渲染图" table.
+# sundog report figures — renders the comparison figures from the
+# docs/report/OUTLINE.md "渲染图" table, all AVIF (v0.18).
 #
 # Assumes it runs ON THE TEST BOX with $SUNDOG_BUILD/libsundog.so built
 # (scenes render in-process through scenelib/ctypes). Callable from any cwd.
 #
 # Raw renders land in out/report/ (not committed); the labeled /
-# stitched / cropped finals are losslessly recompressed via PIL into
-# docs/report/figures/. Set REUSE=1 to keep existing raw renders and
-# only redo the compositing.
+# stitched / cropped finals go to docs/report/figures/ as PQ AVIF —
+# PIL composites on the 8-bit PQ code values via an img2avif PPM
+# bridge, and the result is re-encoded losslessly with the same
+# BT.2020/PQ CICP the renderer stamps. Set REUSE=1 to keep existing
+# raw renders and only redo the compositing.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,6 +23,8 @@ fail() { echo "render-report-figures: FAIL: $*" >&2; exit 1; }
 [ -f "$SUNDOG_BUILD/libsundog.so" ] || fail "backend not found: $SUNDOG_BUILD/libsundog.so (set SUNDOG_BUILD)"
 python3 -c 'import PIL' 2>/dev/null || \
   pip3 install --user --break-system-packages pillow || fail "pillow unavailable"
+export IMG2AVIF="$SUNDOG_BUILD/img2avif"
+[ -x "$IMG2AVIF" ] || fail "img2avif not built: $IMG2AVIF (make it first)"
 mkdir -p "$RAW" "$FIG"
 
 # ---------------------------------------------------------------- compose.py
@@ -40,9 +44,29 @@ usage:
       one per horizontal N-th (for evenly spaced objects in one render).
 """
 import os
+import subprocess
 import sys
+import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
+
+IMG2AVIF = os.environ["IMG2AVIF"]
+# Panels are the renderer's 12-bit PQ AVIF output, bridged to PIL as 8-bit
+# PQ code values (PPM). Label boxes and the canvas must use PQ reference
+# white — 203 nits encodes to ~0.58, i.e. code 148; code 255 would be a
+# blinding 10,000-nit patch on an HDR display.
+PQ_WHITE = (148, 148, 148)
+
+
+def load(path):
+    tmp = tempfile.NamedTemporaryFile(suffix=".ppm", delete=False)
+    tmp.close()
+    subprocess.check_call([IMG2AVIF, "decode", path, tmp.name],
+                          stdout=subprocess.DEVNULL)
+    im = Image.open(tmp.name).convert("RGB")
+    im.load()
+    os.unlink(tmp.name)
+    return im
 
 CJK_FONTS = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -72,7 +96,7 @@ def tag(img, text, size, anchor="tl", cx=None):
         bx, by = 0, 0
     else:
         bx, by = int(cx - w / 2), img.height - h - max(6, size // 3)
-    d.rectangle([bx, by, bx + w, by + h], fill=(255, 255, 255))
+    d.rectangle([bx, by, bx + w, by + h], fill=PQ_WHITE)
     d.text((bx + pad - x0, by + pad - y0), text, font=f, fill=(0, 0, 0))
 
 
@@ -81,7 +105,12 @@ def autosize(img):
 
 
 def save(img, out):
-    img.convert("RGB").save(out, "PNG", optimize=True)
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    img.convert("RGB").save(tmp.name, "PNG")
+    subprocess.check_call([IMG2AVIF, "encode", tmp.name, out, "pq"],
+                          stdout=subprocess.DEVNULL)
+    os.unlink(tmp.name)
     print(f"wrote {out} ({img.width}x{img.height}, "
           f"{os.path.getsize(out) // 1024} KB)")
 
@@ -106,7 +135,7 @@ def cmd_strip(out, rest):
     assert panels, "strip: no panels given"
     imgs = []
     for path, label in panels:
-        im = Image.open(path).convert("RGB")
+        im = load(path)
         if crop:
             im = im.crop(crop)
         if upscale != 1.0:
@@ -117,7 +146,7 @@ def cmd_strip(out, rest):
         imgs.append(im)
     w = sum(im.width for im in imgs) + gutter * (len(imgs) - 1)
     h = max(im.height for im in imgs)
-    canvas = Image.new("RGB", (w, h), (255, 255, 255))
+    canvas = Image.new("RGB", (w, h), PQ_WHITE)
     x = 0
     for im in imgs:
         canvas.paste(im, (x, 0))
@@ -127,7 +156,7 @@ def cmd_strip(out, rest):
 
 def cmd_ladder(out, rest):
     src, top, *labels = rest
-    im = Image.open(src).convert("RGB")
+    im = load(src)
     size = autosize(im)
     if top:
         tag(im, top, size)
@@ -142,40 +171,40 @@ PY
 
 render() { # render RAW_STEM SCENE EXTRA_ARGS...
   local stem="$1" scene="$2"; shift 2
-  if [ "$REUSE" = 1 ] && [ -s "$RAW/$stem.png" ]; then
+  if [ "$REUSE" = 1 ] && [ -s "$RAW/$stem.avif" ]; then
     echo "== $stem (reusing existing render) =="
     return
   fi
   echo "== render $stem =="
-  python3 "$scene" --out "$RAW/$stem.png" --no-denoise --quiet "$@"
-  [ -s "$RAW/$stem.png" ] || fail "empty output: $stem"
+  python3 "$scene" --out "$RAW/$stem.avif" --no-denoise --quiet "$@"
+  [ -s "$RAW/$stem.avif" ] || fail "empty output: $stem"
 }
 
 # reuse gate for the inline scenelib variants below
 skip_reuse() {
-  [ "$REUSE" = 1 ] && [ -s "$RAW/$1.png" ] \
+  [ "$REUSE" = 1 ] && [ -s "$RAW/$1.avif" ] \
     && { echo "== $1 (reusing existing render) =="; return 0; }
   echo "== render $1 =="
   return 1
 }
 
-# ------------------------------------------------ ch01-spp-convergence.png
+# ------------------------------------------------ ch01-spp-convergence.avif
 # 02-cornell-lume at 1/4/16/64/256 spp, 480x270 each, horizontal strip.
 for spp in 1 4 16 64 256; do
   render "ch01-spp$spp" "$ROOT/scenes/02-cornell-lume.py" \
          --size 480x270 --spp "$spp"
 done
-python3 "$COMPOSE" strip "$FIG/ch01-spp-convergence.png" \
-  "$RAW/ch01-spp1.png|1 spp"   "$RAW/ch01-spp4.png|4 spp" \
-  "$RAW/ch01-spp16.png|16 spp" "$RAW/ch01-spp64.png|64 spp" \
-  "$RAW/ch01-spp256.png|256 spp"
+python3 "$COMPOSE" strip "$FIG/ch01-spp-convergence.avif" \
+  "$RAW/ch01-spp1.avif|1 spp"   "$RAW/ch01-spp4.avif|4 spp" \
+  "$RAW/ch01-spp16.avif|16 spp" "$RAW/ch01-spp64.avif|64 spp" \
+  "$RAW/ch01-spp256.avif|256 spp"
 
-# -------------------------------------------------------------- ch04-nee.png
+# -------------------------------------------------------------- ch04-nee.avif
 # 02-cornell-lume with NEE on (default) vs off: temp scene variant with
 # "nee": false on every emissive object. Original scene untouched.
 render "ch04-nee-on"  "$ROOT/scenes/02-cornell-lume.py" \
        --size 960x540 --spp 64
-skip_reuse "ch04-nee-off" || python3 - "$ROOT" "$RAW/ch04-nee-off.png" <<'PY'
+skip_reuse "ch04-nee-off" || python3 - "$ROOT" "$RAW/ch04-nee-off.avif" <<'PY'
 import os, runpy, sys
 root, out = sys.argv[1:]
 scenes = os.path.join(root, "scenes")
@@ -193,11 +222,11 @@ assert n, "no emissive objects found"
 s.run(out=out, argv=["--size", "960x540", "--spp", "64",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
-python3 "$COMPOSE" strip "$FIG/ch04-nee.png" --label-size 26 \
-  "$RAW/ch04-nee-on.png|NEE 开（默认）· 64 spp" \
-  "$RAW/ch04-nee-off.png|NEE 关（发光体 nee:false）· 64 spp"
+python3 "$COMPOSE" strip "$FIG/ch04-nee.avif" --label-size 26 \
+  "$RAW/ch04-nee-on.avif|NEE 开（默认）· 64 spp" \
+  "$RAW/ch04-nee-off.avif|NEE 关（发光体 nee:false）· 64 spp"
 
-# ------------------------------------------------------------ ch04-clamp.png
+# ------------------------------------------------------------ ch04-clamp.avif
 # 04-parabolica at low spp: --clamp 0 (fireflies) vs --clamp 5.
 # NOTE: OUTLINE says "clamp 0 vs 默认", but the scene default (30) is not
 # visibly different from clamp 0 at 24 spp: measured 59 dB PSNR under ACES —
@@ -208,46 +237,46 @@ render "ch04-clamp-off" "$ROOT/scenes/04-parabolica.py" \
        --size 640x360 --spp 24 --clamp 0
 render "ch04-clamp-on" "$ROOT/scenes/04-parabolica.py" \
        --size 640x360 --spp 24 --clamp 5
-python3 "$COMPOSE" strip "$FIG/ch04-clamp.png" --label-size 20 \
-  "$RAW/ch04-clamp-off.png|clamp 0（关闭）· 24 spp" \
-  "$RAW/ch04-clamp-on.png|clamp 5 · 24 spp"
+python3 "$COMPOSE" strip "$FIG/ch04-clamp.avif" --label-size 20 \
+  "$RAW/ch04-clamp-off.avif|clamp 0（关闭）· 24 spp" \
+  "$RAW/ch04-clamp-on.avif|clamp 5 · 24 spp"
 
-# -------------------------------------------------- ch05-roughness-ladder.png
+# -------------------------------------------------- ch05-roughness-ladder.avif
 # Dedicated scene: five metal spheres, roughness 0/0.1/0.25/0.45/0.7,
 # one big rect area light overhead, dark gray floor.
 render "ch05-roughness-ladder" \
        "$ROOT/docs/report/figures/src/roughness-ladder.py" --spp 512
-python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.png" \
-  "$RAW/ch05-roughness-ladder.png" "金属球 · 512 spp" \
+python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.avif" \
+  "$RAW/ch05-roughness-ladder.avif" "金属球 · 512 spp" \
   "roughness 0" "roughness 0.1" "roughness 0.25" \
   "roughness 0.45" "roughness 0.7"
 
-# ------------------------------------------------------- ch06-primitives.png
+# ------------------------------------------------------- ch06-primitives.avif
 # features.json: sphere / cylinder / parabola / disk / rect in one frame.
 render "ch06-primitives" "$ROOT/scenes/features.py" \
        --size 1280x800 --spp 256
-python3 "$COMPOSE" strip "$FIG/ch06-primitives.png" \
-  "$RAW/ch06-primitives.png|"
+python3 "$COMPOSE" strip "$FIG/ch06-primitives.avif" \
+  "$RAW/ch06-primitives.avif|"
 
-# -------------------------------------------------------------- ch09-aov.png
+# -------------------------------------------------------------- ch09-aov.avif
 # 03-spot-atrium beauty + albedo/normal guide AOVs, three panels.
-if [ "$REUSE" = 1 ] && [ -s "$RAW/ch09-beauty.png" ] && \
-   [ -s "$RAW/ch09-albedo.png" ] && [ -s "$RAW/ch09-normal.png" ]; then
+if [ "$REUSE" = 1 ] && [ -s "$RAW/ch09-beauty.avif" ] && \
+   [ -s "$RAW/ch09-albedo.avif" ] && [ -s "$RAW/ch09-normal.avif" ]; then
   echo "== ch09-beauty/albedo/normal (reusing existing renders) =="
 else
   echo "== render ch09-beauty (+ albedo/normal AOVs) =="
   python3 "$ROOT/scenes/03-spot-atrium.py" \
-          --out "$RAW/ch09-beauty.png" --size 800x450 --spp 64 \
-          --aov-albedo "$RAW/ch09-albedo.png" \
-          --aov-normal "$RAW/ch09-normal.png" --no-denoise --quiet
-  [ -s "$RAW/ch09-albedo.png" ] || fail "empty output: ch09-albedo"
+          --out "$RAW/ch09-beauty.avif" --size 800x450 --spp 64 \
+          --aov-albedo "$RAW/ch09-albedo.avif" \
+          --aov-normal "$RAW/ch09-normal.avif" --no-denoise --quiet
+  [ -s "$RAW/ch09-albedo.avif" ] || fail "empty output: ch09-albedo"
 fi
-python3 "$COMPOSE" strip "$FIG/ch09-aov.png" --label-size 24 \
-  "$RAW/ch09-beauty.png|beauty · 64 spp" \
-  "$RAW/ch09-albedo.png|albedo AOV" \
-  "$RAW/ch09-normal.png|normal AOV"
+python3 "$COMPOSE" strip "$FIG/ch09-aov.avif" --label-size 24 \
+  "$RAW/ch09-beauty.avif|beauty · 64 spp" \
+  "$RAW/ch09-albedo.avif|albedo AOV" \
+  "$RAW/ch09-normal.avif|normal AOV"
 
-# --------------------------------------------------- ch18-freeze-sequence.png
+# --------------------------------------------------- ch18-freeze-sequence.avif
 # 06-spot-cascade frozen at four instants plus the settled state: the same
 # initial conditions, different --physics-time. Small panels, modest spp.
 for t in 0.3 0.7 1.0 1.4; do
@@ -256,18 +285,18 @@ for t in 0.3 0.7 1.0 1.4; do
 done
 render "ch18-freeze-settled" "$ROOT/scenes/06-spot-cascade.py" \
        --size 480x270 --spp 24
-python3 "$COMPOSE" strip "$FIG/ch18-freeze-sequence.png" --label-size 20 \
-  "$RAW/ch18-freeze-0.3.png|t = 0.3 s" \
-  "$RAW/ch18-freeze-0.7.png|t = 0.7 s" \
-  "$RAW/ch18-freeze-1.0.png|t = 1.0 s（画廊主图）" \
-  "$RAW/ch18-freeze-1.4.png|t = 1.4 s" \
-  "$RAW/ch18-freeze-settled.png|沉降静止 · 8.75 s"
+python3 "$COMPOSE" strip "$FIG/ch18-freeze-sequence.avif" --label-size 20 \
+  "$RAW/ch18-freeze-0.3.avif|t = 0.3 s" \
+  "$RAW/ch18-freeze-0.7.avif|t = 0.7 s" \
+  "$RAW/ch18-freeze-1.0.avif|t = 1.0 s（画廊主图）" \
+  "$RAW/ch18-freeze-1.4.avif|t = 1.4 s" \
+  "$RAW/ch18-freeze-settled.avif|沉降静止 · 8.75 s"
 
-# --------------------------------------------------- ch12-noise-anatomy.png
+# --------------------------------------------------- ch12-noise-anatomy.avif
 # Flame close-up at noise_scale 0 / 1.5 / 3: smooth teardrop profile -> mild
 # warp -> full licks. Temp scene generated inline (same recipe as ch04-nee).
 for ns in 0.0 1.5 3.0; do
-  skip_reuse "ch12-flame-ns$ns" || python3 - "$ROOT" "$RAW/ch12-flame-ns$ns.png" "$ns" <<'PY'
+  skip_reuse "ch12-flame-ns$ns" || python3 - "$ROOT" "$RAW/ch12-flame-ns$ns.avif" "$ns" <<'PY'
 import os, sys
 root, out, ns = sys.argv[1], sys.argv[2], float(sys.argv[3])
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -283,12 +312,12 @@ s.flame(base=[0, 0.05, 0], height=1.6, radius=0.45, intensity=20, sigma=4,
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
 done
-python3 "$COMPOSE" strip "$FIG/ch12-noise-anatomy.png" --label-size 22 \
-  "$RAW/ch12-flame-ns0.0.png|noise_scale 0（纯轮廓）" \
-  "$RAW/ch12-flame-ns1.5.png|noise_scale 1.5" \
-  "$RAW/ch12-flame-ns3.0.png|noise_scale 3（默认）"
+python3 "$COMPOSE" strip "$FIG/ch12-noise-anatomy.avif" --label-size 22 \
+  "$RAW/ch12-flame-ns0.0.avif|noise_scale 0（纯轮廓）" \
+  "$RAW/ch12-flame-ns1.5.avif|noise_scale 1.5" \
+  "$RAW/ch12-flame-ns3.0.avif|noise_scale 3（默认）"
 
-# ---------------------------------------------- ch12-flame-shadow.png
+# ---------------------------------------------- ch12-flame-shadow.avif
 # 12-molten-oracle with shadow rays blind to flames vs marching them: the
 # zero-emission smoke column casts no shadow vs a visible volumetric one
 # under the altar fires and the skylight beam.
@@ -296,15 +325,15 @@ render "ch12-fshadow-opq" "$ROOT/scenes/12-molten-oracle.py" \
        --size 960x540 --spp 96 --opaque-shadows
 render "ch12-fshadow-vol" "$ROOT/scenes/12-molten-oracle.py" \
        --size 960x540 --spp 96
-python3 "$COMPOSE" strip "$FIG/ch12-flame-shadow.png" --label-size 26 \
-  "$RAW/ch12-fshadow-opq.png|旧口径（--opaque-shadows，烟柱不挡光）" \
-  "$RAW/ch12-fshadow-vol.png|体积阴影（默认，烟柱投影）"
+python3 "$COMPOSE" strip "$FIG/ch12-flame-shadow.avif" --label-size 26 \
+  "$RAW/ch12-fshadow-opq.avif|旧口径（--opaque-shadows，烟柱不挡光）" \
+  "$RAW/ch12-fshadow-vol.avif|体积阴影（默认，烟柱投影）"
 
-# -------------------------------------------------------- ch13-anatomy.png
+# -------------------------------------------------------- ch13-anatomy.avif
 # Water close-up (checker lake bed, sun sphere) in three variants: flat
 # mirror (wave_amp 0), default waves, no absorption. Temp scenes inline.
 for v in flat waves noabsorb; do
-  skip_reuse "ch13-water-$v" || python3 - "$ROOT" "$RAW/ch13-water-$v.png" "$v" <<'PY'
+  skip_reuse "ch13-water-$v" || python3 - "$ROOT" "$RAW/ch13-water-$v.avif" "$v" <<'PY'
 import os, sys
 root, out, variant = sys.argv[1], sys.argv[2], sys.argv[3]
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -330,17 +359,17 @@ s.distant_light(direction=[0.3, -1.0, 0.5], radiance=[0.25, 0.18, 0.12])
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
 done
-python3 "$COMPOSE" strip "$FIG/ch13-anatomy.png" --label-size 20 \
-  "$RAW/ch13-water-flat.png|wave_amp 0（静水镜面）" \
-  "$RAW/ch13-water-waves.png|默认（波纹 + 波光）" \
-  "$RAW/ch13-water-noabsorb.png|absorb 0（无水色）"
+python3 "$COMPOSE" strip "$FIG/ch13-anatomy.avif" --label-size 20 \
+  "$RAW/ch13-water-flat.avif|wave_amp 0（静水镜面）" \
+  "$RAW/ch13-water-waves.avif|默认（波纹 + 波光）" \
+  "$RAW/ch13-water-noabsorb.avif|absorb 0（无水色）"
 
-# --------------------------------------- ch14-uniform-vs-importance.png
+# --------------------------------------- ch14-uniform-vs-importance.avif
 # 10-suncatcher with importance:false (uniform sphere NEE) vs default, at
 # 16 and 256 spp. The variant lives in /tmp, so relative asset paths are
 # rewritten to absolute ones first.
 for spp in 16 256; do
-  skip_reuse "ch14-uni-$spp" || python3 - "$ROOT" "$RAW/ch14-uni-$spp.png" "$spp" <<'PY'
+  skip_reuse "ch14-uni-$spp" || python3 - "$ROOT" "$RAW/ch14-uni-$spp.avif" "$spp" <<'PY'
 import os, runpy, sys
 root, out, spp = sys.argv[1], sys.argv[2], sys.argv[3]
 scenes = os.path.join(root, "scenes")
@@ -353,28 +382,28 @@ s.run(out=out, argv=["--size", "480x270", "--spp", spp,
 PY
   render "ch14-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
 done
-python3 "$COMPOSE" strip "$FIG/ch14-uniform-vs-importance.png" --label-size 18 \
-  "$RAW/ch14-uni-16.png|均匀采样 · 16 spp" \
-  "$RAW/ch14-imp-16.png|重要性采样 · 16 spp" \
-  "$RAW/ch14-uni-256.png|均匀采样 · 256 spp" \
-  "$RAW/ch14-imp-256.png|重要性采样 · 256 spp"
+python3 "$COMPOSE" strip "$FIG/ch14-uniform-vs-importance.avif" --label-size 18 \
+  "$RAW/ch14-uni-16.avif|均匀采样 · 16 spp" \
+  "$RAW/ch14-imp-16.avif|重要性采样 · 16 spp" \
+  "$RAW/ch14-uni-256.avif|均匀采样 · 256 spp" \
+  "$RAW/ch14-imp-256.avif|重要性采样 · 256 spp"
 
-# ---------------------------------------------- ch15-shadow-compare.png
+# ---------------------------------------------- ch15-shadow-compare.avif
 # 11-glasswork with legacy binary occlusion vs transparent shadows: the
 # tinted marbles cast solid dark blobs vs rose/gold/teal light pools.
 render "ch15-shadow-opq" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96 --opaque-shadows
 render "ch15-shadow-xpr" "$ROOT/scenes/11-glasswork.py" \
        --size 960x540 --spp 96
-python3 "$COMPOSE" strip "$FIG/ch15-shadow-compare.png" --label-size 26 \
-  "$RAW/ch15-shadow-opq.png|布尔遮挡（--opaque-shadows）" \
-  "$RAW/ch15-shadow-xpr.png|透明阴影（默认）"
+python3 "$COMPOSE" strip "$FIG/ch15-shadow-compare.avif" --label-size 26 \
+  "$RAW/ch15-shadow-opq.avif|布尔遮挡（--opaque-shadows）" \
+  "$RAW/ch15-shadow-xpr.avif|透明阴影（默认）"
 
-# ------------------------------------------------ ch15-snell-window.png
+# ------------------------------------------------ ch15-snell-window.avif
 # Underwater camera looking straight up: the sky compresses into Snell's
 # window (half-angle asin(1/1.33) ~ 48.6 deg); outside it, total internal
 # reflection mirrors the lake floor. Temp scene in /tmp (absolute asset path).
-skip_reuse "ch15-snell" || python3 - "$ROOT" "$RAW/ch15-snell.png" <<'PY'
+skip_reuse "ch15-snell" || python3 - "$ROOT" "$RAW/ch15-snell.avif" <<'PY'
 import os, sys
 root, out = sys.argv[1], sys.argv[2]
 sys.path.insert(0, os.path.join(root, "scenes"))
@@ -396,26 +425,26 @@ s.add("sphere", "coral", scale(0.6), translate(1.5, -3.4, 1.2))
 s.run(out=out, argv=["--size", "960x540", "--spp", "128",
                      "--no-denoise", "--quiet"], base_dir=".")
 PY
-python3 "$COMPOSE" strip "$FIG/ch15-snell-window.png" --label-size 22 \
-  "$RAW/ch15-snell.png|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
+python3 "$COMPOSE" strip "$FIG/ch15-snell-window.avif" --label-size 22 \
+  "$RAW/ch15-snell.avif|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
-# -------------------------------------------------- ch16-frosted-ladder.png
+# -------------------------------------------------- ch16-frosted-ladder.avif
 # Dedicated scene: five glass spheres, dielectric roughness 0/0.05/0.15/
 # 0.3/0.6, HDR sky over a checker floor — refraction blurring to frost.
 render "ch16-frosted-ladder" \
        "$ROOT/docs/report/figures/src/frosted-ladder.py" --spp 256
-python3 "$COMPOSE" ladder "$FIG/ch16-frosted-ladder.png" \
-  "$RAW/ch16-frosted-ladder.png" "磨砂玻璃 · 256 spp" \
+python3 "$COMPOSE" ladder "$FIG/ch16-frosted-ladder.avif" \
+  "$RAW/ch16-frosted-ladder.avif" "磨砂玻璃 · 256 spp" \
   "roughness 0" "roughness 0.05" "roughness 0.15" \
   "roughness 0.3" "roughness 0.6"
 
-# ----------------------------------------------------- ch17-toy-ladder.png
+# ----------------------------------------------------- ch17-toy-ladder.avif
 # Scene 14 as-is: five plastic Sparkys, coat roughness 0.03 -> 0.6 — the
 # tube reflection streak smearing from clear-coat line to matte bloom.
 render "ch17-toy-ladder" "$ROOT/scenes/14-toy-factory.py" --spp 384
-python3 "$COMPOSE" ladder "$FIG/ch17-toy-ladder.png" \
-  "$RAW/ch17-toy-ladder.png" "塑料涂层 · 384 spp" \
+python3 "$COMPOSE" ladder "$FIG/ch17-toy-ladder.avif" \
+  "$RAW/ch17-toy-ladder.avif" "塑料涂层 · 384 spp" \
   "roughness 0.03" "roughness 0.08" "roughness 0.15" \
   "roughness 0.3" "roughness 0.6"
 
-echo "render-report-figures OK ($(ls "$FIG"/*.png | wc -l) PNGs in $FIG)"
+echo "render-report-figures OK ($(ls "$FIG"/*.avif | wc -l) PNGs in $FIG)"

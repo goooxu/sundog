@@ -63,7 +63,7 @@ A = \tfrac12(d_x^2+d_z^2),\quad B = o_x d_x + o_z d_z - d_y,\quad C = \tfrac12(o
 
 以上五种图元各自还提供物体空间包围盒（bounding box/AABB）供加速结构构建使用（`quadricAabb()`，详见[第 8 章·加速结构与 RT Core](08-acceleration.md)）。
 
-![五种解析图元同框](figures/ch06-primitives.png)
+![五种解析图元同框](figures/ch06-primitives.avif)
 *图：features.py 场景一帧内的五种解析图元——玻璃球与漫反射球、金属圆柱、镜面抛物面、镜面圆盘，以及作为地面和灯的矩形。*
 
 ## 6.3 法线与 UV：命中点的"身份信息"

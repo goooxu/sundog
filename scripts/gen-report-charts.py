@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Generate the three matplotlib data charts for the technical report.
+"""Generate the matplotlib data charts for the technical report.
 
-Charts (written to docs/report/figures/):
-  ch03-mc-convergence.png  PSNR vs spp for 02-cornell-lume (log2 x-axis)
-                           + O(1/N) reference slope (+6.02 dB per 4x spp)
-  ch05-fresnel-curves.png  exact dielectric Fresnel (eta=1.5) vs Schlick
-                           docs/BENCHMARKS.md), grouped bars, log y
+Charts (written to docs/report/figures/ as sRGB lossless AVIF via
+img2avif — matplotlib renders to a /tmp PNG intermediate only):
+  ch03-mc-convergence.avif  PSNR vs spp for 02-cornell-lume (log2 x-axis)
+                            + O(1/N) reference slope (+6.02 dB per 4x spp)
+  ch05-fresnel-curves.avif  exact dielectric Fresnel (eta=1.5) vs Schlick
+  ch01-pq-curve.avif        SMPTE ST 2084 PQ OETF vs the sRGB/SDR band
 
 Data collection (chart 1) renders on the GPU test box and needs the sundog
 binaries; run this script ON the test box:
@@ -21,7 +22,7 @@ Options:
   --skip-render      reuse mc-convergence.json instead of rendering
   --build-dir DIR    sundog build dir (default $SUNDOG_BUILD or /tmp/sundog-build)
   --work-dir DIR     scratch dir for intermediate renders (default /tmp/report-charts)
-  --only LIST        comma list of charts: convergence,fresnel,env,aces
+  --only LIST        comma list of charts: convergence,fresnel,env,pq,plastic
 """
 
 import argparse
@@ -44,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FIG_DIR = ROOT / "docs" / "report" / "figures"
 SRC_DIR = FIG_DIR / "src"
 BENCHMARKS_MD = ROOT / "docs" / "BENCHMARKS.md"
-SCENE = ROOT / "scenes" / "02-cornell-lume.json"
+SCENE = ROOT / "scenes" / "02-cornell-lume.py"
 ENV_HDR = ROOT / "assets" / "kloofendal_48d_partly_cloudy_puresky_4k.hdr"
 
 # ---- report chart style (frozen: see docs/report/OUTLINE.md) ----------------
@@ -92,10 +93,17 @@ def setup_style():
     })
 
 
+IMG2AVIF = Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")) / "img2avif"
+
+
 def save(fig, name):
     out = FIG_DIR / name
-    fig.savefig(out, dpi=DPI, bbox_inches="tight", pad_inches=0.15)
+    tmp = Path("/tmp") / (out.stem + ".chart.png")
+    fig.savefig(tmp, dpi=DPI, bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
+    subprocess.run([str(IMG2AVIF), "encode", str(tmp), str(out)],
+                   check=True, stdout=subprocess.DEVNULL)
+    tmp.unlink()
     print(f"wrote {out}")
 
 
@@ -110,16 +118,14 @@ def run(cmd):
 
 
 def collect_convergence(build_dir, work_dir):
-    sundog = build_dir / "sundog"
     img_compare = build_dir / "img_compare"
-    for exe in (sundog, img_compare):
-        if not exe.exists():
-            sys.exit(f"missing binary: {exe} (run on the GPU test box, or --skip-render)")
+    if not img_compare.exists():
+        sys.exit(f"missing binary: {img_compare} (run on the GPU test box, or --skip-render)")
     work_dir.mkdir(parents=True, exist_ok=True)
 
     def render(spp):
-        out = work_dir / f"cornell-spp{spp}.png"
-        run([sundog, "--scene", SCENE, "--out", out, "--spp", spp,
+        out = work_dir / f"cornell-spp{spp}.avif"
+        run(["python3", SCENE, "--out", out, "--spp", spp,
              "--size", SIZE, "--seed", SEED, "--no-denoise", "--quiet"])
         return out
 
@@ -184,7 +190,7 @@ def chart_convergence(data):
                 ha="center", fontsize=12, color=INK)
     ax.set_ylim(psnr.min() - 3, psnr.max() + 5)
     ax.legend(loc="lower right")
-    save(fig, "ch03-mc-convergence.png")
+    save(fig, "ch03-mc-convergence.avif")
 
 
 # ---------------------------------------------------------------- chart 2 ---
@@ -252,11 +258,11 @@ def chart_fresnel():
     for side in ("left", "bottom"):
         ins.spines[side].set_color(SECONDARY)
 
-    save(fig, "ch05-fresnel-curves.png")
+    save(fig, "ch05-fresnel-curves.avif")
 
 
 # ---------------------------------------------------------------- chart 5 ---
-# ch17-coupling-energy.png: hemispherical albedo of the plastic BSDF under
+# ch17-coupling-energy.avif: hemispherical albedo of the plastic BSDF under
 # the three viable diffuse-coupling candidates of report ch17 (white base,
 # coat roughness 0.15). The GGX+Schlick coat integral mirrors plasticTerms()
 # (device/bsdf.cuh): stable-form D, height-correlated Smith G, VNDF-free MC
@@ -324,51 +330,41 @@ def chart_plastic():
     ax.set_ylabel("Hemispherical albedo E")
     ax.set_title("Plastic diffuse coupling: white base, coat roughness 0.15")
     ax.legend(loc="upper left", bbox_to_anchor=(0.02, 0.98))
-    save(fig, "ch17-coupling-energy.png")
+    save(fig, "ch17-coupling-energy.avif")
 
 
 # ---------------------------------------------------------------- chart 3 ---
 
-ACES_IN = np.array([[0.59719, 0.35458, 0.04823],
-                    [0.07600, 0.90834, 0.01566],
-                    [0.02840, 0.13383, 0.83777]])
-ACES_OUT = np.array([[1.60475, -0.53108, -0.07367],
-                     [-0.10208, 1.10813, -0.00605],
-                     [-0.00327, -0.07276, 1.07602]])
+def pq_oetf(nits):
+    """SMPTE ST 2084 PQ OETF: absolute display luminance (cd/m^2) -> [0,1]
+    code value. Same constants as src/transfer.h."""
+    m1, m2 = 2610.0 / 16384, 2523.0 / 4096 * 128
+    c1, c2, c3 = 3424.0 / 4096, 2413.0 / 4096 * 32, 2392.0 / 4096 * 32
+    y = np.power(np.clip(nits, 0, None) / 10000.0, m1)
+    return np.power((c1 + c2 * y) / (1.0 + c3 * y), m2)
 
 
-def aces_fitted_gray(x):
-    """Gray-axis ACES (Hill fit, matches src/tonemap.h) for an array of
-    scalar inputs; gray in -> gray out, so one channel tells the story."""
-    v = np.stack([x, x, x], axis=-1) @ ACES_IN.T
-    v = (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081)
-    v = v @ ACES_OUT.T
-    return np.clip(v[..., 0], 0.0, 1.0)
-
-
-def chart_aces():
-    x = np.geomspace(0.01, 30.0, 512)
+def chart_pq():
+    nits = np.geomspace(0.05, 10000.0, 1024)
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.semilogx(x, np.minimum(x, 1.0), color=SECONDARY, lw=2.0, ls="--",
-                label="clamp: y = min(x, 1)")
-    ax.semilogx(x, aces_fitted_gray(x), color=PRIMARY, lw=2.2,
-                label="ACES (Hill fit)")
-    for gx, name in [(0.18, "0.18"), (1.0, "1.0")]:
-        gy = aces_fitted_gray(np.array([gx]))[0]
+    # the SDR band: what an 8-bit sRGB pipeline can express (~0.1-100 nits)
+    ax.axvspan(0.1, 100.0, color=GRID, alpha=0.6,
+               label="SDR band (8-bit sRGB, ~0.1-100 nits)")
+    ax.semilogx(nits, pq_oetf(nits), color=PRIMARY, lw=2.2,
+                label="PQ OETF (SMPTE ST 2084)")
+    for gx, name in [(100.0, "100 nits"), (203.0, "203 nits (ref white)"),
+                     (1000.0, "1000 nits"), (10000.0, "10000 nits")]:
+        gy = pq_oetf(np.array([gx]))[0]
         ax.plot([gx], [gy], "o", color=INK, ms=5)
         ax.annotate(f"{name} -> {gy:.3f}", (gx, gy), textcoords="offset points",
-                    xytext=(8, -14), color=INK, fontsize=11)
-    ax.annotate("toe", (0.02, aces_fitted_gray(np.array([0.02]))[0]),
-                textcoords="offset points", xytext=(6, 8), color=INK_MUTED, fontsize=11)
-    ax.annotate("shoulder", (6.0, aces_fitted_gray(np.array([6.0]))[0]),
-                textcoords="offset points", xytext=(8, -16), color=INK_MUTED, fontsize=11)
-    ax.set_xlabel("linear input (log scale)")
-    ax.set_ylabel("encoded output (linear sRGB, before gamma)")
-    ax.set_title("Tone mapping: hard clamp vs ACES filmic S-curve")
+                    xytext=(8, -14), color=INK, fontsize=10.5)
+    ax.set_xlabel("display luminance, cd/m^2 (log scale)")
+    ax.set_ylabel("PQ code value (12-bit / 4095 in sundog)")
+    ax.set_title("PQ: 0.05-10,000 nits in one perceptually-uniform curve")
     ax.set_ylim(0, 1.05)
     ax.grid(True, which="both")
-    ax.legend(loc="upper left")
-    save(fig, "ch01-aces-curve.png")
+    ax.legend(loc="lower right")
+    save(fig, "ch01-pq-curve.avif")
 
 
 # ---------------------------------------------------------------- chart 4 ---
@@ -446,7 +442,7 @@ def chart_env():
     ax.set_title("Energy concentrates in a few rows - the 2D CDF's first level")
     ax.grid(True, which="both", axis="y")
     ax.set_xlim(0, h)
-    save(fig, "ch14-env-luminance.png")
+    save(fig, "ch14-env-luminance.avif")
 
 
 def main():
@@ -457,8 +453,8 @@ def main():
     ap.add_argument("--build-dir", type=Path,
                     default=Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")))
     ap.add_argument("--work-dir", type=Path, default=Path("/tmp/report-charts"))
-    ap.add_argument("--only", default="convergence,fresnel,env,aces,plastic",
-                    help="comma list: convergence,fresnel,env,aces,plastic")
+    ap.add_argument("--only", default="convergence,fresnel,env,pq,plastic",
+                    help="comma list: convergence,fresnel,env,pq,plastic")
     args = ap.parse_args()
     only = set(args.only.split(","))
 
@@ -478,8 +474,8 @@ def main():
         chart_fresnel()
     if "env" in only:
         chart_env()
-    if "aces" in only:
-        chart_aces()
+    if "pq" in only:
+        chart_pq()
     if "plastic" in only:
         chart_plastic()
 

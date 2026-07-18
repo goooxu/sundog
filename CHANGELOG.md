@@ -10,6 +10,71 @@
 
 （暂无）
 
+## [0.18.0] - 2026-07-18 — HDR AVIF 全链路与运行环境无关化
+
+### 变更（破坏性）
+
+- **输出格式：PNG → 12-bit PQ HDR AVIF，无 SDR 退路**。默认输出不再做
+  任何色调映射：线性辐亮度经 曝光(2^EV) → BT.709→2020 色域矩阵 →
+  线性 1.0 锚定 203 cd/m²（BT.2408 参考白）→ PQ（SMPTE ST 2084）→
+  12-bit 量化，落盘无损 AVIF（YUV444 + identity 矩阵 + full range，
+  RGB 码值逐位可逆）；CICP 标 BT.2020/PQ，HDR 显示器直接呈现完整动态
+  范围。ACES 链整体退役：src/tonemap.h、test_tonemap、`--tonemap`/
+  `--gamma` CLI、render()/ABI 的 gamma/tonemap 字段全部删除
+  （`sundog_set_render` 9 参新签名）；BakingLab 常数出处随之从
+  THIRD_PARTY 移除。AOV（albedo/normal）按 LDR 本性走 sRGB 8-bit
+  无损 AVIF。新增 src/transfer.h（PQ OETF/EOTF + 709→2020 矩阵）
+  与 test_transfer（ST 2084 锚点、互逆、白点保持）。
+- **纹理输入：PNG → 无损 sRGB AVIF**。textures.cpp 改 libavif 解码
+  （RGBA8→uchar4 硬件 sRGB 路径不变，alpha/cutout 保留）；4 张纹理
+  资产经自研 img2avif 无损转换入库，旧 PNG 删除。stb_image 裁剪为
+  `STBI_ONLY_HDR`（仅剩 Radiance .hdr 环境贴图一个职责），
+  stb_image_write.h 整个退役。**PNG 在仓库与运行时归零**（唯一残留：
+  PIL/matplotlib 无 AVIF 写出能力，展示合成图经 /tmp 的 PNG 中间文件
+  过桥后由 img2avif 无损转正——中间文件不落仓库）。
+- **不假设运行环境**（用户口径：OptiX 与 PhysX 能在 GPU 上跑即可，
+  RT Core 非必需，不接受 CPU PhysX）：`DEVARCH` 默认 compute_120 →
+  **compute_75**（nvcc 13 最低目标；PTX 前向 JIT 兼容 Turing 起全部
+  NVIDIA GPU；无 RT Core 的 GPU 由 OptiX 自动软件遍历，结果与决定性
+  不变——GB200 实证）。PhysX 覆盖经 cuobjdump 实证为 sm_75..120 SASS
+  + compute_120 PTX（sm_75 来自其构建基线，零代码改动），物理下限与
+  渲染下限同为 Turing，无 CPU 回退。README/报告措辞同步（ch08 新增
+  "RT Core 是加速器而非前提"段）。
+- **golden 全量重钉，新口径 = GB200（sm_100 软遍历）+ compute_75 PTX
+  + AVIF 无损编码**（manifest 同步）：v0.16/v0.17 遗留的 "RTX 5090
+  后补钉" 口径债随之消解——golden 本就绑生成环境，环境无关化后按
+  当前测试机口径钉即是正解。AVIF 编码线程固定 4，**文件字节进入决定
+  性契约**（smoke 双渲 sha256 逐位一致实证）。
+- 工具链：img_compare 重写为 AVIF 双解码、按位深归一化码值域 PSNR
+  （45 dB 阈值语义等价）；新增 img2avif（encode [pq]/decode .pam|.ppm
+  ——PIL 桥与资产迁移工具）；gen-report-charts 图表改 AVIF 输出、
+  ch01-aces-curve 退役、新增 ch01-pq-curve（PQ 转移函数）、chart 1
+  的 v0.11 断链修复（改走 python 场景渲染）；render-gallery sync 段
+  的 PIL 重压缩退役（AVIF 直拷）；render-report-figures 的拼图在 PQ
+  码值域进行、成品带 PQ CICP（标签底色用 PQ 参考白 148 = 203 nits）。
+- **BENCHMARKS 全量重跑并换口径**（GB200 软遍历，含 15/16/17 三行——
+  v0.17 的 BENCHMARKS 债一并了结）；报告全书实测数字随口径同步
+  （ch08 05 号帧 2171.6 ms/344 Mrays/s，并列 RTX 5090 曾实测
+  230.9 ms/3194 Mrays/s 作为 RT Core 加速的同帧实证 ≈9×；ch11 吞吐
+  解读与降噪表更新——B 层 16 spp 31.53 → 44.98 dB，等效收益约 22×；
+  ch18 PhysX 沉降墙钟 7.7 s；历史口径数字均标注"曾实测"保留）。
+- 文档全书 AVIF 化：README/GALLERY/报告全部图引用与叙事同步（ch01
+  §1.1/§1.2 重写为 PQ HDR 输出叙事、ch09 ⑦ 步、ch10 决定性与纹理
+  上传、ch11 金字塔各层、ch14 白炉口径注记、STYLE 术语表换 PQ/HDR10/
+  AVIF、OUTLINE 同步）；README 的 ACES 对比对与特性条退役（对比组
+  8 → 7 对）。gallery 与报告渲染图全量按新口径重产。已知取舍：
+  GitHub 网页可能不内联预览 AVIF（用户知情接受）。
+
+红线记录：本版口径 = GB200（4×，aarch64，sm_100 无 RT core，驱动见
+manifest）+ compute_75 PTX + libavif 1.1.1/libaom 3.9.1 静态、编码
+线程 4、speed 6、lossless。决定性 sha（smoke 256×256/64spp/seed 7
+双渲）：aba9439823476412f7ade522133c3def104650e187bfee7b0406cfc71cc46b3f。
+`git ls-files '*.png'` 归零；全仓 `.png` 字面量仅存于 CHANGELOG 历史
+正文与展示脚本的 /tmp 中间文件名。ABI 破坏（set_render 9 参）随
+scenelib 同步无外部消费者。
+
+（主要提交 fd08d3c · 85716cb · 3c4d9f8 · 2bda162）
+
 ## [0.17.0] - 2026-07-17 — 双封面场景：工作室与暮潮观测站
 
 ### 新增
