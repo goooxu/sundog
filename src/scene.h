@@ -1,4 +1,4 @@
-// sundog: host-side scene representation (parsed from JSON, then uploaded).
+// sundog: host-side scene representation (fed via the C scene-build ABI, then uploaded).
 #ifndef SUNDOG_SCENE_H
 #define SUNDOG_SCENE_H
 
@@ -109,7 +109,7 @@ inline bool objectTransmissive(const Scene& s, const SceneObject& o) {
   return materialTransmissive(s, o.matFront) || materialTransmissive(s, o.matBack);
 }
 
-// scene_json.cpp
+// scene_build.cpp
 
 // Build the device CameraData (thin-lens look-at construction).
 CameraData makeCamera(const CameraSettings& cs, int width, int height);

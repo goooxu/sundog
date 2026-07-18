@@ -16,12 +16,13 @@ namespace sd {
 // count must not depend on the host's core count), see report ch11.
 static constexpr int kAvifThreads = 4;
 
-Film::Film(int width, int height) : width_(width), height_(height) {
+Film::Film(int width, int height, bool withDenoised)
+    : width_(width), height_(height) {
   size_t n = (size_t)width * height * sizeof(float4);
   accum_.allocZero(n);
   albedo_.allocZero(n);
   normal_.allocZero(n);
-  denoised_.allocZero(n);
+  if (withDenoised) denoised_.allocZero(n);
 }
 
 static std::vector<float4> downloadBuf(CUdeviceptr src, int w, int h) {
@@ -83,14 +84,13 @@ static void encodeAvif(const std::string& path, int w, int h, int depth,
     throw std::runtime_error(std::string("avifEncoderWrite: ") +
                              avifResultToString(r));
   }
+  size_t want = out.size;  // avifRWDataFree zeroes out.size
   FILE* f = fopen(path.c_str(), "wb");
-  if (!f || fwrite(out.data, 1, out.size, f) != out.size) {
-    if (f) fclose(f);
-    avifRWDataFree(&out);
-    throw std::runtime_error("failed to write " + path);
-  }
-  fclose(f);
+  size_t wrote = f ? fwrite(out.data, 1, out.size, f) : 0;
+  bool closed = f && fclose(f) == 0;
   avifRWDataFree(&out);
+  if (wrote != want || !closed)
+    throw std::runtime_error("failed to write " + path);
 }
 
 void Film::writeAvif(CUdeviceptr src, const std::string& path,

@@ -34,7 +34,7 @@ random.seed(2026)      # layout seed (render.seed below is the sampling seed)
 
 s = Scene()
 s.render(width=1920, height=1080, spp=256, max_depth=12, seed=2026, clamp=10,
-         exposure=0.25)   # ACES toe compensation (was patched into the JSON)
+         exposure=0.25)   # slight EV lift for the night framing
 s.physics(gravity=[0, -9.81, 0], timestep=0.0041666667, max_time=20.0,
           friction=0.6, restitution=0.1, sleep_threshold=0.05)
 s.camera(lookfrom=[0.0, 8.5, 11.0], lookat=[0.0, 0.6, -0.6], vfov=38,

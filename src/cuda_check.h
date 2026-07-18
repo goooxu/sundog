@@ -79,11 +79,6 @@ struct CudaBuffer {
     alloc(v.size() * sizeof(T));
     CUDA_CHECK(cudaMemcpy((void*)ptr, v.data(), size, cudaMemcpyHostToDevice));
   }
-  template <typename T>
-  void download(std::vector<T>& v) const {
-    v.resize(size / sizeof(T));
-    CUDA_CHECK(cudaMemcpy(v.data(), (void*)ptr, size, cudaMemcpyDeviceToHost));
-  }
   void free() {
     if (ptr) cudaFree((void*)ptr);
     ptr = 0;

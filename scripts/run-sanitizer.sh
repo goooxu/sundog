@@ -5,7 +5,7 @@
 # toolkit at $CUDA_HOME (default /tmp/cuda-13.0, which provides
 # $CUDA_HOME/bin/compute-sanitizer). Callable from any cwd.
 #
-# Runs smoke.json at 64x64 / 4 spp under:
+# Runs smoke.py at 64x64 / 4 spp under:
 #   1. --tool memcheck   (invalid accesses, leaks)
 #   2. --tool initcheck  (reads of uninitialized device memory)
 # Both with --error-exitcode 1, so any sanitizer finding fails the script.

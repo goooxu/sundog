@@ -8,7 +8,7 @@ one instance of each core pipeline stage (gradient background, checker
 texture, lambert materials, point light, rect + sphere geometry) at a tiny
 256x256 / 16 spp budget, so it renders in seconds. Used by
 scripts/run-smoke.sh for GPU sanity runs and asserted field-by-field in
-tests/host/test_scene_json.cpp.
+tests/host/test_scene_build.cpp.
 
 Run: python3 scenes/smoke.py
 """

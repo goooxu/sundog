@@ -12,8 +12,12 @@
 #include <string>
 #include <vector>
 
+struct Cicp {
+  int cp, tc, mc, range;
+};
+
 static bool loadAvif(const char* path, int& w, int& h, int& depth,
-                     std::vector<uint16_t>& rgb) {
+                     Cicp& cicp, std::vector<uint16_t>& rgb) {
   avifDecoder* dec = avifDecoderCreate();
   if (!dec) return false;
   dec->maxThreads = 4;
@@ -28,6 +32,10 @@ static bool loadAvif(const char* path, int& w, int& h, int& depth,
   w = (int)dec->image->width;
   h = (int)dec->image->height;
   depth = (int)dec->image->depth;
+  cicp = {(int)dec->image->colorPrimaries,
+          (int)dec->image->transferCharacteristics,
+          (int)dec->image->matrixCoefficients,
+          (int)dec->image->yuvRange};
   avifRGBImage view;
   avifRGBImageSetDefaults(&view, dec->image);
   view.format = AVIF_RGB_FORMAT_RGB;
@@ -56,12 +64,23 @@ int main(int argc, char** argv) {
     return 2;
   }
   int wa, ha, da, wb, hb, db;
+  Cicp ca, cb;
   std::vector<uint16_t> a, b;
-  if (!loadAvif(argv[1], wa, ha, da, a)) return 2;
-  if (!loadAvif(argv[2], wb, hb, db, b)) return 2;
+  if (!loadAvif(argv[1], wa, ha, da, ca, a)) return 2;
+  if (!loadAvif(argv[2], wb, hb, db, cb, b)) return 2;
   if (wa != wb || ha != hb || da != db) {
     fprintf(stderr, "img_compare: shape mismatch (%dx%d/%dbit vs %dx%d/%dbit)\n",
             wa, ha, da, wb, hb, db);
+    return 2;
+  }
+  // Code values only compare within one color encoding: a CICP regression
+  // (wrong primaries/transfer stamped on the file) must not pass as
+  // PSNR=inf just because the samples match.
+  if (ca.cp != cb.cp || ca.tc != cb.tc || ca.mc != cb.mc ||
+      ca.range != cb.range) {
+    fprintf(stderr,
+            "img_compare: CICP mismatch (%d/%d/%d r%d vs %d/%d/%d r%d)\n",
+            ca.cp, ca.tc, ca.mc, ca.range, cb.cp, cb.tc, cb.mc, cb.range);
     return 2;
   }
   double peak = (double)((1 << da) - 1);

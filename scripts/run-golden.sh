@@ -8,7 +8,7 @@
 # (256x256 / 64 spp / seed 7 / no denoise) into /tmp and compares with
 # $SUNDOG_BUILD/img_compare at a 45 dB PSNR threshold. Additionally renders
 # smoke.py twice and requires bit-identical AVIFs (determinism check —
-# covers the .py -> JSON conversion layer too, it reruns every time).
+# covers the scenelib -> C ABI feed layer too, it reruns every time).
 # Missing goldens => hint to run scripts/make-goldens.sh and exit 1.
 set -euo pipefail
 

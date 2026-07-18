@@ -121,22 +121,42 @@ def save(img, out, cicp="pq"):
 
 
 def pq_to_srgb(im):
-    """Convert PQ code values to sRGB code values (linear light matched
-    at the 203-nit reference white; highlights above it clip). Used when
+    """Convert the renderer's PQ/BT.2020 code values to sRGB/BT.709 code
+    values: PQ EOTF -> linear (203-nit white anchor) -> BT.2020->709 gamut
+    matrix -> clip -> sRGB OETF. Highlights above 203 nits clip. Used when
     a strip mixes the renderer's PQ beauty with sRGB AOV panels — the
-    whole composite is then saved with sRGB CICP."""
+    whole composite is then saved with sRGB CICP. The gamut step is a 3x3
+    mix, so this is per-pixel work, not a per-channel LUT."""
     m1, m2 = 2610.0 / 16384, 2523.0 / 4096 * 128
     c1, c2, c3 = 3424.0 / 4096, 2413.0 / 4096 * 32, 2392.0 / 4096 * 32
-    lut = []
+    # code value -> linear (in units of the 203-nit reference white)
+    to_lin = []
     for v in range(256):
-        e = v / 255.0
-        p = pow(max(e, 0.0), 1.0 / m2)
+        p = pow(v / 255.0, 1.0 / m2)
         num = max(p - c1, 0.0)
-        lin = pow(num / (c2 - c3 * p), 1.0 / m1) * 10000.0 / 203.0
-        lin = min(lin, 1.0)
+        to_lin.append(pow(num / (c2 - c3 * p), 1.0 / m1) * 10000.0 / 203.0)
+    # linear -> sRGB code, tabulated on a fine grid for speed
+    N = 4096
+    to_srgb = []
+    for i in range(N + 1):
+        lin = i / N
         s = 12.92 * lin if lin <= 0.0031308 else 1.055 * lin ** (1 / 2.4) - 0.055
-        lut.append(round(s * 255))
-    return im.point(lut * 3)
+        to_srgb.append(min(255, round(s * 255)))
+    # BT.2020 -> BT.709 (inverse of src/transfer.h's bt709To2020)
+    M = ((1.660491, -0.587641, -0.072850),
+         (-0.124550, 1.132900, -0.008349),
+         (-0.018151, -0.100579, 1.118730))
+    src = im.tobytes()
+    out = bytearray(len(src))
+    for i in range(0, len(src), 3):
+        r20 = to_lin[src[i]]
+        g20 = to_lin[src[i + 1]]
+        b20 = to_lin[src[i + 2]]
+        for k in range(3):
+            lin = M[k][0] * r20 + M[k][1] * g20 + M[k][2] * b20
+            lin = 0.0 if lin < 0.0 else (1.0 if lin > 1.0 else lin)
+            out[i + k] = to_srgb[int(lin * N + 0.5)]
+    return Image.frombytes("RGB", im.size, bytes(out))
 
 
 def cmd_strip(out, rest):
@@ -287,7 +307,7 @@ python3 "$COMPOSE" ladder "$FIG/ch05-roughness-ladder.avif" \
   "roughness 0.45" "roughness 0.7"
 
 # ------------------------------------------------------- ch06-primitives.avif
-# features.json: sphere / cylinder / parabola / disk / rect in one frame.
+# features.py: sphere / cylinder / parabola / disk / rect in one frame.
 render "ch06-primitives" "$ROOT/scenes/features.py" \
        --size 1280x800 --spp 256
 python3 "$COMPOSE" strip "$FIG/ch06-primitives.avif" \

@@ -97,7 +97,7 @@ if (compactedSize < sizes.outputSizeInBytes) {
 回到 05 场景的实测数字（`out/gallery/05-spot-swarm.stats.json`，由 `scripts/render-gallery.sh` 生成，1920×1080、128 spp；表格版见 `docs/BENCHMARKS.md` A 特性层）：
 
 - **构建**：2 个 GAS（矩形 quadric + 奶牛网格）加 1 个 32770 实例的 IAS，共 14.5 ms；
-- **渲染**：2171.6 ms 追完 737 638 083 条光线，吞吐 344 Mrays/s（`docs/BENCHMARKS.md` 中 64 spp 一档为 1.073 s、344 Mrays/s；Mrays/s 的含义与解读见[第 11 章·验证方法学与性能](11-validation.md)）。这是 GB200 **软件遍历**的口径——同帧在带 RT Core 的 RTX 5090 上曾实测 230.9 ms、3194 Mrays/s，约 9 倍差距，正是 8.3 节"硬件化的是哪一步"的直接实证；
+- **渲染**：2171.6 ms 追完 737 638 083 条光线，吞吐 340 Mrays/s（`docs/BENCHMARKS.md` 中 64 spp 一档为 1.073 s、344 Mrays/s；Mrays/s 的含义与解读见[第 11 章·验证方法学与性能](11-validation.md)）。这是 GB200 **软件遍历**的口径——同帧在带 RT Core 的 RTX 5090 上曾实测 230.9 ms、3194 Mrays/s，约 9 倍差距，正是 8.3 节"硬件化的是哪一步"的直接实证；
 - **显存**：整个进程峰值 454 MB——含帧缓冲、纹理与网格，而非几何复制的 GB 量级。
 
 按吞吐折算，平均每条光线只摊到约 2.9 纳秒（RT Core 口径下约 0.31 纳秒）。这当然不是单条光线的延迟——单次显存访问都不止这个时间——而是数十万条光线在整卡上并行流水的摊销结果。与 8.1 节"理想机器也要近十二个小时"的朴素估算对照，BVH 的对数剪枝（软遍历口径独享其功）加上 RT Core 的硬件化（再乘一档），共同兑现了这四到五个数量级的差距。

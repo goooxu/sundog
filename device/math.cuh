@@ -42,9 +42,6 @@ SD_HD float length(float3 a) { return sqrtf(dot(a, a)); }
 SD_HD float3 normalize(float3 a) { return a * (1.0f / sqrtf(dot(a, a))); }
 
 SD_HD float clampf(float x, float lo, float hi) { return fminf(hi, fmaxf(lo, x)); }
-SD_HD float3 clamp3(float3 v, float lo, float hi) {
-  return f3(clampf(v.x, lo, hi), clampf(v.y, lo, hi), clampf(v.z, lo, hi));
-}
 SD_HD float3 min3(float3 a, float3 b) { return f3(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
 SD_HD float maxComp(float3 v) { return fmaxf(v.x, fmaxf(v.y, v.z)); }
 SD_HD float3 lerp3(float3 a, float3 b, float t) { return a + (b - a) * t; }

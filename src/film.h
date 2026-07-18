@@ -9,7 +9,9 @@ namespace sd {
 
 class Film {
  public:
-  Film(int width, int height);
+  // withDenoised: allocate the denoiser output buffer (skipped for
+  // --no-denoise renders — it would be pure dead VRAM).
+  Film(int width, int height, bool withDenoised);
 
   CUdeviceptr accum() const { return accum_.ptr; }
   CUdeviceptr aovAlbedo() const { return albedo_.ptr; }
@@ -24,9 +26,6 @@ class Film {
   // by construction, stored as sRGB 8-bit lossless AVIF.
   void writeAovAvif(CUdeviceptr src, const std::string& path,
                     bool remap) const;
-
-  int width() const { return width_; }
-  int height() const { return height_; }
 
  private:
   int width_, height_;

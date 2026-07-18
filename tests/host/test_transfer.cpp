@@ -22,6 +22,17 @@ int main() {
     CHECK_NEAR(pqEotf(pqOetf(lin)), lin, 1e-4 * (lin > 0.01f ? lin * 100 : 1));
   }
 
+  // Clamping contract: the whole writeAvif chain's NaN/inf/negative safety
+  // rests on pqOetf saturating its input — pin it. fmaxf(NaN, 0) == 0 per
+  // IEEE, so NaN input encodes as black, never a poisoned code value.
+  CHECK_NEAR(pqOetf(-3.0f), 0.0, 1e-6);
+  CHECK_NEAR(pqOetf(50.0f), 1.0, 1e-5);
+  CHECK_NEAR(pqOetf(std::numeric_limits<float>::infinity()), 1.0, 1e-5);
+  float nanEnc = pqOetf(std::numeric_limits<float>::quiet_NaN());
+  CHECK_NEAR(nanEnc, 0.0, 1e-6);
+  CHECK_NEAR(pqEotf(-1.0f), 0.0, 1e-6);
+  CHECK_NEAR(pqEotf(2.0f), 1.0, 1e-4);
+
   // 709->2020: rows sum to 1 (D65 white preserved), all coefficients of
   // the first row positive, off-diagonal structure as published.
   float3 w = bt709To2020(f3(1.0f, 1.0f, 1.0f));

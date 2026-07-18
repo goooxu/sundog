@@ -32,6 +32,23 @@ static std::vector<unsigned char> loadAvifRgba8(const std::string& path,
   }
   w = (int)dec->image->width;
   h = (int)dec->image->height;
+  // Textures are 8-bit sRGB by contract (the hardware sampler sRGB-decodes
+  // them). Reject HDR-encoded inputs instead of silently mangling them —
+  // e.g. the renderer's own 12-bit PQ output fed back as a texture.
+  if (dec->image->depth > 8 ||
+      dec->image->transferCharacteristics ==
+          AVIF_TRANSFER_CHARACTERISTICS_SMPTE2084 ||
+      dec->image->transferCharacteristics ==
+          AVIF_TRANSFER_CHARACTERISTICS_HLG) {
+    int d = (int)dec->image->depth;
+    int tc = (int)dec->image->transferCharacteristics;
+    avifDecoderDestroy(dec);
+    throw std::runtime_error(
+        "texture " + path + " is not an 8-bit sRGB AVIF (depth " +
+        std::to_string(d) + ", transfer " + std::to_string(tc) +
+        "); image textures must be LDR sRGB — HDR belongs to the .hdr "
+        "environment map path");
+  }
   avifRGBImage rgb;
   avifRGBImageSetDefaults(&rgb, dec->image);
   rgb.format = AVIF_RGB_FORMAT_RGBA;

@@ -7,6 +7,8 @@ img2avif — matplotlib renders to a /tmp PNG intermediate only):
                             + O(1/N) reference slope (+6.02 dB per 4x spp)
   ch05-fresnel-curves.avif  exact dielectric Fresnel (eta=1.5) vs Schlick
   ch01-pq-curve.avif        SMPTE ST 2084 PQ OETF vs the sRGB/SDR band
+  ch14-env-luminance.avif   envmap panorama + per-row marginal luminance
+  ch17-coupling-energy.avif plastic BSDF hemispherical albedo (3 couplings)
 
 Data collection (chart 1) renders on the GPU test box and needs the sundog
 binaries; run this script ON the test box:
@@ -27,7 +29,6 @@ Options:
 
 import argparse
 import json
-import math
 import os
 import re
 import subprocess
@@ -44,7 +45,6 @@ import numpy as np  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 FIG_DIR = ROOT / "docs" / "report" / "figures"
 SRC_DIR = FIG_DIR / "src"
-BENCHMARKS_MD = ROOT / "docs" / "BENCHMARKS.md"
 SCENE = ROOT / "scenes" / "02-cornell-lume.py"
 ENV_HDR = ROOT / "assets" / "kloofendal_48d_partly_cloudy_puresky_4k.hdr"
 
@@ -370,10 +370,6 @@ def chart_pq():
 
 
 # ---------------------------------------------------------------- chart 4 ---
-
-
-
-# ---------------------------------------------------------------- chart 3 ---
 
 def read_hdr_rgbe(path):
     """Minimal Radiance .hdr reader (new-style RLE), matching stb's

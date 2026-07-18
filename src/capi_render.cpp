@@ -73,7 +73,8 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     // ---- overrides (the old CLI layer, same sentinel semantics) ----
     auto tLoad = Clock::now();
     if (opt->spp > 0) scene.render.spp = opt->spp;
-    if (opt->width > 0) { scene.render.width = opt->width; scene.render.height = opt->height; }
+    if (opt->width > 0) scene.render.width = opt->width;
+    if (opt->height > 0) scene.render.height = opt->height;
     if (opt->seed >= 0) scene.render.seed = (unsigned)opt->seed;
     if (opt->denoise >= 0) scene.render.denoise = opt->denoise == 1;
     if (opt->transparent_shadows >= 0)
@@ -186,7 +187,7 @@ extern "C" int sundog_render(sundog_scene* h, const sundog_render_options* opt) 
     // ---- pipeline & film ----
     Pipeline pipeline(ctx, false);
     pipeline.buildSbt(scene, meshes);
-    Film film(rs.width, rs.height);
+    Film film(rs.width, rs.height, rs.denoise);
 
     CudaBuffer texBuf, matBuf, lightBuf, flameBuf, rayCounter;
     texBuf.upload(texDescs);

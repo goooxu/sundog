@@ -269,6 +269,8 @@ extern "C" int sundog_add_material_emissive(sundog_scene* h, const double color[
   md.color = nf3(color, md.color);
   md.texId = tex_id;
   md.intensity = nf(intensity, md.intensity);
+  if (md.intensity < 0.0f)
+    sceneFail("emissive: intensity must be >= 0");
   md.twoSided = two_sided == 1 ? 1 : 0;
   return pushMaterial(h, md, tex_id);
   SUNDOG_CATCH(-1)
@@ -421,6 +423,8 @@ extern "C" int sundog_add_point_light(sundog_scene* h, const double position[3],
   ld.p = nf3(position, f3(0.0f));
   ld.radius = nf(radius, 0.0f);
   ld.L = nf3(intensity, f3(0.0f));
+  if (ld.L.x < 0.0f || ld.L.y < 0.0f || ld.L.z < 0.0f)
+    sceneFail("point light: intensity components must be >= 0");
   int id = (int)h->scene.lights.size();
   h->scene.lights.push_back(ld);
   return id;
@@ -438,6 +442,8 @@ extern "C" int sundog_add_distant_light(sundog_scene* h, const double direction[
   ld.kind = LT_DISTANT;
   ld.dir = normalize(nf3(direction, f3(0.0f)));
   ld.L = nf3(radiance, f3(0.0f));
+  if (ld.L.x < 0.0f || ld.L.y < 0.0f || ld.L.z < 0.0f)
+    sceneFail("distant light: radiance components must be >= 0");
   int id = (int)h->scene.lights.size();
   h->scene.lights.push_back(ld);
   return id;

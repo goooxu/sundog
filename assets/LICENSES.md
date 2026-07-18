@@ -61,5 +61,5 @@
 - **Terms:** **CC0 1.0 Universal** — public domain; no attribution required.
 - **获取方式:** `scripts/fetch-assets.sh`（HDR 不入库，按需重新下载；直链
   `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kloofendal_48d_partly_cloudy_puresky_4k.hdr`）。
-- **Use in this project:** 场景 10/11/12/15 的环境光照（IBL），技术报告
+- **Use in this project:** 场景 10/11/12/15/16 的环境光照（IBL），技术报告
   第 14 章的重要性采样演示。

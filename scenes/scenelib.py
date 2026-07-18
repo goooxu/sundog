@@ -1,4 +1,4 @@
-"""sundog scene library — define a scene in Python, run the file, get a PNG.
+"""sundog scene library — define a scene in Python, run the file, get an HDR AVIF.
 
 A sundog scene is an executable Python program living next to this module:
 
@@ -276,7 +276,10 @@ class Scene(object):
                                  "materials" % (name, _fmt_site(site), k, type))
         m = {"type": type}
         for k, v in fields.items():
-            _put(m, k, v)
+            # material fields have no None semantics (unlike material_back's
+            # pass-through face): an explicit None means "not set". Storing
+            # it would poison key-presence checks and the texture id lookup.
+            _put(m, k, OMIT if v is None else v)
         self._materials[name] = m
         self._sites[("materials", name)] = site
         return name
@@ -684,7 +687,7 @@ class Scene(object):
         __main__ block. Scene data crosses the C ABI of libsundog.so
         directly — no intermediate representation of any kind.
 
-        `out` is the output PNG the scene chooses for itself; CLI flags
+        `out` is the output AVIF the scene chooses for itself; CLI flags
         override it and any render setting (--out/--spp/--size/...).
         """
         opts = _parse_args(list(sys.argv[1:] if argv is None else argv), out)

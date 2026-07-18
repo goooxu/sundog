@@ -156,7 +156,7 @@ while (done < rs.spp) {
 
 ![beauty 与两张 AOV](figures/ch09-aov.avif)
 
-*图：左起 beauty、反照率 AOV、法线 AOV（03-spot-atrium 场景）；AOV 作降噪引导层的用法见第 10 章。*
+*图：左起 beauty、反照率 AOV、法线 AOV（03-spot-atrium 场景）；AOV 作降噪引导层的用法见第 10 章。整条拼图为 sRGB 口径——beauty 面板从 PQ 转换而来（203 nits 以上高光截断），AOV 面板本就是 sRGB。*
 
 最后是一个工程坑，一段带过：设备代码理论上可编成 OptiX-IR（OptiX 专用的二进制中间表示）交给驱动，但 nvcc 13.0 的 `--optix-ir` 输出会被 R610 驱动（610.47.04）的加载器拒收，`optixModuleCreate` 报出空日志的编译错误。因此 sundog 一律编成 PTX（CUDA 的汇编级中间表示，`-arch=compute_75`——nvcc 13 接受的最低目标）嵌入渲染库，运行时由驱动即时编译（JIT）为本机架构的机器码，性能无差别，代价只是首次创建模块稍慢。这个选择还顺手解决了可移植性：PTX 前向兼容，同一份 compute_75 模块在 Turing 到最新数据中心 Blackwell 的任何 NVIDIA GPU 上都能 JIT——项目因此不必假设运行环境的 GPU 型号（`DEVARCH` 仍可覆盖，golden 的 manifest 记录生成时的实际口径）。
 

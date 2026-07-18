@@ -390,12 +390,13 @@
 | ch17-toy-ladder.avif | 玩具工厂涂层阶梯 | 14-toy-factory --spp 384（场景原生 1920x1080），compose ladder 单图配注 |
 | ch15-snell-window.avif | 水下仰视 Snell 窗口 | 内联 python 生成水下相机临时场景（960x540/128spp） |
 
-全部经 PIL 无损压缩入 docs/report/figures/；标注文字用 PIL 默认字体白底黑字角标即可。
+PIL 拼图后经 img2avif 无损编码（PQ CICP）入 docs/report/figures/；标注文字用 PIL 默认字体角标（底色取 PQ 参考白）。
 
 ## 数据图（matplotlib，测试机采数据）
 
 | 文件 | 内容 | 数据来源 |
 |---|---|---|
+| ch01-pq-curve.avif | PQ 转移函数 + SDR 区间带，log-x | 纯计算（ST 2084 公式，203/10000nit 锚点标注） |
 | ch03-mc-convergence.avif | PSNR vs spp（1,2,4,...,1024），log-x | 02-cornell-lume 各 spp vs 4096spp 参考，img_compare 采 |
 | ch05-fresnel-curves.avif | η=1.5 精确 Fresnel vs Schlick | 纯计算 |
 | ch14-env-luminance.avif | envmap 亮度分布解剖（缩略图 + 逐行边缘亮度 log 曲线） | gen-report-charts.py 内置 RGBE 解码读 assets/*.hdr |

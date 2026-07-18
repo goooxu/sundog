@@ -215,7 +215,7 @@ PY
   CMP_STEMS+=("mesh-light-$side")
 done
 
-# 7. NEE: equal-spp Cornell, light sampling on vs BSDF-only paths
+# 6. NEE: equal-spp Cornell, light sampling on vs BSDF-only paths
 cr nee-on "$ROOT/scenes/02-cornell-lume.py" --spp 64 --no-denoise
 echo "== compare/nee-off (variant) =="
 python3 - "$ROOT" "$CMP/nee-off.avif" <<'PY'
@@ -239,7 +239,7 @@ PY
 [ -s "$CMP/nee-off.avif" ] || fail "empty nee-off"
 CMP_STEMS+=("nee-off")
 
-# 8. rough dielectric: the frosted-veil screens at their ladder roughness
+# 7. rough dielectric: the frosted-veil screens at their ladder roughness
 #    vs every pane forced smooth (delta glass)
 cr frosted-glass-on "$ROOT/scenes/13-frosted-veil.py" --spp 512 --no-denoise
 echo "== compare/frosted-glass-off (variant) =="
@@ -502,12 +502,16 @@ for stem in [*CATALOG, *HEROES]:
         continue
     st = json.load(open(sp))
     t = st["timings_ms"]
+    # free-mem-delta VRAM readings are garbage under JOBS>1 (a neighbor
+    # process on the same GPU skews the delta, often clamping it to 0) —
+    # publish a dash instead of a bogus number
+    vram = st["peak_vram_mb"]
     rows.append((
         stem, f'{st["width"]}x{st["height"]}', st["spp"],
         "是" if st["denoised"] else "否",
         f'{t["render"] / 1000.0:.2f}',
         f'{st["mrays_per_sec"]:.0f}',
-        f'{st["peak_vram_mb"]}',
+        f'{vram}' if vram > 0 else "—",
     ))
 
 lines += [
@@ -516,8 +520,13 @@ lines += [
     "| 图像 | 分辨率 | spp | 降噪 | 渲染时间 (s) | Mrays/s | 峰值显存 (MB) |",
     "|---|---|---|---|---|---|---|",
 ]
+# (— in the VRAM column: multi-GPU parallel render, free-mem delta invalid;
+# docs/BENCHMARKS.md carries the authoritative serial measurements)
 for r in rows:
     lines.append("| " + " | ".join(str(c) for c in r) + " |")
+if any(r[-1] == "—" for r in rows):
+    lines += ["", "> 显存列的 — 表示该图在多卡并行渲染下产出（free-mem 差值"
+              "口径失真）；权威显存数字见 docs/BENCHMARKS.md（串行实测）。"]
 def gpu_of(stem):
     sp = os.path.join(gallery, f"{stem}.stats.json")
     if not os.path.exists(sp):

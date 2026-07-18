@@ -249,6 +249,10 @@ static void testErrorPaths() {
   // reference range guards (the name->id resolution lives in scenelib)
   expectAddFail(sundog_add_material_lambert(h, nullptr, 7),
                 "texture id out of range");
+  // negative radiance guard (materials phase): emitted energy is
+  // HDR-unbounded upward but must never be negative
+  expectAddFail(sundog_add_material_emissive(h, D3(1, 1, 1), -1, -2.0, -1),
+                "negative emissive intensity");
   expectAddFail(sundog_add_object(h, 99, -1, 0, SUNDOG_MAT_DEFAULT, -1,
                                   nullptr, 0, -1, nullptr), "unknown shape");
   expectAddFail(sundog_add_object(h, SUNDOG_GK_MESH, 3, 0, SUNDOG_MAT_DEFAULT,
@@ -265,6 +269,12 @@ static void testErrorPaths() {
   expectAddFail(sundog_add_object(h, SUNDOG_GK_SPHERE, -1, 0,
                                   SUNDOG_MAT_DEFAULT, -1, bad, 1, -1, nullptr),
                 "unknown transform step kind");
+  // negative radiance guards on explicit lights (lights phase — last, so
+  // the phase advance cannot shadow the earlier rejection reasons)
+  expectAddFail(sundog_add_point_light(h, D3(0, 5, 0), D3(10, -1, 10), 0.0),
+                "negative point-light component");
+  expectAddFail(sundog_add_distant_light(h, D3(0, -1, 0), D3(-0.1, 1, 1)),
+                "negative distant radiance component");
   sundog_scene_destroy(h);
 
   // tinted dielectric parses; plain glass stays vacuum-clear; negative fails

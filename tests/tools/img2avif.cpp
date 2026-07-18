@@ -78,8 +78,9 @@ static int encode(const char* inPath, const char* outPath, bool pq) {
   if (r != AVIF_RESULT_OK)
     return fail(std::string("EncoderWrite: ") + avifResultToString(r));
   FILE* f = fopen(outPath, "wb");
-  if (!f || fwrite(out.data, 1, out.size, f) != out.size ||
-      fclose(f) != 0) {
+  size_t wrote = f ? fwrite(out.data, 1, out.size, f) : 0;
+  bool closed = f && fclose(f) == 0;
+  if (wrote != out.size || !closed) {
     avifRWDataFree(&out);
     return fail(std::string("cannot write ") + outPath);
   }
@@ -125,7 +126,9 @@ static int decode(const char* inPath, const char* outPath) {
             "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE "
             "RGB_ALPHA\nENDHDR\n",
             w, h);
-  if (fwrite(px.data(), 1, px.size(), f) != px.size() || fclose(f) != 0)
+  size_t wrote = fwrite(px.data(), 1, px.size(), f);
+  bool closed = fclose(f) == 0;
+  if (wrote != px.size() || !closed)
     return fail(std::string("short write to ") + outPath);
   printf("img2avif: %s -> %s (%dx%d %s)\n", inPath, outPath, w, h,
          ppm ? "PPM" : "PAM");

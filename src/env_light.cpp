@@ -59,10 +59,15 @@ EnvDesc EnvMap::upload(const Scene& scene) {
             path.c_str());
 
   // ---- texture: float4, element-type read (radiance > 1 must survive) ---
-  cudaChannelFormatDesc ch = cudaCreateChannelDesc<float4>();
-  CUDA_CHECK(cudaMallocArray(&array_, &ch, w, h));
-  CUDA_CHECK(cudaMemcpy2DToArray(array_, 0, 0, pixels, (size_t)w * 16,
-                                 (size_t)w * 16, h, cudaMemcpyHostToDevice));
+  try {
+    cudaChannelFormatDesc ch = cudaCreateChannelDesc<float4>();
+    CUDA_CHECK(cudaMallocArray(&array_, &ch, w, h));
+    CUDA_CHECK(cudaMemcpy2DToArray(array_, 0, 0, pixels, (size_t)w * 16,
+                                   (size_t)w * 16, h, cudaMemcpyHostToDevice));
+  } catch (...) {
+    stbi_image_free(pixels);
+    throw;
+  }
   stbi_image_free(pixels);
 
   cudaResourceDesc res{};

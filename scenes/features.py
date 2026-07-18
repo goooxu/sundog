@@ -2,7 +2,7 @@
 """sundog scene features — Full-feature coverage test scene.
 
 A checkerboard showroom that exercises every core loader feature in one
-frame (this is the scene tests/host/test_scene_json.cpp asserts against, not
+frame (this is the scene tests/host/test_scene_build.cpp asserts against, not
 a gallery piece). All four material kinds appear: two lamberts (checker
 ground, matte red), two metals (rough gold, perfect mirror), one dielectric
 (glass), and one emissive lamp. The object lineup covers the analytic

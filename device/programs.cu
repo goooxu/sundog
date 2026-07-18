@@ -409,10 +409,19 @@ extern "C" __global__ void __raygen__render() {
         if (depth >= 1 && params.clampVal > 0.0f) c = min3(c, f3(params.clampVal));
         L += c;
         if (!aovDone) {
+          // Guide layers are LDR by contract (denoiser albedo is [0,1]
+          // reflectance): clamp the HDR background radiance, and keep the
+          // normal's running mean on the same all-sample counter as albedo
+          // by shrinking it toward 0 (the conventional miss normal).
+          float3 bg = f3(fminf(hit.nOrBg.x, 1.0f), fminf(hit.nOrBg.y, 1.0f),
+                         fminf(hit.nOrBg.z, 1.0f));
           aovAlbedo = make_float4(
-              aovAlbedo.x + (hit.nOrBg.x - aovAlbedo.x) / (s + 1),
-              aovAlbedo.y + (hit.nOrBg.y - aovAlbedo.y) / (s + 1),
-              aovAlbedo.z + (hit.nOrBg.z - aovAlbedo.z) / (s + 1), 1.0f);
+              aovAlbedo.x + (bg.x - aovAlbedo.x) / (s + 1),
+              aovAlbedo.y + (bg.y - aovAlbedo.y) / (s + 1),
+              aovAlbedo.z + (bg.z - aovAlbedo.z) / (s + 1), 1.0f);
+          aovNormal = make_float4(aovNormal.x - aovNormal.x / (s + 1),
+                                  aovNormal.y - aovNormal.y / (s + 1),
+                                  aovNormal.z - aovNormal.z / (s + 1), 1.0f);
           aovDone = true;
         }
         break;
