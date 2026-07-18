@@ -73,4 +73,4 @@ s.add('disk', 'amber', scale(0.42), translate(-3.2, 0.011, 2.2))      # painted 
 s.add('sphere', 'sun', scale(5.0), translate(-28, 34, -22))           # distant emissive sun ball
 
 if __name__ == "__main__":
-    s.run(out="01-marble-run.png")
+    s.run(out="01-marble-run.avif")

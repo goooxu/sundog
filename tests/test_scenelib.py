@@ -162,7 +162,7 @@ expect_error(lambda: minimal().background_envmap("a.hdr", intensity=-1),
 
 s = minimal()
 s.emissive("glow", texture="runes", intensity=2.0)
-s.texture("runes", "image", file="runes.png")
+s.texture("runes", "image", file="runes.avif")
 s.add("sphere", "glow")
 expect_error(s.validate, "textured emissive sphere", "textured emissive sphere")
 
@@ -182,7 +182,7 @@ s.add("disk", "glow", scale(2, 1, 3), nee=False)
 s.validate()
 
 s = minimal()  # an emissive mesh is an NEE light — textured included
-s.texture("screen", "image", file="runes.png")
+s.texture("screen", "image", file="runes.avif")
 s.emissive("glow", texture="screen", intensity=3.0)
 s.add(s.mesh("bot", "bot.obj", usemtl="Screen"), "glow", scale(2, 1, 3))
 s.validate()  # no uniform-scale rule for meshes; textured is fine
@@ -194,13 +194,13 @@ s.add(s.mesh("bot2", "bot.obj"), "glow", physics=rigid_body())
 expect_error(s.validate, "dynamic body cannot", "dynamic mesh NEE light")
 
 s = minimal()  # cutout + NEE light: MIS sides would disagree in the holes
-s.texture("holes", "image", file="runes.png")
+s.texture("holes", "image", file="runes.avif")
 s.emissive("glow", color=[1, 1, 1])
 s.add("rect", "glow", cutout="holes")
 expect_error(s.validate, "alpha-cutout", "cutout NEE light rejected")
 
 s = minimal()  # nee=False keeps cutout emitters legal (BSDF-only)
-s.texture("holes", "image", file="runes.png")
+s.texture("holes", "image", file="runes.avif")
 s.emissive("glow", color=[1, 1, 1])
 s.add("rect", "glow", cutout="holes", nee=False)
 s.validate()
@@ -379,7 +379,7 @@ ns = pa(["--opaque-shadows", "--physics-time", "1.0"], "d.avif")
 check(ns.transparent_shadows == 0 and ns.physics_time == 1.0,
       "opaque shadows + physics time")
 try:
-    pa(["--bogus"], "d.png")
+    pa(["--bogus"], "d.avif")
     check(False, "unknown flag must exit")
 except SystemExit as e:
     check(e.code == 2, "unknown flag exits 2")
@@ -398,7 +398,7 @@ s.background_solid(color=[0, 0, 0])
 s.lambert("grey", color=[0.5, 0.5, 0.5])
 s.add("sphere", "grey", scale(0.5), translate(0, 0.5, 0))
 if __name__ == "__main__":
-    s.run(out="mini.png")
+    s.run(out="mini.avif")
 """ % SCENES
 scene_py = os.path.join(TMP, "mini-scene.py")
 with open(scene_py, "w") as f:

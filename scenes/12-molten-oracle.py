@@ -10,7 +10,7 @@ right fades from clear to abyssal blue; rune strips glow on the walls.
 Composition-critical constants live at the top; positions of the debris
 cloud come from a fixed seed so the scene is reproducible.
 
-Run: python3 scenes/12-molten-oracle.py        (renders 12-molten-oracle.png)
+Run: python3 scenes/12-molten-oracle.py        (renders 12-molten-oracle.avif)
 """
 import math
 import random
@@ -41,8 +41,8 @@ s.texture("floorTex", "grid", a=[0.16, 0.155, 0.16], b=[0.08, 0.078, 0.085],
           scale=[26, 26], width=0.05)
 s.texture("mossTex", "grid", a=[0.30, 0.40, 0.24], b=[0.15, 0.22, 0.14],
           scale=[10, 10], width=0.08)
-s.texture("gearTex", "image", file="textures/gear.png")
-s.texture("runeTex", "image", file="textures/runes.png", srgb=True)
+s.texture("gearTex", "image", file="textures/gear.avif")
+s.texture("runeTex", "image", file="textures/runes.avif", srgb=True)
 
 s.lambert("floor", texture="floorTex")
 s.lambert("stone", color=[0.075, 0.072, 0.08])
@@ -184,4 +184,4 @@ for i in range(N_SPARKS):
     s.add("sphere", "spark", scale(r), translate(x, y, z), nee=False)
 
 if __name__ == "__main__":
-    s.run(out="12-molten-oracle.png")
+    s.run(out="12-molten-oracle.avif")

@@ -24,7 +24,7 @@ s.camera(lookfrom=[0.0, 1.55, 5.8], lookat=[0.0, 0.95, -0.3], vfov=36)
 s.background_gradient(horizon=[0.02, 0.03, 0.06], zenith=[0.004, 0.006, 0.014])
 
 # ---- textures & meshes ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png')
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif')
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -68,4 +68,4 @@ s.add('mesh:spot', 'spot_skin', scale(0.8), rotate_y(90),
       translate(-2.62, 0.56, -0.55))
 
 if __name__ == "__main__":
-    s.run(out="13-frosted-veil.png")
+    s.run(out="13-frosted-veil.avif")

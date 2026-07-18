@@ -30,8 +30,8 @@ s.physics(gravity=[0, -9.8, 0], timestep=1 / 240, max_time=8.0,
           friction=0.55, restitution=0.3, stop_time=1.5)
 
 # ---- textures & meshes ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
-s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
+s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 s.mesh('box', '../assets/box.obj', normals='flat')
 s.mesh('brick', '../assets/brick.obj', normals='flat')
@@ -186,4 +186,4 @@ s.add('rect', 'spotlamp', scale(0.30, 1, 0.30), rotate_x(-138), rotate_y(30),
       translate(4.2, 5.9, 1.8))
 
 if __name__ == "__main__":
-    s.run(out="16-atelier.png")
+    s.run(out="16-atelier.avif")

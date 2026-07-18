@@ -42,24 +42,24 @@ render() { # render SCENE OUT
 
 echo "== golden comparisons (min PSNR $MIN_PSNR dB) =="
 for s in "${SCENES[@]}"; do
-  golden="$GOLDEN_DIR/$s.png"
+  golden="$GOLDEN_DIR/$s.avif"
   if [ ! -f "$golden" ]; then
     echo "run-golden: missing golden $golden" >&2
     echo "run-golden: generate references first: scripts/make-goldens.sh" >&2
     exit 1
   fi
   [ -f "$ROOT/scenes/$s.py" ] || fail "scene not found: $ROOT/scenes/$s.py"
-  render "$s" "$TMP/$s.png"
+  render "$s" "$TMP/$s.avif"
   printf '%-20s ' "$s"
-  "$IMG_COMPARE" "$golden" "$TMP/$s.png" "$MIN_PSNR" \
+  "$IMG_COMPARE" "$golden" "$TMP/$s.avif" "$MIN_PSNR" \
     || fail "$s below $MIN_PSNR dB vs golden (renderer output changed?)"
 done
 
 echo "== determinism: smoke rendered twice must be bit-identical =="
-render smoke "$TMP/det-a.png"
-render smoke "$TMP/det-b.png"
-sha_a=$(sha256sum "$TMP/det-a.png" | cut -d' ' -f1)
-sha_b=$(sha256sum "$TMP/det-b.png" | cut -d' ' -f1)
+render smoke "$TMP/det-a.avif"
+render smoke "$TMP/det-b.avif"
+sha_a=$(sha256sum "$TMP/det-a.avif" | cut -d' ' -f1)
+sha_b=$(sha256sum "$TMP/det-b.avif" | cut -d' ' -f1)
 echo "  run A: $sha_a"
 echo "  run B: $sha_b"
 [ "$sha_a" = "$sha_b" ] || fail "non-deterministic output for fixed seed"

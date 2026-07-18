@@ -19,7 +19,7 @@ s.camera(lookfrom=[-4.5, 0.9, -2.5], lookat=[0.5, 0.8, 3.2], vfov=42)
 s.background_gradient(horizon=[0.045, 0.055, 0.085], zenith=[0.003, 0.005, 0.012])  # moonless night sky
 
 # ---- textures & meshes ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -58,4 +58,4 @@ s.add('mesh:spot', 'spot_skin', scale(0.85), rotate_y(45), translate(2.3, 0.687,
 s.add('mesh:spot', 'spot_skin', scale(0.85), rotate_y(5), translate(0.45, 0.687, 5.55))
 
 if __name__ == "__main__":
-    s.run(out="09-ember-shore.png")
+    s.run(out="09-ember-shore.avif")

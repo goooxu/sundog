@@ -46,4 +46,4 @@ s.add('disk', 'mirror', scale(1.6), rotate_x(90), translate(0, 1.6, -3.2))  # up
 s.add('rect', 'lamp', rotate_x(180), scale(1.2), translate(0, 6, 2))  # ceiling area light, faces down
 
 if __name__ == "__main__":
-    s.run(out="features.png")
+    s.run(out="features.avif")

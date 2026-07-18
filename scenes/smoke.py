@@ -34,4 +34,4 @@ s.add('rect', 'ground', scale(4))                          # ground plane
 s.add('sphere', 'ball', scale(0.7), translate(0, 0.7, 0))  # sphere resting on floor
 
 if __name__ == "__main__":
-    s.run(out="smoke.png")
+    s.run(out="smoke.avif")

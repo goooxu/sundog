@@ -57,7 +57,7 @@ for scene in "${FEATURE_SCENES[@]}"; do
   fi
   echo "-- $scene"
   st="$TMP/feat-$scene.stats.json"
-  python3 "$scene_file" --out "$TMP/feat-$scene.png" \
+  python3 "$scene_file" --out "$TMP/feat-$scene.avif" \
             --size 1920x1080 --spp 64 --no-denoise --quiet --stats "$st"
   A_ROWS+=("| $scene | $(jget "$st" 'd["scene_stats"]["objects"]') \
 | $(jget "$st" 'd["scene_stats"]["mesh_triangles"]') \
@@ -76,16 +76,16 @@ if [ ! -f "$dn_file" ]; then
   echo "  skip (no scene file)"
 else
   echo "-- reference ($DN_REF_SPP spp)"
-  python3 "$dn_file" --out "$TMP/dn-ref.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-ref.avif" --size "$DN_SIZE" \
             --spp "$DN_REF_SPP" --no-denoise --quiet
   echo "-- noisy ($DN_TEST_SPP spp)"
-  python3 "$dn_file" --out "$TMP/dn-raw.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-raw.avif" --size "$DN_SIZE" \
             --spp "$DN_TEST_SPP" --no-denoise --quiet
   echo "-- denoised ($DN_TEST_SPP spp + --denoise)"
-  python3 "$dn_file" --out "$TMP/dn-dn.png" --size "$DN_SIZE" \
+  python3 "$dn_file" --out "$TMP/dn-dn.avif" --size "$DN_SIZE" \
             --spp "$DN_TEST_SPP" --denoise --quiet
-  B_ROWS+=("| 原始蒙特卡洛 | $DN_TEST_SPP | 否 | $(psnr_of "$TMP/dn-ref.png" "$TMP/dn-raw.png") |")
-  B_ROWS+=("| OptiX AI 降噪 | $DN_TEST_SPP | 是 | $(psnr_of "$TMP/dn-ref.png" "$TMP/dn-dn.png") |")
+  B_ROWS+=("| 原始蒙特卡洛 | $DN_TEST_SPP | 否 | $(psnr_of "$TMP/dn-ref.avif" "$TMP/dn-raw.avif") |")
+  B_ROWS+=("| OptiX AI 降噪 | $DN_TEST_SPP | 是 | $(psnr_of "$TMP/dn-ref.avif" "$TMP/dn-dn.avif") |")
 fi
 
 # =============================== report ======================================

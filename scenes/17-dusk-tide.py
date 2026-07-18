@@ -27,8 +27,8 @@ s.camera(lookfrom=[0.6, 1.6, 8.7], lookat=[-0.6, 1.15, -5.0], vfov=41)
 s.background_gradient(horizon=[0.42, 0.16, 0.06], zenith=[0.03, 0.035, 0.11])
 
 # ---- textures & meshes ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
-s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
+s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.avif', srgb=True)
 s.texture('swatch', 'grid', a=[0.85, 0.86, 0.88], b=[0.22, 0.24, 0.28],
           scale=[10, 7], width=0.09)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
@@ -151,4 +151,4 @@ s.flame(base=[-10.5, 3.64, -14.5], height=1.7, radius=0.45, intensity=15,
         sigma=3.6, noise_scale=3.0, seed=71, light_intensity=11)
 
 if __name__ == "__main__":
-    s.run(out="17-dusk-tide.png")
+    s.run(out="17-dusk-tide.avif")

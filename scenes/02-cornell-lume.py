@@ -47,4 +47,4 @@ s.add('rect', 'steel3', scale(1.3, 1, 0.11), rotate_x(30), translate(0, 0.38, 0.
 s.add('rect', 'steel4', scale(1.3, 1, 0.11), rotate_x(23), translate(0, 0.18, 0.7))
 
 if __name__ == "__main__":
-    s.run(out="02-cornell-lume.png")
+    s.run(out="02-cornell-lume.avif")

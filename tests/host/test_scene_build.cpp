@@ -291,7 +291,7 @@ static void testErrorPaths() {
   h = freshMini();
   int em = sundog_add_material_emissive(h, nullptr, -1, 5.0, -1);
   int se = sundog_add_material_emissive(h, D3(1, 1, 1), -1, 3.0, -1);
-  int tex = sundog_add_texture_image(h, "textures/spot_texture.png", -1);
+  int tex = sundog_add_texture_image(h, "textures/spot_texture.avif", -1);
   int temEm = sundog_add_material_emissive(h, nullptr, tex, 2.0, -1);
   CHECK(em >= 0 && se >= 0 && tex >= 0 && temEm >= 0);
   sundog_xform_step nonUniform[1] = {{SUNDOG_XF_SCALE, 2, 1, 1}};
@@ -613,7 +613,7 @@ static void testLightOrderAndPhases() {
 static void testMeshLights() {
   sundog_scene* h = freshMini();
   int mesh = sundog_add_mesh(h, "../assets/sparky.obj", -1, "EmitYellow");
-  int tex = sundog_add_texture_image(h, "textures/spot_texture.png", -1);
+  int tex = sundog_add_texture_image(h, "textures/spot_texture.avif", -1);
   int em = sundog_add_material_emissive(h, D3(1.0, 0.85, 0.2), -1, 6.0, -1);
   int temEm = sundog_add_material_emissive(h, nullptr, tex, 3.0, -1);
   CHECK(mesh == 0 && tex == 0 && em >= 0 && temEm >= 0);

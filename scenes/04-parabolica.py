@@ -20,7 +20,7 @@ s.background_gradient(horizon=[0.03, 0.035, 0.06], zenith=[0.0, 0.0, 0.008])  # 
 
 # ---- textures & meshes ----
 s.texture('floor', 'checker', a=[0.28, 0.28, 0.3], b=[0.08, 0.08, 0.09], scale=[16, 16])
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -45,4 +45,4 @@ s.add('cylinder', 'shadeout', scale(0.55, 0.75, 0.55), translate(-2.2, 0.8, 3.8)
 s.add('sphere', 'lampglow', scale(0.34), translate(-2.2, 0.47, 3.8), nee=False)  # bulb under the shade, no NEE
 
 if __name__ == "__main__":
-    s.run(out="04-parabolica.png")
+    s.run(out="04-parabolica.avif")

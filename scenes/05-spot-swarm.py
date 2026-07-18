@@ -7,7 +7,7 @@ shares the GAS across instances), with seeded jitter and per-instance
 rotation, 8 cycling materials (including the native texture), two large rect
 area lights and a dark gradient sky. ~192M effective triangles.
 
-Run: python3 scenes/05-spot-swarm.py            (renders 05-spot-swarm.png)
+Run: python3 scenes/05-spot-swarm.py            (renders 05-spot-swarm.avif)
 """
 
 import random
@@ -33,7 +33,7 @@ s.camera(lookfrom=[cam_dist * 0.75, N * SPACING * 1.35, cam_dist * 0.85],
          lookat=[0.0, N * SPACING * 0.40, 0.0], vfov=42, aperture=0.0)
 s.background_gradient(horizon=[0.05, 0.06, 0.09], zenith=[0.01, 0.01, 0.03])
 
-s.texture("spotSkin", "image", file="textures/spot_texture.png", srgb=True)
+s.texture("spotSkin", "image", file="textures/spot_texture.avif", srgb=True)
 s.mesh("spot", "../assets/spot.obj", normals="smooth")
 
 # --- 8 cycling materials: native texture + hue-varied lambert/metal + glass -
@@ -78,4 +78,4 @@ for iy in range(N):
                   translate(round(x, 3), round(y, 3), round(z, 3)))
 
 if __name__ == "__main__":
-    s.run(out="05-spot-swarm.png")
+    s.run(out="05-spot-swarm.avif")

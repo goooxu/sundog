@@ -22,8 +22,8 @@ s.background_gradient(horizon=[0.92, 0.94, 1.0], zenith=[0.3, 0.5, 0.9])
 
 # ---- textures & meshes ----
 s.texture('floorGrid', 'grid', a=[0.82, 0.82, 0.85], b=[0.22, 0.26, 0.32], scale=[50, 50], width=0.045)
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)  # Spot's native UV texture
-s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.png', srgb=True)  # Sparky's screen atlas
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)  # Spot's native UV texture
+s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.avif', srgb=True)  # Sparky's screen atlas
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -72,4 +72,4 @@ s.add('mesh:spot', 'gold', scale(1.12), rotate_y(190), translate(-1.5, 0.826, -1
 s.add('mesh:spot', 'glass', scale(1.0), rotate_y(155), translate(1.85, 0.737, 0.5))  # glass cow (right)
 
 if __name__ == "__main__":
-    s.run(out="03-spot-atrium.png")
+    s.run(out="03-spot-atrium.avif")

@@ -24,7 +24,7 @@ s.background_envmap('../assets/kloofendal_48d_partly_cloudy_puresky_4k.hdr', rot
 
 # ---- textures & meshes ----
 s.texture('table', 'grid', a=[0.55, 0.42, 0.28], b=[0.34, 0.25, 0.17], scale=[36, 36], width=0.04)  # wooden grid tabletop
-s.texture('spotSkin', 'image', file='textures/spot_texture.png')
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif')
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -48,4 +48,4 @@ s.add('sphere', 'teal', scale(0.36), translate(1.6, 0.36, 1.6))             # te
 s.add('mesh:spot', 'spot', scale(1.3), rotate_y(210), translate(2.3, 0.96, -2.9))  # cow hidden behind the orb
 
 if __name__ == "__main__":
-    s.run(out="11-glasswork.png")
+    s.run(out="11-glasswork.avif")

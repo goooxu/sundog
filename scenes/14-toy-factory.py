@@ -24,7 +24,7 @@ s.camera(lookfrom=[0.0, 1.15, 7.6], lookat=[0.0, 1.05, 0.0], vfov=35)
 s.background_gradient(horizon=[0.55, 0.56, 0.60], zenith=[0.16, 0.19, 0.26])
 
 # ---- textures & meshes ----
-s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.png', srgb=True)
+s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.avif', srgb=True)
 SPARKY_GROUPS = ['GlassHead', 'ScreenFace', 'ScreenChest', 'ScreenPalm',
                  'EmitYellow', 'MetalGrey', 'PlasticBlue', 'PlasticWhite',
                  'AccentOrange', 'TreadOrange']
@@ -95,4 +95,4 @@ for name, _, _, x in TOYS:
         s.add('mesh:sparky_' + grp, mat, scale(1.0), translate(x, 0.02, 0))
 
 if __name__ == "__main__":
-    s.run(out="14-toy-factory.png")
+    s.run(out="14-toy-factory.avif")

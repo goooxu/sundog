@@ -12,7 +12,7 @@ A sundog scene is an executable Python program living next to this module:
     red = s.lambert("red", color=[0.75, 0.22, 0.18])
     s.add("sphere", red, scale(0.8), translate(0, 0.8, 0))
     if __name__ == "__main__":
-        s.run(out="my-scene.png")
+        s.run(out="my-scene.avif")
 
 Running the file renders it in-process: scenelib feeds the scene through the
 C ABI of the renderer library ($SUNDOG_BUILD/libsundog.so, default
@@ -898,7 +898,7 @@ def _parse_args(args, default_out):
         description="sundog scene — running this file renders it",
         allow_abbrev=False)
     NAN = float("nan")
-    ap.add_argument("--out", default=default_out, metavar="FILE.png")
+    ap.add_argument("--out", default=default_out, metavar="FILE.avif")
     ap.add_argument("--spp", type=int, default=-1, metavar="N")
     ap.add_argument("--size", default=None, metavar="WxH")
     ap.add_argument("--seed", type=int, default=-1, metavar="N")

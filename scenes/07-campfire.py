@@ -22,7 +22,7 @@ s.camera(lookfrom=[3.4, 1.35, 4.6], lookat=[0.0, 0.75, 0.0], vfov=44)
 s.background_gradient(horizon=[0.018, 0.028, 0.055], zenith=[0.003, 0.005, 0.012])
 
 # ---- assets ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -77,4 +77,4 @@ for ry, x, z in (
     s.add('mesh:spot', 'spot_skin', scale(0.85), rotate_y(ry), translate(x, 0.627, z))
 
 if __name__ == "__main__":
-    s.run(out="07-campfire.png")
+    s.run(out="07-campfire.avif")

@@ -38,14 +38,14 @@ trap 'rm -rf "$TMP"' EXIT
 # interpreter itself does no GPU work and adds no sanitizer noise.
 echo "== compute-sanitizer --tool memcheck (smoke 64x64 / 4 spp) =="
 "$SANITIZER" --tool memcheck --error-exitcode 1 \
-  python3 "$SCENE_PY" --out "$TMP/smoke-memcheck.png" \
+  python3 "$SCENE_PY" --out "$TMP/smoke-memcheck.avif" \
           --size 64x64 --spp 4 --quiet \
   || fail "memcheck reported errors"
 
 echo "== compute-sanitizer --tool initcheck (smoke 64x64 / 4 spp) =="
 rc=0
 "$SANITIZER" --tool initcheck --error-exitcode 1 \
-  python3 "$SCENE_PY" --out "$TMP/smoke-initcheck.png" \
+  python3 "$SCENE_PY" --out "$TMP/smoke-initcheck.avif" \
           --size 64x64 --spp 4 --quiet \
   > "$TMP/initcheck.log" 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then

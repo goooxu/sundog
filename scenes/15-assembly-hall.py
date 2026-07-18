@@ -35,10 +35,10 @@ s.physics(gravity=[0, -9.8, 0], timestep=1 / 240, max_time=8.0,
           friction=0.6, restitution=0.25, stop_time=0.5)
 
 # ---- textures & meshes ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
-s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.png', srgb=True)
-s.texture('runes', 'image', file='textures/runes.png', srgb=True)
-s.texture('gear', 'image', file='textures/gear.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
+s.texture('sparkyScreen', 'image', file='textures/sparky_albedo.avif', srgb=True)
+s.texture('runes', 'image', file='textures/runes.avif', srgb=True)
+s.texture('gear', 'image', file='textures/gear.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 SPARKY_GROUPS = ['GlassHead', 'ScreenFace', 'ScreenChest', 'ScreenPalm',
@@ -215,4 +215,4 @@ s.add('rect', 'beltFrame', scale(0.16, 1, 2.45), rotate_z(90),
       translate(-0.65, 0.15, 4.8))
 
 if __name__ == "__main__":
-    s.run(out="15-assembly-hall.png")
+    s.run(out="15-assembly-hall.avif")

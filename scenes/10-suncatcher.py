@@ -23,7 +23,7 @@ s.background_envmap('../assets/kloofendal_48d_partly_cloudy_puresky_4k.hdr', rot
 
 # ---- textures & meshes ----
 s.texture('lawn', 'grid', a=[0.42, 0.52, 0.26], b=[0.3, 0.4, 0.2], scale=[24, 24], width=0.03)
-s.texture('spotSkin', 'image', file='textures/spot_texture.png')
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif')
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -67,4 +67,4 @@ s.add('sphere', 'skyb', scale(0.24), translate(1.9, 0.24, 2.2))
 s.add('sphere', 'amber', scale(0.18), translate(-1.0, 0.18, 3.0))
 
 if __name__ == "__main__":
-    s.run(out="10-suncatcher.png")
+    s.run(out="10-suncatcher.avif")

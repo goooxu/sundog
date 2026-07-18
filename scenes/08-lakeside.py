@@ -20,7 +20,7 @@ s.camera(lookfrom=[0.0, 0.55, -7.5], lookat=[0.3, 0.8, 4.0], vfov=36)
 s.background_gradient(horizon=[0.9, 0.45, 0.18], zenith=[0.06, 0.11, 0.3])  # sunset sky
 
 # ---- assets ----
-s.texture('spotSkin', 'image', file='textures/spot_texture.png', srgb=True)
+s.texture('spotSkin', 'image', file='textures/spot_texture.avif', srgb=True)
 s.mesh('spot', '../assets/spot.obj', normals='smooth')
 
 # ---- materials ----
@@ -49,4 +49,4 @@ s.add('mesh:spot', 'spot_skin', scale(0.85), rotate_y(-65), translate(4.1, 0.687
 s.add('sphere', 'sun', scale(9), translate(10, 7, 230))          # emissive sun disc on the horizon
 
 if __name__ == "__main__":
-    s.run(out="08-lakeside.png")
+    s.run(out="08-lakeside.avif")

@@ -26,7 +26,7 @@ fail() { echo "run-smoke: FAIL: $*" >&2; exit 1; }
 TMP="$(mktemp -d /tmp/sundog-smoke.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
-check_png() { # check_png FILE
+check_avif() { # check_avif FILE
   [ -f "$1" ] || fail "missing output: $1"
   local sz
   sz=$(stat -c %s "$1")
@@ -39,15 +39,15 @@ python3 "$SCENE" --probe | tee "$TMP/probe.txt"
 grep -q '^GPU:' "$TMP/probe.txt" || fail "--probe did not report a GPU"
 
 echo "== 2. render smoke.py 64x64 / 4 spp =="
-python3 "$SCENE" --out "$TMP/smoke.png" --size 64x64 --spp 4 --quiet
-check_png "$TMP/smoke.png"
+python3 "$SCENE" --out "$TMP/smoke.avif" --size 64x64 --spp 4 --quiet
+check_avif "$TMP/smoke.avif"
 
 echo "== 3. denoise variant =="
-python3 "$SCENE" --out "$TMP/smoke-dn.png" --size 64x64 --spp 4 --denoise --quiet
-check_png "$TMP/smoke-dn.png"
+python3 "$SCENE" --out "$TMP/smoke-dn.avif" --size 64x64 --spp 4 --denoise --quiet
+check_avif "$TMP/smoke-dn.avif"
 
 echo "== 4. stats JSON =="
-python3 "$SCENE" --out "$TMP/smoke-st.png" --size 64x64 --spp 4 --quiet \
+python3 "$SCENE" --out "$TMP/smoke-st.avif" --size 64x64 --spp 4 --quiet \
           --stats "$TMP/smoke.stats.json"
 [ -f "$TMP/smoke.stats.json" ] || fail "missing stats json"
 python3 -c '

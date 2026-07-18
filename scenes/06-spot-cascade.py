@@ -8,7 +8,7 @@ runs PhysX GPU rigid-body simulation (eENABLE_GPU_DYNAMICS) to rest and bakes
 the settled poses before building acceleration structures. The floor and
 walls are static colliders; the pile shape exists nowhere in this file.
 
-Run: python3 scenes/06-spot-cascade.py          (renders 06-spot-cascade.png)
+Run: python3 scenes/06-spot-cascade.py          (renders 06-spot-cascade.avif)
 """
 
 import random
@@ -41,7 +41,7 @@ s.camera(lookfrom=[0.0, 8.5, 11.0], lookat=[0.0, 0.6, -0.6], vfov=38,
          aperture=0.0)
 s.background_gradient(horizon=[0.05, 0.06, 0.09], zenith=[0.01, 0.01, 0.03])
 
-s.texture("spotSkin", "image", file="textures/spot_texture.png", srgb=True)
+s.texture("spotSkin", "image", file="textures/spot_texture.avif", srgb=True)
 s.mesh("spot", "../assets/spot.obj", normals="smooth")
 
 s.lambert("spot_skin", texture="spotSkin")
@@ -114,4 +114,4 @@ for iy in range(N_Y):
                                      angular_velocity=ang))
 
 if __name__ == "__main__":
-    s.run(out="06-spot-cascade.png")
+    s.run(out="06-spot-cascade.avif")
