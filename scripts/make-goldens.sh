@@ -24,6 +24,10 @@ fail() { echo "make-goldens: FAIL: $*" >&2; exit 1; }
 mkdir -p "$GOLDEN_DIR"
 
 PROBE_TXT="$(python3 "$ROOT/scenes/smoke.py" --probe)"
+# Build caliber: the PTX target actually baked into the running library
+# (from the build dir's arch stamp) — goldens are only valid for this
+# DEVARCH + GPU/driver + AVIF-encode combo, and the manifest records it.
+DEVARCH_STAMP="$(basename "$(ls "${SUNDOG_BUILD:-/tmp/sundog-build}"/.arch-* 2>/dev/null | head -1)" 2>/dev/null | sed 's/^\.arch-//')"
 echo "$PROBE_TXT"
 
 for s in "${SCENES[@]}"; do
@@ -37,9 +41,9 @@ for s in "${SCENES[@]}"; do
 done
 
 SCENES_CSV="$(IFS=,; echo "${SCENES[*]}")"
-python3 - "$GOLDEN_DIR/manifest.json" "$SCENES_CSV" "$WIDTH" "$HEIGHT" "$SPP" "$SEED" "$PROBE_TXT" <<'PY'
+python3 - "$GOLDEN_DIR/manifest.json" "$SCENES_CSV" "$WIDTH" "$HEIGHT" "$SPP" "$SEED" "$PROBE_TXT" "$DEVARCH_STAMP" <<'PY'
 import json, sys, datetime
-out, scenes, w, h, spp, seed, probe_txt = sys.argv[1:8]
+out, scenes, w, h, spp, seed, probe_txt, devarch = sys.argv[1:9]
 probe = {}
 for line in probe_txt.splitlines():
     if ":" in line:
@@ -51,6 +55,8 @@ manifest = {
                "seed": int(seed), "denoise": False},
     "date": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
     "probe": probe,
+    "build": {"devarch": devarch or "unknown",
+              "output": "12-bit PQ BT.2020 lossless AVIF, encoder threads 4"},
 }
 with open(out, "w") as f:
     json.dump(manifest, f, indent=2)

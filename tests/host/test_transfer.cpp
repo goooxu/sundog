@@ -28,9 +28,20 @@ int main() {
   CHECK_NEAR(w.x, 1.0, 1e-4);
   CHECK_NEAR(w.y, 1.0, 1e-4);
   CHECK_NEAR(w.z, 1.0, 1e-4);
-  // Pure 709 red maps inside 2020 (positive components, dominated by R).
+  // Each primary pins one matrix column against the published BT.2087
+  // coefficients (so a within-row G/B swap cannot slip through).
   float3 r = bt709To2020(f3(1.0f, 0.0f, 0.0f));
-  CHECK(r.x > 0.6f && r.y > 0.0f && r.z > 0.0f && r.x > r.y && r.y > r.z);
+  CHECK_NEAR(r.x, 0.627404, 1e-5);
+  CHECK_NEAR(r.y, 0.069097, 1e-5);
+  CHECK_NEAR(r.z, 0.016391, 1e-5);
+  float3 g = bt709To2020(f3(0.0f, 1.0f, 0.0f));
+  CHECK_NEAR(g.x, 0.329283, 1e-5);
+  CHECK_NEAR(g.y, 0.919540, 1e-5);
+  CHECK_NEAR(g.z, 0.088013, 1e-5);
+  float3 bl = bt709To2020(f3(0.0f, 0.0f, 1.0f));
+  CHECK_NEAR(bl.x, 0.043313, 1e-5);
+  CHECK_NEAR(bl.y, 0.011362, 1e-5);
+  CHECK_NEAR(bl.z, 0.895595, 1e-5);
 
   TEST_DONE("test_transfer");
 }

@@ -1,6 +1,6 @@
 // sundog: C API — probe and render. The render orchestration is the old
 // main.cpp moved verbatim: scene -> upload -> physics -> accel -> pipeline ->
-// chunked launch loop -> optional denoise -> PNG + stats. Differences from
+// chunked launch loop -> optional denoise -> PQ AVIF + stats. Differences from
 // the executable era: overrides come from sundog_render_options instead of
 // the CLI, progress goes to stderr (stdout belongs to the hosting Python
 // program), and the OptiX context is destroyed on the way out (a library

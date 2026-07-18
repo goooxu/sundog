@@ -227,7 +227,7 @@ scripts/render-gallery.sh       # 旗舰 2K + 特性对比 + 1080p 目录 -> out
 ## 目录结构
 
 ```
-src/          host 端 C++（C 场景构建 ABI、渲染编排、accel、pipeline、denoise、PNG、stats）
+src/          host 端 C++（C 场景构建 ABI、渲染编排、accel、pipeline、denoise、AVIF、stats）
 device/       CUDA/OptiX 设备代码（单 module）+ host 共享的类型/装配头
 extern/       第三方单头文件库（见 THIRD_PARTY.md）
 scenes/       Python 场景（自执行）+ scenelib.py + 纹理

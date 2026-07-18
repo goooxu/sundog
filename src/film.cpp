@@ -31,9 +31,11 @@ static std::vector<float4> downloadBuf(CUdeviceptr src, int w, int h) {
   return host;
 }
 
-// Encode a prepared 16-bit RGB buffer (values already in [0, 2^depth-1])
-// as lossless AVIF: YUV444 + identity matrix + full range keeps the RGB
+// Encode a prepared RGB buffer (values already in [0, 2^depth-1]) as
+// lossless AVIF: YUV444 + identity matrix + full range keeps the RGB
 // samples mathematically intact; quality LOSSLESS pins the AV1 coder.
+// libavif reads avifRGBImage at 1 byte/channel for depth <= 8 and
+// 2 bytes/channel above, so the buffer is repacked tight for 8-bit.
 static void encodeAvif(const std::string& path, int w, int h, int depth,
                        const std::vector<uint16_t>& rgb,
                        avifColorPrimaries primaries,
@@ -45,12 +47,18 @@ static void encodeAvif(const std::string& path, int w, int h, int depth,
   image->matrixCoefficients = AVIF_MATRIX_COEFFICIENTS_IDENTITY;
   image->yuvRange = AVIF_RANGE_FULL;
 
+  std::vector<uint8_t> narrow;
+  if (depth <= 8) {
+    narrow.resize(rgb.size());
+    for (size_t i = 0; i < rgb.size(); i++) narrow[i] = (uint8_t)rgb[i];
+  }
   avifRGBImage rgbView;
   avifRGBImageSetDefaults(&rgbView, image);
   rgbView.format = AVIF_RGB_FORMAT_RGB;
   rgbView.depth = (uint32_t)depth;
-  rgbView.pixels = (uint8_t*)rgb.data();
-  rgbView.rowBytes = (uint32_t)(w * 3 * sizeof(uint16_t));
+  rgbView.pixels = depth <= 8 ? narrow.data() : (uint8_t*)rgb.data();
+  rgbView.rowBytes =
+      (uint32_t)(w * 3 * (depth <= 8 ? 1 : sizeof(uint16_t)));
   avifResult r = avifImageRGBToYUV(image, &rgbView);
   if (r != AVIF_RESULT_OK) {
     avifImageDestroy(image);

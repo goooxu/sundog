@@ -97,6 +97,8 @@ IMG2AVIF = Path(os.environ.get("SUNDOG_BUILD", "/tmp/sundog-build")) / "img2avif
 
 
 def save(fig, name):
+    if not IMG2AVIF.exists():
+        sys.exit(f"missing binary: {IMG2AVIF} (build img2avif first)")
     out = FIG_DIR / name
     tmp = Path("/tmp") / (out.stem + ".chart.png")
     fig.savefig(tmp, dpi=DPI, bbox_inches="tight", pad_inches=0.15)
@@ -457,6 +459,8 @@ def main():
                     help="comma list: convergence,fresnel,env,pq,plastic")
     args = ap.parse_args()
     only = set(args.only.split(","))
+    global IMG2AVIF
+    IMG2AVIF = args.build_dir / "img2avif"
 
     setup_style()
     FIG_DIR.mkdir(parents=True, exist_ok=True)

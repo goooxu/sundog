@@ -7,7 +7,7 @@
 #
 # Checks:
 #   1. --probe runs and reports a GPU
-#   2. smoke.py renders at 64x64 / 4 spp and produces a PNG > 1 KB
+#   2. smoke.py renders at 64x64 / 4 spp and produces an AVIF > 1 KB
 #   3. the --denoise variant also renders
 #   4. --stats writes parseable JSON
 # Any failure exits non-zero.

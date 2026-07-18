@@ -85,8 +85,11 @@ def font(size):
     return ImageFont.load_default()  # ASCII-only fallback
 
 
+LABEL_BG = PQ_WHITE  # cmd_strip swaps this for sRGB composites
+
+
 def tag(img, text, size, anchor="tl", cx=None):
-    """White box + black text. anchor: tl=top-left, bc=bottom-center@cx."""
+    """Label box + black text. anchor: tl=top-left, bc=bottom-center@cx."""
     d = ImageDraw.Draw(img)
     f = font(size)
     pad = max(4, size // 4)
@@ -96,7 +99,7 @@ def tag(img, text, size, anchor="tl", cx=None):
         bx, by = 0, 0
     else:
         bx, by = int(cx - w / 2), img.height - h - max(6, size // 3)
-    d.rectangle([bx, by, bx + w, by + h], fill=PQ_WHITE)
+    d.rectangle([bx, by, bx + w, by + h], fill=LABEL_BG)
     d.text((bx + pad - x0, by + pad - y0), text, font=f, fill=(0, 0, 0))
 
 
@@ -104,24 +107,47 @@ def autosize(img):
     return max(16, min(40, img.height // 16))
 
 
-def save(img, out):
+def save(img, out, cicp="pq"):
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     tmp.close()
     img.convert("RGB").save(tmp.name, "PNG")
-    subprocess.check_call([IMG2AVIF, "encode", tmp.name, out, "pq"],
-                          stdout=subprocess.DEVNULL)
+    cmd = [IMG2AVIF, "encode", tmp.name, out]
+    if cicp == "pq":
+        cmd.append("pq")
+    subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
     os.unlink(tmp.name)
-    print(f"wrote {out} ({img.width}x{img.height}, "
+    print(f"wrote {out} ({img.width}x{img.height}, {cicp}, "
           f"{os.path.getsize(out) // 1024} KB)")
 
 
+def pq_to_srgb(im):
+    """Convert PQ code values to sRGB code values (linear light matched
+    at the 203-nit reference white; highlights above it clip). Used when
+    a strip mixes the renderer's PQ beauty with sRGB AOV panels — the
+    whole composite is then saved with sRGB CICP."""
+    m1, m2 = 2610.0 / 16384, 2523.0 / 4096 * 128
+    c1, c2, c3 = 3424.0 / 4096, 2413.0 / 4096 * 32, 2392.0 / 4096 * 32
+    lut = []
+    for v in range(256):
+        e = v / 255.0
+        p = pow(max(e, 0.0), 1.0 / m2)
+        num = max(p - c1, 0.0)
+        lin = pow(num / (c2 - c3 * p), 1.0 / m1) * 10000.0 / 203.0
+        lin = min(lin, 1.0)
+        s = 12.92 * lin if lin <= 0.0031308 else 1.055 * lin ** (1 / 2.4) - 0.055
+        lut.append(round(s * 255))
+    return im.point(lut * 3)
+
+
 def cmd_strip(out, rest):
-    gutter, crop, upscale, lsize = 4, None, 1.0, None
+    gutter, crop, upscale, lsize, cicp = 4, None, 1.0, None, "pq"
     panels = []
     i = 0
     while i < len(rest):
         a = rest[i]
-        if a == "--gutter":
+        if a == "--cicp":
+            cicp = rest[i + 1]; i += 2
+        elif a == "--gutter":
             gutter = int(rest[i + 1]); i += 2
         elif a == "--crop":
             crop = tuple(int(v) for v in rest[i + 1].split(",")); i += 2
@@ -130,12 +156,19 @@ def cmd_strip(out, rest):
         elif a == "--label-size":
             lsize = int(rest[i + 1]); i += 2
         else:
-            path, _, label = a.partition("|")
-            panels.append((path, label)); i += 1
+            parts = a.split("|")
+            panels.append((parts[0], parts[1] if len(parts) > 1 else "",
+                           len(parts) > 2 and parts[2] == "pq2srgb"))
+            i += 1
     assert panels, "strip: no panels given"
+    global LABEL_BG
+    if cicp != "pq":
+        LABEL_BG = (255, 255, 255)
     imgs = []
-    for path, label in panels:
+    for path, label, conv in panels:
         im = load(path)
+        if conv:
+            im = pq_to_srgb(im)
         if crop:
             im = im.crop(crop)
         if upscale != 1.0:
@@ -146,12 +179,13 @@ def cmd_strip(out, rest):
         imgs.append(im)
     w = sum(im.width for im in imgs) + gutter * (len(imgs) - 1)
     h = max(im.height for im in imgs)
-    canvas = Image.new("RGB", (w, h), PQ_WHITE)
+    canvas = Image.new("RGB", (w, h),
+                       PQ_WHITE if cicp == "pq" else (255, 255, 255))
     x = 0
     for im in imgs:
         canvas.paste(im, (x, 0))
         x += im.width + gutter
-    save(canvas, out)
+    save(canvas, out, cicp)
 
 
 def cmd_ladder(out, rest):
@@ -222,6 +256,7 @@ assert n, "no emissive objects found"
 s.run(out=out, argv=["--size", "960x540", "--spp", "64",
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
+  [ -s "$RAW/ch04-nee-off.avif" ] || fail "empty output: ch04-nee-off"
 python3 "$COMPOSE" strip "$FIG/ch04-nee.avif" --label-size 26 \
   "$RAW/ch04-nee-on.avif|NEE 开（默认）· 64 spp" \
   "$RAW/ch04-nee-off.avif|NEE 关（发光体 nee:false）· 64 spp"
@@ -229,10 +264,10 @@ python3 "$COMPOSE" strip "$FIG/ch04-nee.avif" --label-size 26 \
 # ------------------------------------------------------------ ch04-clamp.avif
 # 04-parabolica at low spp: --clamp 0 (fireflies) vs --clamp 5.
 # NOTE: OUTLINE says "clamp 0 vs 默认", but the scene default (30) is not
-# visibly different from clamp 0 at 24 spp: measured 59 dB PSNR under ACES —
-# the shoulder flattens whatever survives above 1.0 (pre-ACES the two were
-# bit-identical: 30/24 > 1 clipped straight to white). clamp 5 remains the
-# smallest deviation that makes the intended firefly suppression visible.
+# visibly distinct from clamp 0 at 24 spp (measured 59 dB apart back in the
+# ACES/8-bit era; the PQ pipeline preserves highlights, so the gap stays
+# subtle). clamp 5 remains the smallest deviation that makes the intended
+# firefly suppression visible.
 render "ch04-clamp-off" "$ROOT/scenes/04-parabolica.py" \
        --size 640x360 --spp 24 --clamp 0
 render "ch04-clamp-on" "$ROOT/scenes/04-parabolica.py" \
@@ -271,8 +306,11 @@ else
           --aov-normal "$RAW/ch09-normal.avif" --no-denoise --quiet
   [ -s "$RAW/ch09-albedo.avif" ] || fail "empty output: ch09-albedo"
 fi
-python3 "$COMPOSE" strip "$FIG/ch09-aov.avif" --label-size 24 \
-  "$RAW/ch09-beauty.avif|beauty · 64 spp" \
+# The AOV panels are sRGB (CICP 1/13) while beauty is PQ — unify the strip
+# in the sRGB domain (beauty converted via pq2srgb, highlights clip) so the
+# composite's CICP matches every panel's actual encoding.
+python3 "$COMPOSE" strip "$FIG/ch09-aov.avif" --label-size 24 --cicp srgb \
+  "$RAW/ch09-beauty.avif|beauty · 64 spp|pq2srgb" \
   "$RAW/ch09-albedo.avif|albedo AOV" \
   "$RAW/ch09-normal.avif|normal AOV"
 
@@ -311,6 +349,7 @@ s.flame(base=[0, 0.05, 0], height=1.6, radius=0.45, intensity=20, sigma=4,
         noise_scale=ns, seed=1, light_intensity=12)
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
+  [ -s "$RAW/ch12-flame-ns$ns.avif" ] || fail "empty output: ch12-flame-ns$ns"
 done
 python3 "$COMPOSE" strip "$FIG/ch12-noise-anatomy.avif" --label-size 22 \
   "$RAW/ch12-flame-ns0.0.avif|noise_scale 0（纯轮廓）" \
@@ -358,6 +397,7 @@ s.add("sphere", "sun", scale(9), translate(-30, 6, -200))
 s.distant_light(direction=[0.3, -1.0, 0.5], radiance=[0.25, 0.18, 0.12])
 s.run(out=out, argv=["--no-denoise", "--quiet"], base_dir=".")
 PY
+  [ -s "$RAW/ch13-water-$v.avif" ] || fail "empty output: ch13-water-$v"
 done
 python3 "$COMPOSE" strip "$FIG/ch13-anatomy.avif" --label-size 20 \
   "$RAW/ch13-water-flat.avif|wave_amp 0（静水镜面）" \
@@ -380,6 +420,7 @@ s.doc["background"]["importance"] = False   # uniform-sphere NEE variant
 s.run(out=out, argv=["--size", "480x270", "--spp", spp,
                      "--no-denoise", "--quiet"], base_dir=scenes)
 PY
+  [ -s "$RAW/ch14-uni-$spp.avif" ] || fail "empty output: ch14-uni-$spp"
   render "ch14-imp-$spp" "$ROOT/scenes/10-suncatcher.py"  --size 480x270 --spp "$spp"
 done
 python3 "$COMPOSE" strip "$FIG/ch14-uniform-vs-importance.avif" --label-size 18 \
@@ -425,6 +466,7 @@ s.add("sphere", "coral", scale(0.6), translate(1.5, -3.4, 1.2))
 s.run(out=out, argv=["--size", "960x540", "--spp", "128",
                      "--no-denoise", "--quiet"], base_dir=".")
 PY
+  [ -s "$RAW/ch15-snell.avif" ] || fail "empty output: ch15-snell"
 python3 "$COMPOSE" strip "$FIG/ch15-snell-window.avif" --label-size 22 \
   "$RAW/ch15-snell.avif|水下仰视：斯涅尔窗口内是天空，窗外全内反射映出水底"
 
@@ -447,4 +489,4 @@ python3 "$COMPOSE" ladder "$FIG/ch17-toy-ladder.avif" \
   "roughness 0.03" "roughness 0.08" "roughness 0.15" \
   "roughness 0.3" "roughness 0.6"
 
-echo "render-report-figures OK ($(ls "$FIG"/*.avif | wc -l) PNGs in $FIG)"
+echo "render-report-figures OK ($(ls "$FIG"/*.avif | wc -l) AVIFs in $FIG, incl. gen-report-charts output)"

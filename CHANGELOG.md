@@ -69,9 +69,13 @@
 manifest）+ compute_75 PTX + libavif 1.1.1/libaom 3.9.1 静态、编码
 线程 4、speed 6、lossless。决定性 sha（smoke 256×256/64spp/seed 7
 双渲）：aba9439823476412f7ade522133c3def104650e187bfee7b0406cfc71cc46b3f。
-`git ls-files '*.png'` 归零；全仓 `.png` 字面量仅存于 CHANGELOG 历史
-正文与展示脚本的 /tmp 中间文件名。ABI 破坏（set_render 9 参）随
-scenelib 同步无外部消费者。
+`git ls-files '*.png'` 归零（v0.18 收口提交兑现：C5 的 git rm
+--cached 误操作曾让 36 张旧画廊 PNG 仍被跟踪，对抗式审查抓出后
+移除）；全仓 `.png` 字面量仅存于 CHANGELOG 历史正文与展示脚本的
+/tmp 中间文件名。ABI 破坏（set_render 9 参）随 scenelib 同步无外
+部消费者。审查另抓出 AOV AVIF 编码字节布局 bug（8bit 数据以
+uint16 缓冲交 libavif，全部 AOV 输出损坏——beauty 主链不受影响），
+收口提交修复并重产 ch09-aov 图。
 
 （主要提交 fd08d3c · 85716cb · 3c4d9f8 · 2bda162）
 

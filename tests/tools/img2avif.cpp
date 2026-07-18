@@ -34,7 +34,8 @@ static int encode(const char* inPath, const char* outPath, bool pq) {
   int w = 0, h = 0, comp = 0;
   unsigned char* px = stbi_load(inPath, &w, &h, &comp, 4);
   if (!px) return fail(std::string("cannot read ") + inPath);
-  bool hasAlpha = comp == 4;
+  // stbi reports the SOURCE channel count: 2 is gray+alpha, 4 is RGBA
+  bool hasAlpha = comp == 2 || comp == 4;
 
   avifImage* image = avifImageCreate(w, h, 8, AVIF_PIXEL_FORMAT_YUV444);
   if (!image) return fail("avifImageCreate failed");
@@ -53,10 +54,18 @@ static int encode(const char* inPath, const char* outPath, bool pq) {
   rgb.pixels = px;
   rgb.rowBytes = (uint32_t)(w * 4);
   avifResult r = avifImageRGBToYUV(image, &rgb);
-  if (r != AVIF_RESULT_OK)
+  if (r != AVIF_RESULT_OK) {
+    avifImageDestroy(image);
+    stbi_image_free(px);
     return fail(std::string("RGBToYUV: ") + avifResultToString(r));
+  }
 
   avifEncoder* enc = avifEncoderCreate();
+  if (!enc) {
+    avifImageDestroy(image);
+    stbi_image_free(px);
+    return fail("avifEncoderCreate failed");
+  }
   enc->quality = AVIF_QUALITY_LOSSLESS;
   enc->qualityAlpha = AVIF_QUALITY_LOSSLESS;
   enc->speed = 6;
@@ -69,9 +78,11 @@ static int encode(const char* inPath, const char* outPath, bool pq) {
   if (r != AVIF_RESULT_OK)
     return fail(std::string("EncoderWrite: ") + avifResultToString(r));
   FILE* f = fopen(outPath, "wb");
-  if (!f || fwrite(out.data, 1, out.size, f) != out.size)
+  if (!f || fwrite(out.data, 1, out.size, f) != out.size ||
+      fclose(f) != 0) {
+    avifRWDataFree(&out);
     return fail(std::string("cannot write ") + outPath);
-  fclose(f);
+  }
   avifRWDataFree(&out);
   printf("img2avif: %s -> %s (%dx%d%s%s)\n", inPath, outPath, w, h,
          hasAlpha ? " +alpha" : "", pq ? " PQ" : "");
@@ -114,8 +125,8 @@ static int decode(const char* inPath, const char* outPath) {
             "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE "
             "RGB_ALPHA\nENDHDR\n",
             w, h);
-  fwrite(px.data(), 1, px.size(), f);
-  fclose(f);
+  if (fwrite(px.data(), 1, px.size(), f) != px.size() || fclose(f) != 0)
+    return fail(std::string("short write to ") + outPath);
   printf("img2avif: %s -> %s (%dx%d %s)\n", inPath, outPath, w, h,
          ppm ? "PPM" : "PAM");
   return 0;

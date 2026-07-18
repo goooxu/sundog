@@ -13,14 +13,6 @@
   Keenan Crane 的卡通奶牛模型，CC0 1.0（公有领域）。OBJ 不入库，由
   `scripts/fetch-assets.sh` 下载，详见 [assets/LICENSES.md](assets/LICENSES.md)。
 
-## BakingLab — ACES 色调映射拟合
-
-- **来源：** Stephen Hill 的 ACES RRT+ODT 拟合（"ACESFitted"），常数取自
-  MJP 的 BakingLab（<https://github.com/TheRealMJP/BakingLab>，`ACES.hlsl`）。
-- **许可：** MIT。
-- **用途：** `src/tonemap.h` 的输出色调映射（输入/输出 3×3 矩阵与有理拟合
-  常数照录；实现为独立 C++ 改写）。
-
 ## 构建时静态链接（不随仓库分发源码）
 
 - [libavif](https://github.com/AOMediaCodec/libavif) 1.1.1（BSD-2-Clause）——

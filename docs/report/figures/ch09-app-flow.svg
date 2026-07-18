@@ -87,6 +87,6 @@
   <text x="432" y="561" text-anchor="middle" font-size="16" fill="#64748B">HDR + albedo/normal 引导 · denoise.cpp</text>
   <line x1="612" y1="546" x2="648" y2="546" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
   <rect x="650" y="514" width="250" height="64" rx="8" stroke="#334155" fill="#ffffff"/>
-  <text x="775" y="539" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">tonemap → PNG</text>
+  <text x="775" y="539" text-anchor="middle" font-size="17" font-weight="bold" fill="#334155">PQ 编码 → AVIF</text>
   <text x="775" y="561" text-anchor="middle" font-size="16" fill="#64748B">film.cpp</text>
 </svg>

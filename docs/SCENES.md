@@ -65,7 +65,7 @@ only for `material`/`material_back` (pass-through, see below).
 ### `s.render(...)`
 
 `width` (1280), `height` (720), `spp` (64), `max_depth` (16), `clamp` (50.0,
-indirect-light firefly clamp, 0 = off), `seed` (7), `gamma` (2.2),
+indirect-light firefly clamp, 0 = off), `seed` (7),
 `exposure` (0.0, EV — HDR-domain scale before PQ encoding), `transparent_shadows` (true).
 
 Most are overridable from the command line at run time; fixed `seed` gives
